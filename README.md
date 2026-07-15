@@ -33,12 +33,19 @@ pnpm format:check
 pnpm lint
 pnpm typecheck
 pnpm test
+pnpm test:e2e
 pnpm build
 pnpm check
 pnpm db:validate
 pnpm db:generate
 pnpm db:migrate:dev
 pnpm db:migrate:deploy
+```
+
+Mock Chat 主链路可在不配置任何真实厂商 API Key 的情况下执行完整回归。命令会校验测试数据库名，部署已有 migration，并运行 SDK、API 与本地 PostgreSQL E2E：
+
+```bash
+TEST_DATABASE_URL=postgresql://aigateway:password@localhost:5432/aigateway_test pnpm test:mock-chat
 ```
 
 重置测试数据库前必须显式提供数据库名包含 `_test` 或 `test_` 的 `DATABASE_URL`：
