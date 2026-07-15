@@ -1,0 +1,20 @@
+const { process } = globalThis
+const databaseUrl = process.env.TEST_DATABASE_URL
+
+if (!databaseUrl || (!databaseUrl.includes('_test') && !databaseUrl.includes('test_'))) {
+  throw new Error('TEST_DATABASE_URL 必须指向名称包含 _test 或 test_ 的 PostgreSQL 测试库')
+}
+
+Object.assign(process.env, {
+  NODE_ENV: 'test',
+  LOG_LEVEL: 'fatal',
+  DATABASE_URL: databaseUrl,
+  REDIS_URL: 'redis://127.0.0.1:6399',
+  WEB_ORIGIN: 'http://127.0.0.1:3000',
+  MOCK_PROVIDER_ENABLED: 'true',
+  QWEN_ENABLED: 'false',
+  GLM_ENABLED: 'false',
+  DEEPSEEK_ENABLED: 'false',
+  WANXIANG_ENABLED: 'false',
+  COGVIEW_ENABLED: 'false',
+})
