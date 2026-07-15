@@ -1,4 +1,15 @@
-export type { AIGatewayClient, ImageWaitOptions, RequestOptions } from './client.js'
+export { createAIGatewayClient } from './client.js'
+export type {
+  AIGatewayClient,
+  CreateAIGatewayClientOptions,
+  ImageWaitOptions,
+  RequestOptions,
+} from './client.js'
+export {
+  AIGatewayError,
+  AIGatewayFeatureUnavailableError,
+  AIGatewayProtocolError,
+} from './errors.js'
 export { CHAT_SSE_DONE, IMAGE_MODEL_ALIASES, TEXT_MODEL_ALIASES } from './types.js'
 export type {
   Capability,
