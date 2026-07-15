@@ -34,6 +34,14 @@ export default function ChatPage() {
         },
         { signal: controller.signal },
       )) {
+        if (chatEvent.type === 'start') {
+          dispatch({
+            type: 'started',
+            requestId: chatEvent.requestId,
+            model: chatEvent.model,
+          })
+          continue
+        }
         if (chatEvent.type === 'delta') {
           dispatch({ type: 'delta', content: chatEvent.content })
           continue
@@ -41,6 +49,10 @@ export default function ChatPage() {
         if (chatEvent.type === 'error') {
           dispatch({ type: 'fail', message: chatEvent.error.message })
           return
+        }
+        if (chatEvent.type === 'usage') {
+          dispatch({ type: 'usage', usage: chatEvent.usage })
+          continue
         }
         if (chatEvent.type === 'done') dispatch({ type: 'complete' })
       }
@@ -182,6 +194,55 @@ export default function ChatPage() {
                     className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-400/20 dark:bg-amber-500/10 dark:text-amber-200"
                   >
                     已停止生成，后续内容不会再追加。
+                  </div>
+                )}
+
+                {state.status === 'success' && state.usage && state.requestId && state.model && (
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 dark:border-white/10 dark:bg-white/[0.035]">
+                    <div className="grid gap-4 sm:grid-cols-3">
+                      <div>
+                        <p className="text-[0.68rem] font-bold tracking-[0.14em] text-slate-400">
+                          MODEL
+                        </p>
+                        <p className="mt-1.5 text-sm font-semibold text-slate-900 dark:text-white">
+                          {state.model}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[0.68rem] font-bold tracking-[0.14em] text-slate-400">
+                          TOKENS
+                        </p>
+                        <p className="mt-1.5 text-sm font-semibold text-slate-900 dark:text-white">
+                          {state.usage.usageUnknown
+                            ? '未知'
+                            : (state.usage.totalTokens ?? '未提供')}
+                        </p>
+                        {!state.usage.usageUnknown && (
+                          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                            输入 {state.usage.inputTokens ?? '—'} · 输出{' '}
+                            {state.usage.outputTokens ?? '—'}
+                          </p>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-[0.68rem] font-bold tracking-[0.14em] text-slate-400">
+                          EST. COST
+                        </p>
+                        <p className="mt-1.5 text-sm font-semibold text-slate-900 dark:text-white">
+                          {state.usage.estimatedCostCny === null
+                            ? '未提供'
+                            : `¥${state.usage.estimatedCostCny}`}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mt-4 border-t border-slate-200 pt-3 dark:border-white/10">
+                      <p className="text-[0.68rem] font-bold tracking-[0.14em] text-slate-400">
+                        REQUEST ID
+                      </p>
+                      <p className="mt-1.5 break-all font-mono text-xs text-slate-600 dark:text-slate-300">
+                        {state.requestId}
+                      </p>
+                    </div>
                   </div>
                 )}
               </>

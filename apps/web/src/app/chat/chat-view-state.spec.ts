@@ -9,14 +9,38 @@ describe('chatViewReducer', () => {
       type: 'submit',
       prompt: '你好',
     })
-    const firstDelta = chatViewReducer(loading, { type: 'delta', content: '你' })
+    const started = chatViewReducer(loading, {
+      type: 'started',
+      requestId: '00000000-0000-4000-8000-000000000001',
+      model: 'qwen',
+    })
+    const firstDelta = chatViewReducer(started, { type: 'delta', content: '你' })
     const secondDelta = chatViewReducer(firstDelta, { type: 'delta', content: '好' })
-    const completed = chatViewReducer(secondDelta, { type: 'complete' })
+    const withUsage = chatViewReducer(secondDelta, {
+      type: 'usage',
+      usage: {
+        inputTokens: 2,
+        outputTokens: 2,
+        totalTokens: 4,
+        estimatedCostCny: '0.000012',
+        usageUnknown: false,
+      },
+    })
+    const completed = chatViewReducer(withUsage, { type: 'complete' })
 
     assert.deepEqual(completed, {
       status: 'success',
       prompt: '你好',
       response: '你好',
+      requestId: '00000000-0000-4000-8000-000000000001',
+      model: 'qwen',
+      usage: {
+        inputTokens: 2,
+        outputTokens: 2,
+        totalTokens: 4,
+        estimatedCostCny: '0.000012',
+        usageUnknown: false,
+      },
     })
   })
 

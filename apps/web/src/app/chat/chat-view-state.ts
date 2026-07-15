@@ -1,15 +1,22 @@
+import type { TextModelAlias, Usage } from '@aigateway/sdk'
+
 export type ChatViewStatus = 'idle' | 'loading' | 'streaming' | 'success' | 'cancelled' | 'error'
 
 export interface ChatViewState {
   status: ChatViewStatus
   prompt: string
   response: string
+  requestId?: string
+  model?: TextModelAlias
+  usage?: Usage
   error?: string
 }
 
 export type ChatViewAction =
   | { type: 'submit'; prompt: string }
+  | { type: 'started'; requestId: string; model: TextModelAlias }
   | { type: 'delta'; content: string }
+  | { type: 'usage'; usage: Usage }
   | { type: 'complete' }
   | { type: 'cancel' }
   | { type: 'clear' }
@@ -25,9 +32,15 @@ export function chatViewReducer(state: ChatViewState, action: ChatViewAction): C
   switch (action.type) {
     case 'submit':
       return { status: 'loading', prompt: action.prompt, response: '' }
+    case 'started':
+      if (state.status !== 'loading') return state
+      return { ...state, requestId: action.requestId, model: action.model }
     case 'delta':
       if (state.status !== 'loading' && state.status !== 'streaming') return state
       return { ...state, status: 'streaming', response: state.response + action.content }
+    case 'usage':
+      if (state.status !== 'loading' && state.status !== 'streaming') return state
+      return { ...state, usage: action.usage }
     case 'complete':
       if (state.status !== 'loading' && state.status !== 'streaming') return state
       return { ...state, status: 'success' }
