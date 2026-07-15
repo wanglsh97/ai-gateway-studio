@@ -35,6 +35,7 @@ export const DEFAULT_MOCK_CHAT_ADAPTER_OPTIONS: MockChatAdapterOptions = Object.
 @Injectable()
 export class MockChatAdapter implements ChatAdapter {
   readonly id = 'mock' as const
+  readonly resolvedModel = 'mock-chat-v1'
 
   constructor(@Inject(MOCK_CHAT_ADAPTER_OPTIONS) private readonly options: MockChatAdapterOptions) {
     if (!Number.isInteger(options.delayMs) || options.delayMs < 0) {

@@ -5,6 +5,7 @@ import type {
   ChatSseDeltaPayload,
   ChatSseErrorPayload,
   ChatSseUsagePayload,
+  TextModelAlias,
 } from '@aigateway/sdk'
 import {
   Body,
@@ -25,10 +26,7 @@ import {
 import { RateLimitService } from '../rate-limit/rate-limit.service'
 import { ChatAdapterError } from './adapters/chat-adapter'
 import type { ChatAdapter, ChatAdapterUsage } from './adapters/chat-adapter'
-import {
-  ChatAdapterNotRegisteredError,
-  ChatAdapterRegistry,
-} from './adapters/chat-adapter.registry'
+import { ChatAdapterRegistry } from './adapters/chat-adapter.registry'
 import { writeChatSseDone, writeChatSsePayload } from './chat-sse.writer'
 import { ChatCompletionRequestDto } from './dto/chat-completion-request.dto'
 
@@ -61,7 +59,7 @@ export class ChatController {
   ): Promise<void> {
     const requestId = request.id ?? randomUUID()
     await this.rateLimit.consumeChat(request.ip)
-    const adapter = this.resolveAdapter()
+    const adapter = this.resolveAdapter(input.model)
 
     const started = await this.lifecycle.start({
       requestId,
@@ -71,7 +69,7 @@ export class ChatController {
       },
       modelAlias: input.model,
       provider: adapter.id,
-      resolvedModel: 'mock-chat-v1',
+      resolvedModel: adapter.resolvedModel,
       stream: true,
       ...(request.ip === undefined ? {} : { clientIp: request.ip }),
     })
@@ -146,15 +144,10 @@ export class ChatController {
     }
   }
 
-  private resolveAdapter(): ChatAdapter {
-    try {
-      return this.adapters.get('mock')
-    } catch (error) {
-      if (error instanceof ChatAdapterNotRegisteredError) {
-        throw new ServiceUnavailableException('当前没有可用的 Chat 模型')
-      }
-      throw error
-    }
+  private resolveAdapter(modelAlias: TextModelAlias): ChatAdapter {
+    if (this.adapters.has(modelAlias)) return this.adapters.get(modelAlias)
+    if (this.adapters.has('mock')) return this.adapters.get('mock')
+    throw new ServiceUnavailableException('当前没有可用的 Chat 模型')
   }
 
   private openStream(response: Response, requestId: string): void {
@@ -185,7 +178,7 @@ export class ChatController {
     for await (const event of adapter.stream({
       requestId,
       modelAlias: input.model,
-      resolvedModel: 'mock-chat-v1',
+      resolvedModel: adapter.resolvedModel,
       messages: input.messages,
       signal,
       ...(input.temperature === undefined ? {} : { temperature: input.temperature }),

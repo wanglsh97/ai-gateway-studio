@@ -9,6 +9,7 @@ import {
 function adapter(id: ChatAdapter['id']): ChatAdapter {
   return {
     id,
+    resolvedModel: `${id}-model`,
     async *stream() {
       yield { type: 'finish', finishReason: 'stop' }
     },

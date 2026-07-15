@@ -54,11 +54,11 @@ function adapterWith(events: readonly ChatAdapterEvent[], error?: Error) {
       if (error) throw error
     })(),
   )
-  const adapter: ChatAdapter = { id: 'mock', stream }
+  const adapter: ChatAdapter = { id: 'mock', resolvedModel: 'mock-chat-v1', stream }
   return { adapter, stream }
 }
 
-function controllerFor(adapter: ChatAdapter) {
+function controllerFor(adapter: ChatAdapter, additionalAdapters: readonly ChatAdapter[] = []) {
   const consumeChat = jest.fn().mockResolvedValue(undefined)
   const start = jest.fn().mockResolvedValue({
     id: 'log-1',
@@ -69,7 +69,11 @@ function controllerFor(adapter: ChatAdapter) {
   const finish = jest.fn().mockResolvedValue(undefined)
   const lifecycle = { start, finish } as unknown as RequestLifecycleService
   const rateLimit = { consumeChat } as unknown as RateLimitService
-  const controller = new ChatController(new ChatAdapterRegistry([adapter]), lifecycle, rateLimit)
+  const controller = new ChatController(
+    new ChatAdapterRegistry([adapter, ...additionalAdapters]),
+    lifecycle,
+    rateLimit,
+  )
   return { consumeChat, controller, finish, start }
 }
 
@@ -160,6 +164,36 @@ describe('ChatController', () => {
     expect(rawResponse.flushHeaders).not.toHaveBeenCalled()
   })
 
+  it('prefers the requested real adapter and persists its resolved model', async () => {
+    const { adapter: mock, stream: mockStream } = adapterWith([])
+    const qwenStream = jest.fn(() =>
+      (async function* () {
+        yield {
+          type: 'usage' as const,
+          usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2, usageUnknown: false },
+        }
+        yield { type: 'finish' as const, finishReason: 'stop' as const }
+      })(),
+    )
+    const qwen: ChatAdapter = {
+      id: 'qwen',
+      resolvedModel: 'qwen-plus-real',
+      stream: qwenStream,
+    }
+    const { controller, start } = controllerFor(mock, [qwen])
+    const { request, response } = httpDoubles()
+
+    await controller.create(input, request, response)
+
+    expect(qwenStream).toHaveBeenCalledWith(
+      expect.objectContaining({ modelAlias: 'qwen', resolvedModel: 'qwen-plus-real' }),
+    )
+    expect(mockStream).not.toHaveBeenCalled()
+    expect(start).toHaveBeenCalledWith(
+      expect.objectContaining({ provider: 'qwen', resolvedModel: 'qwen-plus-real' }),
+    )
+  })
+
   it('emits a normalized SSE error without DONE after the stream is open', async () => {
     const { adapter } = adapterWith(
       [{ type: 'delta', content: '部分内容' }],
@@ -235,6 +269,7 @@ describe('ChatController', () => {
     })
     const adapter: ChatAdapter = {
       id: 'mock',
+      resolvedModel: 'mock-chat-v1',
       async *stream(adapterRequest) {
         markStreamStarted()
         await new Promise<void>((resolve, reject) => {

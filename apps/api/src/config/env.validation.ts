@@ -34,6 +34,7 @@ const environmentSchema = z
     WANXIANG_ENABLED: booleanFromEnv.default(false),
     COGVIEW_ENABLED: booleanFromEnv.default(false),
     QWEN_API_KEY: optionalSecret,
+    QWEN_BASE_URL: z.string().url().default('https://dashscope.aliyuncs.com/compatible-mode/v1'),
     GLM_API_KEY: optionalSecret,
     DEEPSEEK_API_KEY: optionalSecret,
     WANXIANG_API_KEY: optionalSecret,

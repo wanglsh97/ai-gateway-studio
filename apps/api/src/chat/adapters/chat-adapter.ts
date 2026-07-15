@@ -39,6 +39,7 @@ export type ChatAdapterEvent =
 
 export interface ChatAdapter {
   readonly id: ChatAdapterId
+  readonly resolvedModel: string
   stream(request: ChatAdapterRequest): AsyncIterable<ChatAdapterEvent>
 }
 

@@ -10,7 +10,9 @@ import {
   MOCK_CHAT_ADAPTER_OPTIONS,
   MockChatAdapter,
 } from './adapters/mock-chat-adapter'
+import { QwenChatAdapter } from './adapters/qwen-chat-adapter'
 import { ChatController } from './chat.controller'
+import { OpenAICompatibleChatTransport } from './transports/openai-compatible-chat.transport'
 
 @Module({
   imports: [ConfigModule, RequestLifecycleModule, RateLimitModule],
@@ -20,11 +22,28 @@ import { ChatController } from './chat.controller'
       useValue: DEFAULT_MOCK_CHAT_ADAPTER_OPTIONS,
     },
     MockChatAdapter,
+    OpenAICompatibleChatTransport,
     {
       provide: CHAT_ADAPTERS,
-      inject: [ConfigService, MockChatAdapter],
-      useFactory: (config: ConfigService, mock: MockChatAdapter): readonly ChatAdapter[] =>
-        config.getOrThrow<boolean>('MOCK_PROVIDER_ENABLED') ? Object.freeze([mock]) : [],
+      inject: [ConfigService, MockChatAdapter, OpenAICompatibleChatTransport],
+      useFactory: (
+        config: ConfigService,
+        mock: MockChatAdapter,
+        transport: OpenAICompatibleChatTransport,
+      ): readonly ChatAdapter[] => {
+        const adapters: ChatAdapter[] = []
+        if (config.get<boolean>('MOCK_PROVIDER_ENABLED')) adapters.push(mock)
+        if (config.get<boolean>('QWEN_ENABLED')) {
+          adapters.push(
+            new QwenChatAdapter(transport, {
+              apiKey: config.getOrThrow<string>('QWEN_API_KEY'),
+              baseUrl: config.getOrThrow<string>('QWEN_BASE_URL'),
+              modelId: config.getOrThrow<string>('QWEN_MODEL_ID'),
+            }),
+          )
+        }
+        return Object.freeze(adapters)
+      },
     },
     ChatAdapterRegistry,
   ],
