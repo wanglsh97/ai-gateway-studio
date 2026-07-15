@@ -1,18 +1,14 @@
-import type { ChatMessage } from '@aigateway/sdk'
-
 import type { ChatAdapterEvent, ChatAdapterRequest } from './chat-adapter'
-import { ChatAdapterError } from './chat-adapter'
 import { MockChatAdapter } from './mock-chat-adapter'
+import { describeChatAdapterContract } from './testing/chat-adapter.contract'
 
-const messages: ChatMessage[] = [{ role: 'user', content: 'abcd' }]
-
-function request(controller = new AbortController()): ChatAdapterRequest {
+function request(): ChatAdapterRequest {
   return {
     requestId: '00000000-0000-4000-8000-000000000001',
     modelAlias: 'qwen',
     resolvedModel: 'mock-chat-v1',
-    messages,
-    signal: controller.signal,
+    messages: [{ role: 'user', content: 'abcd' }],
+    signal: new AbortController().signal,
   }
 }
 
@@ -21,6 +17,48 @@ async function collect(adapter: MockChatAdapter, input = request()): Promise<Cha
   for await (const event of adapter.stream(input)) events.push(event)
   return events
 }
+
+describeChatAdapterContract({
+  name: 'Mock',
+  adapterId: 'mock',
+  requestOverrides: { resolvedModel: 'mock-chat-v1' },
+  createSuccessCase: () => ({
+    adapter: new MockChatAdapter({
+      chunks: ['第一段', '第二段'],
+      delayMs: 0,
+      usage: { inputTokens: 11, outputTokens: 7, totalTokens: 18, usageUnknown: false },
+    }),
+    expectedDeltas: ['第一段', '第二段'],
+    expectedUsage: { inputTokens: 11, outputTokens: 7, totalTokens: 18, usageUnknown: false },
+    expectedFinishReason: 'stop',
+    expectedProviderRequestId: 'mock-00000000-0000-4000-8000-000000000077',
+    assertRequest: (input) => {
+      expect(input).toMatchObject({
+        modelAlias: 'qwen',
+        resolvedModel: 'mock-chat-v1',
+        temperature: 0.7,
+        topP: 0.8,
+        maxTokens: 321,
+      })
+    },
+  }),
+  createErrorCase: () => ({
+    adapter: new MockChatAdapter({
+      chunks: ['never emitted'],
+      delayMs: 0,
+      failure: { phase: 'before-first-delta', code: 'MOCK_CONTRACT_FAILURE' },
+    }),
+    expectedError: {
+      code: 'MOCK_CONTRACT_FAILURE',
+      retryable: true,
+      statusCode: 503,
+      providerRequestId: 'mock-00000000-0000-4000-8000-000000000077',
+    },
+  }),
+  createCancellationCase: () => ({
+    adapter: new MockChatAdapter({ chunks: ['never emitted'], delayMs: 1_000 }),
+  }),
+})
 
 describe('MockChatAdapter', () => {
   it('emits deterministic delayed deltas, usage and completion', async () => {
@@ -49,21 +87,6 @@ describe('MockChatAdapter', () => {
     ])
   })
 
-  it('supports a configured failure before the first delta', async () => {
-    const adapter = new MockChatAdapter({
-      chunks: ['never emitted'],
-      delayMs: 0,
-      failure: { phase: 'before-first-delta', code: 'MOCK_BEFORE_DELTA' },
-    })
-
-    await expect(collect(adapter)).rejects.toMatchObject<Partial<ChatAdapterError>>({
-      name: 'ChatAdapterError',
-      code: 'MOCK_BEFORE_DELTA',
-      retryable: true,
-      statusCode: 503,
-    })
-  })
-
   it('supports a configured failure after streaming has started', async () => {
     const adapter = new MockChatAdapter({
       chunks: ['first', 'never emitted'],
@@ -81,16 +104,6 @@ describe('MockChatAdapter', () => {
       code: 'MOCK_CHAT_FAILURE',
       retryable: false,
     })
-  })
-
-  it('cancels an in-flight delay without emitting an event', async () => {
-    const controller = new AbortController()
-    const adapter = new MockChatAdapter({ chunks: ['never emitted'], delayMs: 1_000 })
-    const nextEvent = adapter.stream(request(controller))[Symbol.asyncIterator]().next()
-
-    controller.abort()
-
-    await expect(nextEvent).rejects.toMatchObject({ name: 'AbortError' })
   })
 
   it('rejects invalid deterministic configuration', () => {
