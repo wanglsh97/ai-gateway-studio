@@ -4,6 +4,7 @@ export const TEXT_MODEL_ALIASES = [
   'qwen',
   'glm',
   'deepseek',
+  'kimi',
 ] as const satisfies readonly TextModelAlias[]
 
 export const CHAT_ADAPTER_IDS = ['mock', ...TEXT_MODEL_ALIASES] as const
