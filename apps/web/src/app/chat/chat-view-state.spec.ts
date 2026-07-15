@@ -33,6 +33,20 @@ describe('chatViewReducer', () => {
     assert.equal(failed.error, '服务暂不可用')
   })
 
+  it('stops accepting deltas after cancellation and can clear the conversation', () => {
+    const loading = chatViewReducer(initialChatViewState, {
+      type: 'submit',
+      prompt: '停止测试',
+    })
+    const streaming = chatViewReducer(loading, { type: 'delta', content: '已收到' })
+    const cancelled = chatViewReducer(streaming, { type: 'cancel' })
+    const lateDelta = chatViewReducer(cancelled, { type: 'delta', content: '不应追加' })
+
+    assert.equal(lateDelta.status, 'cancelled')
+    assert.equal(lateDelta.response, '已收到')
+    assert.deepEqual(chatViewReducer(lateDelta, { type: 'clear' }), initialChatViewState)
+  })
+
   it('uses a safe fallback for unknown thrown values', () => {
     assert.equal(readableChatError(null), '暂时无法完成请求，请稍后重试。')
     assert.equal(readableChatError(new Error('网络连接失败')), '网络连接失败')

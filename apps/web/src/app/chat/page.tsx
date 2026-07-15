@@ -2,7 +2,7 @@
 
 import { createAIGatewayClient } from '@aigateway/sdk'
 import type { FormEvent, KeyboardEvent } from 'react'
-import { useReducer, useState } from 'react'
+import { useReducer, useRef, useState } from 'react'
 
 import { chatViewReducer, initialChatViewState, readableChatError } from './chat-view-state'
 
@@ -13,6 +13,7 @@ const examples = ['解释什么是 API 网关', '为周末杭州之旅列一个�
 export default function ChatPage() {
   const [input, setInput] = useState('')
   const [state, dispatch] = useReducer(chatViewReducer, initialChatViewState)
+  const activeRequest = useRef<AbortController | null>(null)
   const isGenerating = state.status === 'loading' || state.status === 'streaming'
 
   async function submit(event?: FormEvent<HTMLFormElement>) {
@@ -20,14 +21,19 @@ export default function ChatPage() {
     const prompt = input.trim()
     if (!prompt || isGenerating) return
 
+    const controller = new AbortController()
+    activeRequest.current = controller
     dispatch({ type: 'submit', prompt })
 
     try {
-      for await (const chatEvent of client.chat.stream({
-        model: 'qwen',
-        messages: [{ role: 'user', content: prompt }],
-        stream: true,
-      })) {
+      for await (const chatEvent of client.chat.stream(
+        {
+          model: 'qwen',
+          messages: [{ role: 'user', content: prompt }],
+          stream: true,
+        },
+        { signal: controller.signal },
+      )) {
         if (chatEvent.type === 'delta') {
           dispatch({ type: 'delta', content: chatEvent.content })
           continue
@@ -39,8 +45,23 @@ export default function ChatPage() {
         if (chatEvent.type === 'done') dispatch({ type: 'complete' })
       }
     } catch (error) {
+      if (controller.signal.aborted) return
       dispatch({ type: 'fail', message: readableChatError(error) })
+    } finally {
+      if (activeRequest.current === controller) activeRequest.current = null
     }
+  }
+
+  function stopGeneration() {
+    activeRequest.current?.abort()
+    dispatch({ type: 'cancel' })
+  }
+
+  function clearConversation() {
+    activeRequest.current?.abort()
+    activeRequest.current = null
+    setInput('')
+    dispatch({ type: 'clear' })
   }
 
   function handleInputKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
@@ -65,9 +86,20 @@ export default function ChatPage() {
               发出一条消息，实时查看统一网关返回的增量内容。
             </p>
           </div>
-          <div className="inline-flex w-fit items-center gap-2 rounded-full border border-slate-200 bg-white/75 px-3 py-1.5 text-xs font-medium text-slate-600 shadow-sm dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-            qwen · Mock 通道
+          <div className="flex items-center gap-2">
+            {state.status !== 'idle' && (
+              <button
+                type="button"
+                onClick={clearConversation}
+                className="min-h-8 rounded-full border border-slate-200 bg-white/75 px-3 text-xs font-medium text-slate-600 shadow-sm transition hover:text-slate-950 focus-visible:outline-2 focus-visible:outline-cyan-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-300 dark:hover:text-white"
+              >
+                清空对话
+              </button>
+            )}
+            <div className="inline-flex w-fit items-center gap-2 rounded-full border border-slate-200 bg-white/75 px-3 py-1.5 text-xs font-medium text-slate-600 shadow-sm dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              qwen · Mock 通道
+            </div>
           </div>
         </div>
 
@@ -143,6 +175,15 @@ export default function ChatPage() {
                     {state.error}
                   </div>
                 )}
+
+                {state.status === 'cancelled' && (
+                  <div
+                    role="status"
+                    className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-400/20 dark:bg-amber-500/10 dark:text-amber-200"
+                  >
+                    已停止生成，后续内容不会再追加。
+                  </div>
+                )}
               </>
             )}
           </div>
@@ -166,13 +207,24 @@ export default function ChatPage() {
                 placeholder="输入消息，Enter 发送，Shift + Enter 换行"
                 className="max-h-40 min-h-11 flex-1 resize-y bg-transparent px-3 py-2.5 text-sm leading-6 text-slate-900 outline-none placeholder:text-slate-400 disabled:cursor-not-allowed disabled:opacity-60 dark:text-white dark:placeholder:text-slate-500"
               />
-              <button
-                type="submit"
-                disabled={!input.trim() || isGenerating}
-                className="inline-flex h-11 shrink-0 items-center justify-center rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-500 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-100"
-              >
-                {isGenerating ? '生成中' : '发送'}
-              </button>
+              {isGenerating ? (
+                <button
+                  type="button"
+                  onClick={stopGeneration}
+                  className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-500 dark:border-white/15 dark:bg-white/10 dark:text-white dark:hover:bg-white/15"
+                >
+                  <span className="h-2.5 w-2.5 rounded-[0.2rem] bg-current" aria-hidden="true" />
+                  停止
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  disabled={!input.trim()}
+                  className="inline-flex h-11 shrink-0 items-center justify-center rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-500 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-100"
+                >
+                  发送
+                </button>
+              )}
             </div>
             <p className="mt-2 px-1 text-xs text-slate-400">请勿提交密码、API Key 等敏感信息。</p>
           </form>

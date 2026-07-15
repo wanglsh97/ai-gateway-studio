@@ -1,4 +1,4 @@
-export type ChatViewStatus = 'idle' | 'loading' | 'streaming' | 'success' | 'error'
+export type ChatViewStatus = 'idle' | 'loading' | 'streaming' | 'success' | 'cancelled' | 'error'
 
 export interface ChatViewState {
   status: ChatViewStatus
@@ -11,6 +11,8 @@ export type ChatViewAction =
   | { type: 'submit'; prompt: string }
   | { type: 'delta'; content: string }
   | { type: 'complete' }
+  | { type: 'cancel' }
+  | { type: 'clear' }
   | { type: 'fail'; message: string }
 
 export const initialChatViewState: ChatViewState = {
@@ -29,6 +31,11 @@ export function chatViewReducer(state: ChatViewState, action: ChatViewAction): C
     case 'complete':
       if (state.status !== 'loading' && state.status !== 'streaming') return state
       return { ...state, status: 'success' }
+    case 'cancel':
+      if (state.status !== 'loading' && state.status !== 'streaming') return state
+      return { ...state, status: 'cancelled' }
+    case 'clear':
+      return initialChatViewState
     case 'fail':
       if (state.status !== 'loading' && state.status !== 'streaming') return state
       return { ...state, status: 'error', error: action.message }
