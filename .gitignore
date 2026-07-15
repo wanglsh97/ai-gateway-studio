@@ -19,6 +19,7 @@ apps/api/src/generated/prisma/
 
 postgres-data/
 redis-data/
+backups/
 
 # Local requirements and OpenSpec planning artifacts
 openspec/
