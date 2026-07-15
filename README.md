@@ -26,6 +26,12 @@ pnpm dev
 - Liveness：http://localhost:3001/health/live
 - Readiness：http://localhost:3001/health/ready
 
+## 阿里云 ECS 生产部署
+
+项目提供 Web/API 多阶段镜像、单机生产 Compose、Nginx SSE 代理、日志轮转、PostgreSQL 备份恢复和人工发布脚本。部署前请完整阅读 [ECS 单机部署与回滚手册](docs/deployment/ecs.md)。
+
+首次 ECS 上线必须使用 Mock-only 配置完成公网 IP、域名、health、SSE 和持久化验收，再逐个注入真实模型 Key。生产环境变量只保存在服务器的 `.env.production`，不要复制本机 `.env` 或提交真实密钥。
+
 ## 常用命令
 
 ```bash
