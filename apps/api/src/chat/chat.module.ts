@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common'
 import { ConfigModule, ConfigService } from '@nestjs/config'
 
+import { RequestLifecycleModule } from '../request-lifecycle/request-lifecycle.module'
 import type { ChatAdapter } from './adapters/chat-adapter'
 import { CHAT_ADAPTERS, ChatAdapterRegistry } from './adapters/chat-adapter.registry'
 import {
@@ -10,7 +11,7 @@ import {
 } from './adapters/mock-chat-adapter'
 
 @Module({
-  imports: [ConfigModule],
+  imports: [ConfigModule, RequestLifecycleModule],
   providers: [
     {
       provide: MOCK_CHAT_ADAPTER_OPTIONS,

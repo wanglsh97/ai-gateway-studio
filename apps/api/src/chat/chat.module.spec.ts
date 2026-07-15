@@ -10,7 +10,12 @@ async function createRegistry(mockEnabled: boolean) {
     imports: [
       ConfigModule.forRoot({
         ignoreEnvFile: true,
-        load: [() => ({ MOCK_PROVIDER_ENABLED: mockEnabled })],
+        load: [
+          () => ({
+            MOCK_PROVIDER_ENABLED: mockEnabled,
+            DATABASE_URL: 'postgresql://aigateway:password@localhost:5432/aigateway_test',
+          }),
+        ],
       }),
       ChatModule,
     ],
