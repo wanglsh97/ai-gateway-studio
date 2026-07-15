@@ -9,6 +9,7 @@ import {
   MOCK_CHAT_ADAPTER_OPTIONS,
   MockChatAdapter,
 } from './adapters/mock-chat-adapter'
+import { ChatController } from './chat.controller'
 
 @Module({
   imports: [ConfigModule, RequestLifecycleModule],
@@ -26,6 +27,7 @@ import {
     },
     ChatAdapterRegistry,
   ],
+  controllers: [ChatController],
   exports: [ChatAdapterRegistry],
 })
 export class ChatModule {}

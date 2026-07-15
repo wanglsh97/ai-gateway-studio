@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
 export function createPinoHttpOptions() {
   return {
     level: process.env.LOG_LEVEL ?? 'info',
@@ -19,7 +21,7 @@ export function createPinoHttpOptions() {
     genReqId(request: IncomingMessage, response: ServerResponse) {
       const incomingId = request.headers['x-request-id']
       const requestId =
-        typeof incomingId === 'string' && incomingId.length > 0 ? incomingId : randomUUID()
+        typeof incomingId === 'string' && UUID_PATTERN.test(incomingId) ? incomingId : randomUUID()
       response.setHeader('x-request-id', requestId)
       return requestId
     },

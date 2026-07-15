@@ -2,6 +2,7 @@
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
+  setupFiles: ['reflect-metadata'],
   roots: ['<rootDir>/src'],
   testMatch: ['**/*.spec.ts'],
   collectCoverageFrom: ['src/**/*.ts', '!src/main.ts', '!src/generated/**'],
