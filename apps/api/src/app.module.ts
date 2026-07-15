@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config'
 import { LoggerModule } from 'nestjs-pino'
 
 import { AppController } from './app.controller'
+import { ChatModule } from './chat/chat.module'
 import { validateEnvironment } from './config/env.validation'
 import { createPinoHttpOptions } from './config/logger.config'
 import { DatabaseModule } from './database/database.module'
@@ -23,6 +24,7 @@ import { RedisModule } from './redis/redis.module'
     DatabaseModule,
     RedisModule,
     HealthModule,
+    ChatModule,
   ],
   controllers: [AppController],
 })

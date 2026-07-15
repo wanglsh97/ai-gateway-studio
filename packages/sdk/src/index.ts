@@ -1,9 +1,15 @@
 export type { AIGatewayClient, ImageWaitOptions, RequestOptions } from './client.js'
+export { CHAT_SSE_DONE, IMAGE_MODEL_ALIASES, TEXT_MODEL_ALIASES } from './types.js'
 export type {
   Capability,
   ChatEvent,
+  ChatFinishReason,
   ChatMessage,
   ChatRequest,
+  ChatSseDeltaPayload,
+  ChatSseErrorPayload,
+  ChatSsePayload,
+  ChatSseUsagePayload,
   GatewayError,
   ImageModelAlias,
   ImageRequest,

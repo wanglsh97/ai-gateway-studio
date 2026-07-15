@@ -1,5 +1,8 @@
-export type TextModelAlias = 'qwen' | 'glm' | 'deepseek'
-export type ImageModelAlias = 'wanxiang' | 'cogview'
+export const TEXT_MODEL_ALIASES = ['qwen', 'glm', 'deepseek'] as const
+export const IMAGE_MODEL_ALIASES = ['wanxiang', 'cogview'] as const
+
+export type TextModelAlias = (typeof TEXT_MODEL_ALIASES)[number]
+export type ImageModelAlias = (typeof IMAGE_MODEL_ALIASES)[number]
 export type ModelAlias = TextModelAlias | ImageModelAlias
 
 export type Capability = 'chat' | 'image' | 'prompt'
@@ -32,6 +35,52 @@ export interface ChatRequest {
   temperature?: number
   maxTokens?: number
 }
+
+export type ChatFinishReason = 'stop' | 'length' | 'content_filter' | 'tool_calls' | 'unknown'
+
+export interface ChatSseDeltaPayload {
+  id: string
+  object: 'chat.completion.chunk'
+  created: number
+  model: TextModelAlias
+  request_id: string
+  choices: Array<{
+    index: number
+    delta: {
+      role?: 'assistant'
+      content?: string
+    }
+    finish_reason: ChatFinishReason | null
+  }>
+}
+
+export interface ChatSseUsagePayload {
+  id: string
+  object: 'chat.completion.usage'
+  created: number
+  model: TextModelAlias
+  request_id: string
+  choices: []
+  usage: {
+    prompt_tokens: number | null
+    completion_tokens: number | null
+    total_tokens: number | null
+    aigateway: {
+      estimated_cost_cny: string | null
+      usage_unknown: boolean
+    }
+  }
+}
+
+export interface ChatSseErrorPayload {
+  object: 'chat.completion.error'
+  request_id: string
+  error: GatewayError
+}
+
+export type ChatSsePayload = ChatSseDeltaPayload | ChatSseUsagePayload | ChatSseErrorPayload
+
+export const CHAT_SSE_DONE = '[DONE]' as const
 
 export type ChatEvent =
   | { type: 'start'; requestId: string; model: TextModelAlias }
