@@ -13,6 +13,7 @@ describe('validateEnvironment', () => {
     expect(environment.QWEN_ENABLED).toBe(false)
     expect(environment.QWEN_BASE_URL).toBe('https://dashscope.aliyuncs.com/compatible-mode/v1')
     expect(environment.GLM_BASE_URL).toBe('https://open.bigmodel.cn/api/paas/v4')
+    expect(environment.DEEPSEEK_BASE_URL).toBe('https://api.deepseek.com')
     expect(environment.API_PORT).toBe(3001)
     expect(environment.TRUSTED_PROXY_HOPS).toBe(1)
     expect(environment.CHAT_RATE_LIMIT_PER_MINUTE).toBe(10)

@@ -38,6 +38,7 @@ const environmentSchema = z
     GLM_API_KEY: optionalSecret,
     GLM_BASE_URL: z.string().url().default('https://open.bigmodel.cn/api/paas/v4'),
     DEEPSEEK_API_KEY: optionalSecret,
+    DEEPSEEK_BASE_URL: z.string().url().default('https://api.deepseek.com'),
     WANXIANG_API_KEY: optionalSecret,
     COGVIEW_API_KEY: optionalSecret,
     QWEN_MODEL_ID: optionalModelId,

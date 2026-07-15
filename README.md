@@ -67,6 +67,14 @@ GLM_MODEL_ID=glm-4.7-flash \
 pnpm test:smoke:glm
 ```
 
+DeepSeek 当前使用 V4 模型 ID，真实冒烟命令如下：
+
+```bash
+DEEPSEEK_API_KEY=sk-*** \
+DEEPSEEK_MODEL_ID=deepseek-v4-flash \
+pnpm test:smoke:deepseek
+```
+
 浏览器手工验收时运行 `pnpm dev`，访问同源 `/chat` 发起请求；页面展示的 request ID 应能在 `RequestLog` 中查到唯一的 `SUCCEEDED` 记录及其一对一 `BillingRecord`。API 的注入点使用显式 token，使 `tsx watch` 开发态与 TypeScript 生产构建保持一致。
 
 重置测试数据库前必须显式提供数据库名包含 `_test` 或 `test_` 的 `DATABASE_URL`：

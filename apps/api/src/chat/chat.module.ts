@@ -5,6 +5,7 @@ import { RequestLifecycleModule } from '../request-lifecycle/request-lifecycle.m
 import { RateLimitModule } from '../rate-limit/rate-limit.module'
 import type { ChatAdapter } from './adapters/chat-adapter'
 import { CHAT_ADAPTERS, ChatAdapterRegistry } from './adapters/chat-adapter.registry'
+import { DeepSeekChatAdapter } from './adapters/deepseek-chat-adapter'
 import { GlmChatAdapter } from './adapters/glm-chat-adapter'
 import {
   DEFAULT_MOCK_CHAT_ADAPTER_OPTIONS,
@@ -49,6 +50,15 @@ import { OpenAICompatibleChatTransport } from './transports/openai-compatible-ch
               apiKey: config.getOrThrow<string>('GLM_API_KEY'),
               baseUrl: config.getOrThrow<string>('GLM_BASE_URL'),
               modelId: config.getOrThrow<string>('GLM_MODEL_ID'),
+            }),
+          )
+        }
+        if (config.get<boolean>('DEEPSEEK_ENABLED')) {
+          adapters.push(
+            new DeepSeekChatAdapter(transport, {
+              apiKey: config.getOrThrow<string>('DEEPSEEK_API_KEY'),
+              baseUrl: config.getOrThrow<string>('DEEPSEEK_BASE_URL'),
+              modelId: config.getOrThrow<string>('DEEPSEEK_MODEL_ID'),
             }),
           )
         }
