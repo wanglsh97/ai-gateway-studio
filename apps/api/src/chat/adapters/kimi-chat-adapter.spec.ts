@@ -42,6 +42,7 @@ describeChatAdapterContract({
               { role: 'user', content: 'Reply with a short greeting.' },
             ],
             stream: true,
+            stream_options: { include_usage: true },
             temperature: 0.7,
             top_p: 0.8,
             max_tokens: 321,

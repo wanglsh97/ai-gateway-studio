@@ -56,6 +56,7 @@ export class KimiChatAdapter implements ChatAdapter {
           model: this.resolvedModel,
           messages: request.messages.map(({ role, content }) => ({ role, content })),
           stream: true,
+          stream_options: { include_usage: true },
           ...(useK2Defaults ? { thinking: { type: 'disabled' } } : {}),
           ...(useK2Defaults || request.temperature === undefined
             ? {}
