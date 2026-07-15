@@ -1,5 +1,12 @@
 name: ai-gateway-studio-prod
 
+x-bounded-logging: &bounded-logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: '5'
+    compress: 'true'
+
 services:
   nginx:
     image: nginx:1.28-alpine
@@ -35,6 +42,7 @@ services:
     mem_limit: 128m
     pids_limit: 64
     stop_grace_period: 15s
+    logging: *bounded-logging
 
   web:
     image: ai-gateway-web:${APP_VERSION:?APP_VERSION is required}
@@ -58,6 +66,7 @@ services:
     mem_limit: 768m
     pids_limit: 128
     stop_grace_period: 20s
+    logging: *bounded-logging
 
   api:
     image: ai-gateway-api:${APP_VERSION:?APP_VERSION is required}
@@ -123,6 +132,7 @@ services:
     mem_limit: 1536m
     pids_limit: 256
     stop_grace_period: 30s
+    logging: *bounded-logging
 
   migrate:
     image: ai-gateway-migration:${APP_VERSION:?APP_VERSION is required}
@@ -145,6 +155,7 @@ services:
     cpus: '1.00'
     mem_limit: 768m
     pids_limit: 128
+    logging: *bounded-logging
 
   postgres:
     image: postgres:17-alpine
@@ -168,6 +179,7 @@ services:
     mem_limit: 2048m
     pids_limit: 256
     stop_grace_period: 60s
+    logging: *bounded-logging
 
   redis:
     image: redis:8-alpine
@@ -199,6 +211,7 @@ services:
     mem_limit: 256m
     pids_limit: 96
     stop_grace_period: 20s
+    logging: *bounded-logging
 
 volumes:
   postgres-data:
