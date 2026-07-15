@@ -4,6 +4,7 @@ import { Test } from '@nestjs/testing'
 import { ChatAdapterRegistry } from './adapters/chat-adapter.registry'
 import { DeepSeekChatAdapter } from './adapters/deepseek-chat-adapter'
 import { GlmChatAdapter } from './adapters/glm-chat-adapter'
+import { KimiChatAdapter } from './adapters/kimi-chat-adapter'
 import { MockChatAdapter } from './adapters/mock-chat-adapter'
 import { QwenChatAdapter } from './adapters/qwen-chat-adapter'
 import { ChatModule } from './chat.module'
@@ -13,6 +14,7 @@ async function createRegistry(options: {
   qwenEnabled?: boolean
   glmEnabled?: boolean
   deepseekEnabled?: boolean
+  kimiEnabled?: boolean
 }) {
   const module = await Test.createTestingModule({
     imports: [
@@ -33,6 +35,10 @@ async function createRegistry(options: {
             DEEPSEEK_API_KEY: 'sanitized-test-key',
             DEEPSEEK_BASE_URL: 'https://deepseek.example',
             DEEPSEEK_MODEL_ID: 'deepseek-test-model',
+            KIMI_ENABLED: options.kimiEnabled ?? false,
+            KIMI_API_KEY: 'sanitized-test-key',
+            KIMI_BASE_URL: 'https://kimi.example/v1',
+            KIMI_MODEL_ID: 'kimi-test-model',
             DATABASE_URL: 'postgresql://aigateway:password@localhost:5432/aigateway_test',
             REDIS_URL: 'redis://localhost:6379',
             CHAT_RATE_LIMIT_PER_MINUTE: 10,
@@ -85,6 +91,14 @@ describe('ChatModule', () => {
 
     expect(registry.get('deepseek')).toBeInstanceOf(DeepSeekChatAdapter)
     expect(registry.get('deepseek').resolvedModel).toBe('deepseek-test-model')
+    await module.close()
+  })
+
+  it('registers the configured Kimi adapter behind its feature flag', async () => {
+    const { module, registry } = await createRegistry({ mockEnabled: true, kimiEnabled: true })
+
+    expect(registry.get('kimi')).toBeInstanceOf(KimiChatAdapter)
+    expect(registry.get('kimi').resolvedModel).toBe('kimi-test-model')
     await module.close()
   })
 })

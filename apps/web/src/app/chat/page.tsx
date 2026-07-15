@@ -28,7 +28,7 @@ export default function ChatPage() {
     try {
       for await (const chatEvent of client.chat.stream(
         {
-          model: 'qwen',
+          model: 'kimi',
           messages: [{ role: 'user', content: prompt }],
           stream: true,
         },
@@ -110,7 +110,7 @@ export default function ChatPage() {
             )}
             <div className="inline-flex w-fit items-center gap-2 rounded-full border border-slate-200 bg-white/75 px-3 py-1.5 text-xs font-medium text-slate-600 shadow-sm dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-              qwen · Mock 通道
+              kimi · Kimi / Mock 回退
             </div>
           </div>
         </div>

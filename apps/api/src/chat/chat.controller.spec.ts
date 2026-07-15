@@ -164,35 +164,41 @@ describe('ChatController', () => {
     expect(rawResponse.flushHeaders).not.toHaveBeenCalled()
   })
 
-  it('prefers the requested real adapter and persists its resolved model', async () => {
-    const { adapter: mock, stream: mockStream } = adapterWith([])
-    const qwenStream = jest.fn(() =>
-      (async function* () {
-        yield {
-          type: 'usage' as const,
-          usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2, usageUnknown: false },
-        }
-        yield { type: 'finish' as const, finishReason: 'stop' as const }
-      })(),
-    )
-    const qwen: ChatAdapter = {
-      id: 'qwen',
-      resolvedModel: 'qwen-plus-real',
-      stream: qwenStream,
-    }
-    const { controller, start } = controllerFor(mock, [qwen])
-    const { request, response } = httpDoubles()
+  it.each([
+    ['qwen', 'qwen-plus-real'],
+    ['kimi', 'kimi-k2.6-real'],
+  ] as const)(
+    'prefers the requested %s adapter and persists its resolved model',
+    async (adapterId, resolvedModel) => {
+      const { adapter: mock, stream: mockStream } = adapterWith([])
+      const providerStream = jest.fn(() =>
+        (async function* () {
+          yield {
+            type: 'usage' as const,
+            usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2, usageUnknown: false },
+          }
+          yield { type: 'finish' as const, finishReason: 'stop' as const }
+        })(),
+      )
+      const realAdapter: ChatAdapter = {
+        id: adapterId,
+        resolvedModel,
+        stream: providerStream,
+      }
+      const { controller, start } = controllerFor(mock, [realAdapter])
+      const { request, response } = httpDoubles()
 
-    await controller.create(input, request, response)
+      await controller.create({ ...input, model: adapterId }, request, response)
 
-    expect(qwenStream).toHaveBeenCalledWith(
-      expect.objectContaining({ modelAlias: 'qwen', resolvedModel: 'qwen-plus-real' }),
-    )
-    expect(mockStream).not.toHaveBeenCalled()
-    expect(start).toHaveBeenCalledWith(
-      expect.objectContaining({ provider: 'qwen', resolvedModel: 'qwen-plus-real' }),
-    )
-  })
+      expect(providerStream).toHaveBeenCalledWith(
+        expect.objectContaining({ modelAlias: adapterId, resolvedModel }),
+      )
+      expect(mockStream).not.toHaveBeenCalled()
+      expect(start).toHaveBeenCalledWith(
+        expect.objectContaining({ provider: adapterId, resolvedModel }),
+      )
+    },
+  )
 
   it('emits a normalized SSE error without DONE after the stream is open', async () => {
     const { adapter } = adapterWith(

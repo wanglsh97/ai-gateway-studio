@@ -7,6 +7,7 @@ import type { ChatAdapter } from './adapters/chat-adapter'
 import { CHAT_ADAPTERS, ChatAdapterRegistry } from './adapters/chat-adapter.registry'
 import { DeepSeekChatAdapter } from './adapters/deepseek-chat-adapter'
 import { GlmChatAdapter } from './adapters/glm-chat-adapter'
+import { KimiChatAdapter } from './adapters/kimi-chat-adapter'
 import {
   DEFAULT_MOCK_CHAT_ADAPTER_OPTIONS,
   MOCK_CHAT_ADAPTER_OPTIONS,
@@ -59,6 +60,15 @@ import { OpenAICompatibleChatTransport } from './transports/openai-compatible-ch
               apiKey: config.getOrThrow<string>('DEEPSEEK_API_KEY'),
               baseUrl: config.getOrThrow<string>('DEEPSEEK_BASE_URL'),
               modelId: config.getOrThrow<string>('DEEPSEEK_MODEL_ID'),
+            }),
+          )
+        }
+        if (config.get<boolean>('KIMI_ENABLED')) {
+          adapters.push(
+            new KimiChatAdapter(transport, {
+              apiKey: config.getOrThrow<string>('KIMI_API_KEY'),
+              baseUrl: config.getOrThrow<string>('KIMI_BASE_URL'),
+              modelId: config.getOrThrow<string>('KIMI_MODEL_ID'),
             }),
           )
         }
