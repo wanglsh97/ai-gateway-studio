@@ -1,0 +1,209 @@
+name: ai-gateway-studio-prod
+
+services:
+  nginx:
+    image: nginx:1.28-alpine
+    restart: unless-stopped
+    ports:
+      - '${HTTP_PORT:-80}:80'
+    environment:
+      DOMAIN: '${DOMAIN:?DOMAIN is required}'
+      PUBLIC_IP: '${PUBLIC_IP:?PUBLIC_IP is required}'
+      NGINX_ENVSUBST_FILTER: '^(DOMAIN|PUBLIC_IP)$'
+    volumes:
+      - ../nginx/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+    depends_on:
+      api:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+    networks:
+      - frontend
+    read_only: true
+    tmpfs:
+      - /etc/nginx/conf.d:size=1m,mode=0755
+      - /var/cache/nginx:size=32m,mode=0755
+      - /var/run:size=4m,mode=0755
+      - /tmp:size=16m,mode=1777
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1/health/live >/dev/null || exit 1']
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+    cpus: '0.25'
+    mem_limit: 128m
+    pids_limit: 64
+    stop_grace_period: 15s
+
+  web:
+    image: ai-gateway-web:${APP_VERSION:?APP_VERSION is required}
+    build:
+      context: ../..
+      dockerfile: apps/web/Dockerfile
+      target: runtime
+      args:
+        API_INTERNAL_URL: http://api:3001
+    restart: unless-stopped
+    init: true
+    expose:
+      - '3000'
+    networks:
+      - frontend
+    read_only: true
+    tmpfs:
+      - /app/apps/web/.next/cache:size=128m,mode=0755,uid=1000,gid=1000
+      - /tmp:size=32m,mode=1777
+    cpus: '0.75'
+    mem_limit: 768m
+    pids_limit: 128
+    stop_grace_period: 20s
+
+  api:
+    image: ai-gateway-api:${APP_VERSION:?APP_VERSION is required}
+    build:
+      context: ../..
+      dockerfile: apps/api/Dockerfile
+      target: runtime
+    restart: unless-stopped
+    init: true
+    environment:
+      NODE_ENV: production
+      API_PORT: '3001'
+      WEB_ORIGIN: '${WEB_ORIGIN:?WEB_ORIGIN is required}'
+      LOG_LEVEL: '${LOG_LEVEL:-info}'
+      DATABASE_URL: '${DATABASE_URL:?DATABASE_URL is required}'
+      DATABASE_POOL_MAX: '${DATABASE_POOL_MAX:-10}'
+      REDIS_URL: '${REDIS_URL:-redis://redis:6379}'
+      TRUSTED_PROXY_HOPS: '1'
+      MOCK_PROVIDER_ENABLED: '${MOCK_PROVIDER_ENABLED:-true}'
+      QWEN_ENABLED: '${QWEN_ENABLED:-false}'
+      QWEN_API_KEY: '${QWEN_API_KEY:-}'
+      QWEN_BASE_URL: '${QWEN_BASE_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1}'
+      QWEN_MODEL_ID: '${QWEN_MODEL_ID:-}'
+      GLM_ENABLED: '${GLM_ENABLED:-false}'
+      GLM_API_KEY: '${GLM_API_KEY:-}'
+      GLM_BASE_URL: '${GLM_BASE_URL:-https://open.bigmodel.cn/api/paas/v4}'
+      GLM_MODEL_ID: '${GLM_MODEL_ID:-}'
+      DEEPSEEK_ENABLED: '${DEEPSEEK_ENABLED:-false}'
+      DEEPSEEK_API_KEY: '${DEEPSEEK_API_KEY:-}'
+      DEEPSEEK_BASE_URL: '${DEEPSEEK_BASE_URL:-https://api.deepseek.com}'
+      DEEPSEEK_MODEL_ID: '${DEEPSEEK_MODEL_ID:-}'
+      KIMI_ENABLED: '${KIMI_ENABLED:-false}'
+      KIMI_API_KEY: '${KIMI_API_KEY:-}'
+      KIMI_BASE_URL: '${KIMI_BASE_URL:-https://api.moonshot.cn/v1}'
+      KIMI_MODEL_ID: '${KIMI_MODEL_ID:-}'
+      WANXIANG_ENABLED: '${WANXIANG_ENABLED:-false}'
+      WANXIANG_API_KEY: '${WANXIANG_API_KEY:-}'
+      WANXIANG_MODEL_ID: '${WANXIANG_MODEL_ID:-}'
+      COGVIEW_ENABLED: '${COGVIEW_ENABLED:-false}'
+      COGVIEW_API_KEY: '${COGVIEW_API_KEY:-}'
+      COGVIEW_MODEL_ID: '${COGVIEW_MODEL_ID:-}'
+      PROMPT_OPTIMIZER_MODEL: '${PROMPT_OPTIMIZER_MODEL:-qwen}'
+      CHAT_RATE_LIMIT_PER_MINUTE: '${CHAT_RATE_LIMIT_PER_MINUTE:-10}'
+      IMAGE_RATE_LIMIT_PER_MINUTE: '${IMAGE_RATE_LIMIT_PER_MINUTE:-5}'
+      ADMIN_LOGIN_RATE_LIMIT_PER_MINUTE: '${ADMIN_LOGIN_RATE_LIMIT_PER_MINUTE:-5}'
+      CHAT_MAX_TOKENS: '${CHAT_MAX_TOKENS:-4096}'
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    expose:
+      - '3001'
+    networks:
+      - frontend
+      - backend
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    cpus: '1.50'
+    mem_limit: 1536m
+    pids_limit: 256
+    stop_grace_period: 30s
+
+  migrate:
+    image: ai-gateway-migration:${APP_VERSION:?APP_VERSION is required}
+    build:
+      context: ../..
+      dockerfile: apps/api/Dockerfile
+      target: migration
+    restart: 'no'
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: '${DATABASE_URL:?DATABASE_URL is required}'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - backend
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    cpus: '1.00'
+    mem_limit: 768m
+    pids_limit: 128
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: '${POSTGRES_DB:?POSTGRES_DB is required}'
+      POSTGRES_USER: '${POSTGRES_USER:?POSTGRES_USER is required}'
+      POSTGRES_PASSWORD: '${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 10s
+      timeout: 5s
+      start_period: 20s
+      retries: 10
+    networks:
+      - backend
+    shm_size: 256m
+    cpus: '1.00'
+    mem_limit: 2048m
+    pids_limit: 256
+    stop_grace_period: 60s
+
+  redis:
+    image: redis:8-alpine
+    restart: unless-stopped
+    command:
+      - redis-server
+      - --save
+      - ''
+      - --appendonly
+      - 'no'
+      - --maxmemory
+      - 192mb
+      - --maxmemory-policy
+      - allkeys-lru
+      - --dir
+      - /tmp
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      start_period: 10s
+      retries: 10
+    networks:
+      - backend
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,mode=1777,uid=999,gid=999
+    cpus: '0.25'
+    mem_limit: 256m
+    pids_limit: 96
+    stop_grace_period: 20s
+
+volumes:
+  postgres-data:
+
+networks:
+  frontend:
+  backend:
+    internal: true
