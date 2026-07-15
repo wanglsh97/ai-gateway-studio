@@ -75,6 +75,21 @@ DEEPSEEK_MODEL_ID=deepseek-v4-flash \
 pnpm test:smoke:deepseek
 ```
 
+Kimi 使用中国区 Moonshot 兼容端点。先在 Moonshot 控制台创建新 Key，并只写入不会提交的本地 `.env`：
+
+```bash
+KIMI_ENABLED=true
+KIMI_API_KEY=<新创建的 Key>
+KIMI_BASE_URL=https://api.moonshot.cn/v1
+KIMI_MODEL_ID=kimi-k2.6
+```
+
+然后显式执行最多输出 16 Token 的真实冒烟：
+
+```bash
+pnpm test:smoke:kimi
+```
+
 浏览器手工验收时运行 `pnpm dev`，访问同源 `/chat` 发起请求；页面展示的 request ID 应能在 `RequestLog` 中查到唯一的 `SUCCEEDED` 记录及其一对一 `BillingRecord`。API 的注入点使用显式 token，使 `tsx watch` 开发态与 TypeScript 生产构建保持一致。
 
 重置测试数据库前必须显式提供数据库名包含 `_test` 或 `test_` 的 `DATABASE_URL`：
