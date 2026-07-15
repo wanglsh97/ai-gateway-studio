@@ -55,5 +55,11 @@ $SUDO systemctl enable --now docker
 $SUDO docker version >/dev/null
 $SUDO docker compose version >/dev/null
 
+docker_group_user="${SUDO_USER:-}"
+if [ -n "$docker_group_user" ] && [ "$docker_group_user" != 'root' ]; then
+  $SUDO usermod -aG docker "$docker_group_user"
+  echo "已将 $docker_group_user 加入 docker 组；请退出 SSH 并重新登录后再部署。"
+fi
+
 echo 'ecs_bootstrap=ok'
 echo '请在阿里云安全组仅公开 80/443，并将 22 限制为可信管理 IP。'
