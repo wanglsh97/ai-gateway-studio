@@ -78,6 +78,42 @@ describeChatAdapterContract({
 })
 
 describe('KimiChatAdapter', () => {
+  it('uses non-thinking provider defaults for K2.5 and K2.6 fixed sampling models', async () => {
+    let body: Record<string, unknown> | undefined
+    const kimi = new KimiChatAdapter(
+      new OpenAICompatibleChatTransport({
+        fetch: async (_input, init) => {
+          body = JSON.parse(String(init?.body)) as Record<string, unknown>
+          return new Response(fixture, { headers: { 'content-type': 'text/event-stream' } })
+        },
+      }),
+      {
+        apiKey: 'sanitized',
+        baseUrl: 'https://kimi.example/v1',
+        modelId: 'kimi-k2.6',
+      },
+    )
+
+    const events: unknown[] = []
+    for await (const event of kimi.stream({
+      requestId: '00000000-0000-4000-8000-000000000088',
+      modelAlias: 'kimi',
+      resolvedModel: 'kimi-k2.6',
+      messages: [{ role: 'user', content: 'Reply briefly.' }],
+      temperature: 0,
+      topP: 0.8,
+      maxTokens: 16,
+      signal: new AbortController().signal,
+    })) {
+      events.push(event)
+    }
+
+    expect(events).not.toHaveLength(0)
+    expect(body).toMatchObject({ thinking: { type: 'disabled' }, max_tokens: 16 })
+    expect(body).not.toHaveProperty('temperature')
+    expect(body).not.toHaveProperty('top_p')
+  })
+
   it('rejects insecure Moonshot endpoints before sending credentials', () => {
     expect(
       () =>

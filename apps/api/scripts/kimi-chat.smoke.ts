@@ -26,7 +26,6 @@ async function main(): Promise<void> {
       resolvedModel: modelId,
       messages: [{ role: 'user', content: '只回复“OK”，不要补充其他内容。' }],
       signal: controller.signal,
-      temperature: 0,
       maxTokens: 16,
     })) {
       if (event.providerRequestId !== undefined) providerRequestId = event.providerRequestId

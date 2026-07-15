@@ -46,6 +46,7 @@ export class KimiChatAdapter implements ChatAdapter {
     let finishReason: ChatFinishReason | undefined
     let usage: ChatAdapterUsage | undefined
     let providerRequestId: string | undefined
+    const useK2Defaults = usesK2FixedSampling(this.resolvedModel)
 
     try {
       for await (const event of this.transport.stream({
@@ -55,8 +56,11 @@ export class KimiChatAdapter implements ChatAdapter {
           model: this.resolvedModel,
           messages: request.messages.map(({ role, content }) => ({ role, content })),
           stream: true,
-          ...(request.temperature === undefined ? {} : { temperature: request.temperature }),
-          ...(request.topP === undefined ? {} : { top_p: request.topP }),
+          ...(useK2Defaults ? { thinking: { type: 'disabled' } } : {}),
+          ...(useK2Defaults || request.temperature === undefined
+            ? {}
+            : { temperature: request.temperature }),
+          ...(useK2Defaults || request.topP === undefined ? {} : { top_p: request.topP }),
           ...(request.maxTokens === undefined ? {} : { max_tokens: request.maxTokens }),
         },
         signal: request.signal,
@@ -235,6 +239,10 @@ function nonEmpty(value: string, label: string): string {
   const normalized = value.trim()
   if (!normalized) throw new TypeError(`${label} must be non-empty`)
   return normalized
+}
+
+function usesK2FixedSampling(modelId: string): boolean {
+  return /^kimi-k2\.(?:5|6)(?:$|-)/i.test(modelId)
 }
 
 function endpoint(baseUrl: string): string {
