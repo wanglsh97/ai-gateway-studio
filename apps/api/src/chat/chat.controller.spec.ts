@@ -64,9 +64,10 @@ function controllerFor(adapter: ChatAdapter) {
     status: 'PENDING',
     startedAt: new Date('2026-07-15T00:00:00.000Z'),
   })
-  const lifecycle = { start } as unknown as RequestLifecycleService
+  const finish = jest.fn().mockResolvedValue(undefined)
+  const lifecycle = { start, finish } as unknown as RequestLifecycleService
   const controller = new ChatController(new ChatAdapterRegistry([adapter]), lifecycle)
-  return { controller, start }
+  return { controller, finish, start }
 }
 
 function frameData(writes: readonly string[]) {
@@ -84,7 +85,7 @@ describe('ChatController', () => {
       },
       { type: 'finish', finishReason: 'stop' },
     ])
-    const { controller, start } = controllerFor(adapter)
+    const { controller, finish, start } = controllerFor(adapter)
     const { request, response, rawResponse, writes } = httpDoubles()
 
     await controller.create(input, request, response)
@@ -100,9 +101,20 @@ describe('ChatController', () => {
     )
     expect(rawResponse.flushHeaders).toHaveBeenCalledTimes(1)
     expect(rawResponse.end).toHaveBeenCalledTimes(1)
+    expect(finish).toHaveBeenCalledWith(
+      expect.objectContaining({
+        requestLogId: 'log-1',
+        requestId,
+        status: 'succeeded',
+        usage: { inputTokens: 2, outputTokens: 3, totalTokens: 5, usageUnknown: false },
+      }),
+    )
 
     const data = frameData(writes)
     expect(data.filter((value) => value === '[DONE]')).toHaveLength(1)
+    expect(finish.mock.invocationCallOrder[0]).toBeLessThan(
+      rawResponse.write.mock.invocationCallOrder.at(-1) ?? 0,
+    )
     const payloads = data.slice(0, -1).map((value) => JSON.parse(value) as Record<string, unknown>)
     expect(payloads.map((payload) => payload.object)).toEqual([
       'chat.completion.chunk',
@@ -129,7 +141,7 @@ describe('ChatController', () => {
         retryable: false,
       }),
     )
-    const { controller } = controllerFor(adapter)
+    const { controller, finish } = controllerFor(adapter)
     const { request, response, writes } = httpDoubles()
 
     await controller.create(input, request, response)
@@ -146,6 +158,16 @@ describe('ChatController', () => {
         retryable: false,
       },
     })
+    expect(finish).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: 'failed',
+        error: {
+          code: 'MOCK_STREAM_FAILURE',
+          message: '上游流中失败',
+          details: { retryable: false },
+        },
+      }),
+    )
   })
 
   it('does not open the stream or invoke the adapter when persistence fails', async () => {
@@ -177,5 +199,39 @@ describe('ChatController', () => {
       object: 'chat.completion.error',
       error: { code: 'ADAPTER_PROTOCOL_ERROR', retryable: false },
     })
+  })
+
+  it('finalizes a disconnected stream as cancelled', async () => {
+    let markStreamStarted!: () => void
+    const streamStarted = new Promise<void>((resolve) => {
+      markStreamStarted = resolve
+    })
+    const adapter: ChatAdapter = {
+      id: 'mock',
+      async *stream(adapterRequest) {
+        markStreamStarted()
+        await new Promise<void>((resolve, reject) => {
+          void resolve
+          adapterRequest.signal.addEventListener(
+            'abort',
+            () => reject(new DOMException('aborted', 'AbortError')),
+            { once: true },
+          )
+        })
+        yield { type: 'finish', finishReason: 'stop' }
+      },
+    }
+    const { controller, finish } = controllerFor(adapter)
+    const { request, response, rawResponse } = httpDoubles()
+
+    const operation = controller.create(input, request, response)
+    await streamStarted
+    rawResponse.destroyed = true
+    rawResponse.emit('close')
+    await operation
+
+    expect(finish).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'cancelled', requestLogId: 'log-1' }),
+    )
   })
 })

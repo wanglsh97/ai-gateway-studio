@@ -3,8 +3,11 @@ import { Logger } from '@nestjs/common'
 import type { PrismaService } from '../database/prisma.service'
 import { RequestStatus } from '../generated/prisma/client'
 import {
+  type FinishRequestLifecycleInput,
   RequestLifecycleService,
+  RequestLifecycleFinishError,
   RequestLifecycleStartError,
+  RequestLifecycleTransitionError,
   type StartRequestLifecycleInput,
 } from './request-lifecycle.service'
 
@@ -30,8 +33,16 @@ const input: StartRequestLifecycleInput = {
 
 function createService() {
   const create = jest.fn()
-  const prisma = { requestLog: { create } } as unknown as PrismaService
-  return { create, service: new RequestLifecycleService(prisma) }
+  const updateMany = jest.fn()
+  const upsert = jest.fn()
+  const transaction = jest.fn(async (operation: (client: unknown) => Promise<unknown>) =>
+    operation({ requestLog: { updateMany }, billingRecord: { upsert } }),
+  )
+  const prisma = {
+    requestLog: { create },
+    $transaction: transaction,
+  } as unknown as PrismaService
+  return { create, service: new RequestLifecycleService(prisma), transaction, updateMany, upsert }
 }
 
 describe('RequestLifecycleService.start', () => {
@@ -79,5 +90,131 @@ describe('RequestLifecycleService.start', () => {
 
     await expect(startThenInvokeProvider()).rejects.toBeInstanceOf(RequestLifecycleStartError)
     expect(invokeProvider).not.toHaveBeenCalled()
+  })
+})
+
+describe('RequestLifecycleService.finish', () => {
+  const finishInput: FinishRequestLifecycleInput = {
+    requestLogId: 'log-1',
+    requestId,
+    startedAt,
+    completedAt: new Date('2026-07-15T00:00:01.250Z'),
+    firstTokenAt: new Date('2026-07-15T00:00:00.100Z'),
+    providerRequestId: 'mock-provider-request',
+    status: 'succeeded',
+    usage: {
+      inputTokens: 10,
+      outputTokens: 20,
+      totalTokens: 30,
+      usageUnknown: false,
+      priceVersion: 'mock-v1',
+      estimatedCostCny: '0.00000000',
+    },
+  }
+
+  afterEach(() => {
+    jest.restoreAllMocks()
+  })
+
+  it('updates RequestLog and upserts its one-to-one BillingRecord in one transaction', async () => {
+    const { service, transaction, updateMany, upsert } = createService()
+    updateMany.mockResolvedValue({ count: 1 })
+    upsert.mockResolvedValue({ id: 'billing-1' })
+
+    await expect(service.finish(finishInput)).resolves.toBeUndefined()
+
+    expect(transaction).toHaveBeenCalledTimes(1)
+    expect(updateMany).toHaveBeenCalledWith({
+      where: { id: 'log-1', status: 'PENDING' },
+      data: {
+        status: 'SUCCEEDED',
+        completedAt: new Date('2026-07-15T00:00:01.250Z'),
+        durationMs: 1250,
+        firstTokenAt: new Date('2026-07-15T00:00:00.100Z'),
+        providerRequestId: 'mock-provider-request',
+        errorCode: null,
+        errorMessage: null,
+        errorDetails: expect.anything(),
+      },
+    })
+    expect(upsert).toHaveBeenCalledWith({
+      where: { requestLogId: 'log-1' },
+      create: {
+        requestLogId: 'log-1',
+        inputTokens: 10,
+        outputTokens: 20,
+        totalTokens: 30,
+        usageUnknown: false,
+        priceVersion: 'mock-v1',
+        inputCostCny: null,
+        outputCostCny: null,
+        estimatedCostCny: '0.00000000',
+      },
+      update: {
+        inputTokens: 10,
+        outputTokens: 20,
+        totalTokens: 30,
+        usageUnknown: false,
+        priceVersion: 'mock-v1',
+        inputCostCny: null,
+        outputCostCny: null,
+        estimatedCostCny: '0.00000000',
+      },
+    })
+  })
+
+  it.each([
+    ['failed', 'FAILED'],
+    ['cancelled', 'CANCELLED'],
+  ] as const)(
+    'supports the %s terminal path with explicit unknown usage',
+    async (status, stored) => {
+      const { service, updateMany, upsert } = createService()
+      updateMany.mockResolvedValue({ count: 1 })
+      upsert.mockResolvedValue({ id: 'billing-1' })
+
+      await service.finish({
+        requestLogId: 'log-1',
+        requestId,
+        startedAt,
+        completedAt: startedAt,
+        status,
+        ...(status === 'failed'
+          ? { error: { code: 'PROVIDER_FAILED', message: '模型调用失败' } }
+          : {}),
+      })
+
+      expect(updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            status: stored,
+            errorCode: status === 'failed' ? 'PROVIDER_FAILED' : null,
+          }),
+        }),
+      )
+      expect(upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: expect.objectContaining({ usageUnknown: true, totalTokens: null }),
+        }),
+      )
+    },
+  )
+
+  it('rejects a second terminal transition before writing billing', async () => {
+    const { service, updateMany, upsert } = createService()
+    updateMany.mockResolvedValue({ count: 0 })
+
+    await expect(service.finish(finishInput)).rejects.toBeInstanceOf(
+      RequestLifecycleTransitionError,
+    )
+    expect(upsert).not.toHaveBeenCalled()
+  })
+
+  it('surfaces an atomic transaction failure as unavailable', async () => {
+    jest.spyOn(Logger.prototype, 'error').mockImplementation()
+    const { service, transaction } = createService()
+    transaction.mockRejectedValue(new Error('transaction rolled back'))
+
+    await expect(service.finish(finishInput)).rejects.toBeInstanceOf(RequestLifecycleFinishError)
   })
 })

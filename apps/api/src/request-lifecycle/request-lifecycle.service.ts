@@ -25,11 +25,61 @@ export interface StartRequestLifecycleInput {
 
 export type StartedRequestLifecycle = Pick<RequestLog, 'id' | 'requestId' | 'status' | 'startedAt'>
 
+export type RequestLifecycleTerminalStatus = 'succeeded' | 'failed' | 'cancelled'
+
+export interface RequestLifecycleUsage {
+  inputTokens: number | null
+  outputTokens: number | null
+  totalTokens: number | null
+  usageUnknown: boolean
+  priceVersion?: string
+  inputCostCny?: string
+  outputCostCny?: string
+  estimatedCostCny?: string
+}
+
+export interface RequestLifecycleError {
+  code: string
+  message: string
+  details?: Prisma.InputJsonValue
+}
+
+export interface FinishRequestLifecycleInput {
+  requestLogId: string
+  requestId: string
+  startedAt: Date
+  status: RequestLifecycleTerminalStatus
+  completedAt?: Date
+  firstTokenAt?: Date
+  providerRequestId?: string
+  usage?: RequestLifecycleUsage
+  error?: RequestLifecycleError
+}
+
 export class RequestLifecycleStartError extends ServiceUnavailableException {
   constructor(cause: unknown) {
     super('请求记录创建失败，暂不能调用模型', { cause })
   }
 }
+
+export class RequestLifecycleTransitionError extends Error {
+  constructor(readonly requestLogId: string) {
+    super(`Request lifecycle "${requestLogId}" is not pending`)
+    this.name = 'RequestLifecycleTransitionError'
+  }
+}
+
+export class RequestLifecycleFinishError extends ServiceUnavailableException {
+  constructor(cause: unknown) {
+    super('请求终结记录写入失败', { cause })
+  }
+}
+
+const TERMINAL_STATUS_MAP = {
+  succeeded: RequestStatus.SUCCEEDED,
+  failed: RequestStatus.FAILED,
+  cancelled: RequestStatus.CANCELLED,
+} as const satisfies Record<RequestLifecycleTerminalStatus, RequestStatus>
 
 @Injectable()
 export class RequestLifecycleService {
@@ -65,6 +115,59 @@ export class RequestLifecycleService {
         'Failed to create pending request log',
       )
       throw new RequestLifecycleStartError(error)
+    }
+  }
+
+  async finish(input: FinishRequestLifecycleInput): Promise<void> {
+    const completedAt = input.completedAt ?? new Date()
+    const usage = input.usage ?? {
+      inputTokens: null,
+      outputTokens: null,
+      totalTokens: null,
+      usageUnknown: true,
+    }
+    const billingData = {
+      inputTokens: usage.inputTokens,
+      outputTokens: usage.outputTokens,
+      totalTokens: usage.totalTokens,
+      usageUnknown: usage.usageUnknown,
+      priceVersion: usage.priceVersion ?? null,
+      inputCostCny: usage.inputCostCny ?? null,
+      outputCostCny: usage.outputCostCny ?? null,
+      estimatedCostCny: usage.estimatedCostCny ?? null,
+    }
+
+    try {
+      await this.prisma.$transaction(async (transaction) => {
+        const updated = await transaction.requestLog.updateMany({
+          where: { id: input.requestLogId, status: RequestStatus.PENDING },
+          data: {
+            status: TERMINAL_STATUS_MAP[input.status],
+            completedAt,
+            durationMs: Math.max(0, completedAt.getTime() - input.startedAt.getTime()),
+            firstTokenAt: input.firstTokenAt ?? null,
+            providerRequestId: input.providerRequestId ?? null,
+            errorCode: input.error?.code ?? null,
+            errorMessage: input.error?.message ?? null,
+            errorDetails: input.error?.details ?? Prisma.DbNull,
+          },
+        })
+
+        if (updated.count !== 1) throw new RequestLifecycleTransitionError(input.requestLogId)
+
+        await transaction.billingRecord.upsert({
+          where: { requestLogId: input.requestLogId },
+          create: { requestLogId: input.requestLogId, ...billingData },
+          update: billingData,
+        })
+      })
+    } catch (error) {
+      if (error instanceof RequestLifecycleTransitionError) throw error
+      this.logger.error(
+        { error, requestId: input.requestId, status: input.status },
+        'Failed to finalize request lifecycle',
+      )
+      throw new RequestLifecycleFinishError(error)
     }
   }
 }
