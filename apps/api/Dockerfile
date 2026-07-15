@@ -21,7 +21,7 @@ COPY apps/api apps/api
 COPY packages/sdk packages/sdk
 COPY prisma prisma
 
-RUN pnpm --filter @aigateway/api... build
+RUN DATABASE_URL=postgresql://prisma:prisma@127.0.0.1:5432/prisma pnpm --filter @aigateway/api... build
 RUN pnpm --filter @aigateway/api deploy --prod --legacy /prod/api
 
 FROM build AS migration
