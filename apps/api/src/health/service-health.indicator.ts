@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common'
+import { Inject, Injectable } from '@nestjs/common'
 import { HealthIndicatorService } from '@nestjs/terminus'
 
 import { PrismaService } from '../database/prisma.service'
@@ -7,9 +7,9 @@ import { RedisService } from '../redis/redis.service'
 @Injectable()
 export class ServiceHealthIndicator {
   constructor(
-    private readonly indicators: HealthIndicatorService,
-    private readonly prisma: PrismaService,
-    private readonly redisService: RedisService,
+    @Inject(HealthIndicatorService) private readonly indicators: HealthIndicatorService,
+    @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(RedisService) private readonly redisService: RedisService,
   ) {}
 
   async postgresql() {

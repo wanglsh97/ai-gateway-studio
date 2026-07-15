@@ -1,5 +1,5 @@
 import type { Capability, ModelAlias } from '@aigateway/sdk'
-import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common'
+import { Inject, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common'
 
 import { Prisma, RequestCapability, RequestStatus } from '../generated/prisma/client'
 import type { RequestLog } from '../generated/prisma/client'
@@ -85,7 +85,7 @@ const TERMINAL_STATUS_MAP = {
 export class RequestLifecycleService {
   private readonly logger = new Logger(RequestLifecycleService.name)
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
   async start(input: StartRequestLifecycleInput): Promise<StartedRequestLifecycle> {
     try {

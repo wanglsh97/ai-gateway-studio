@@ -42,11 +42,13 @@ pnpm db:migrate:dev
 pnpm db:migrate:deploy
 ```
 
-Mock Chat 主链路可在不配置任何真实厂商 API Key 的情况下执行完整回归。命令会校验测试数据库名，部署已有 migration，并运行 SDK、API 与本地 PostgreSQL E2E：
+Mock Chat 主链路可在不配置任何真实厂商 API Key 的情况下执行完整回归。命令会校验测试数据库名，部署已有 migration，并运行 SDK、API、本地 PostgreSQL E2E、Web 状态测试与 Web 生产构建：
 
 ```bash
 TEST_DATABASE_URL=postgresql://aigateway:password@localhost:5432/aigateway_test pnpm test:mock-chat
 ```
+
+浏览器手工验收时运行 `pnpm dev`，访问同源 `/chat` 发起请求；页面展示的 request ID 应能在 `RequestLog` 中查到唯一的 `SUCCEEDED` 记录及其一对一 `BillingRecord`。API 的注入点使用显式 token，使 `tsx watch` 开发态与 TypeScript 生产构建保持一致。
 
 重置测试数据库前必须显式提供数据库名包含 `_test` 或 `test_` 的 `DATABASE_URL`：
 

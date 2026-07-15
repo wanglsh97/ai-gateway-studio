@@ -1,4 +1,4 @@
-import { Controller, Get } from '@nestjs/common'
+import { Controller, Get, Inject } from '@nestjs/common'
 import { HealthCheck, HealthCheckService } from '@nestjs/terminus'
 
 import { ServiceHealthIndicator } from './service-health.indicator'
@@ -6,8 +6,8 @@ import { ServiceHealthIndicator } from './service-health.indicator'
 @Controller('health')
 export class HealthController {
   constructor(
-    private readonly health: HealthCheckService,
-    private readonly dependencies: ServiceHealthIndicator,
+    @Inject(HealthCheckService) private readonly health: HealthCheckService,
+    @Inject(ServiceHealthIndicator) private readonly dependencies: ServiceHealthIndicator,
   ) {}
 
   @Get('live')

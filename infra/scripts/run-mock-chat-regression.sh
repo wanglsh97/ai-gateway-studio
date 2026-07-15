@@ -28,3 +28,5 @@ corepack pnpm db:migrate:deploy
 corepack pnpm --filter @aigateway/sdk test
 corepack pnpm --filter @aigateway/api test
 corepack pnpm test:e2e
+corepack pnpm --filter @aigateway/web test
+corepack pnpm --filter @aigateway/web build

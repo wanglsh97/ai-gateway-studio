@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common'
+import { Inject, Injectable, Logger } from '@nestjs/common'
 import type { OnModuleDestroy } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { createClient } from 'redis'
@@ -9,7 +9,7 @@ export class RedisService implements OnModuleDestroy {
   private readonly client: ReturnType<typeof createClient>
   private connectPromise: Promise<unknown> | null = null
 
-  constructor(config: ConfigService) {
+  constructor(@Inject(ConfigService) config: ConfigService) {
     this.client = createClient({
       url: config.getOrThrow<string>('REDIS_URL'),
       socket: {

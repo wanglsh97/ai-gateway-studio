@@ -6,7 +6,15 @@ import type {
   ChatSseErrorPayload,
   ChatSseUsagePayload,
 } from '@aigateway/sdk'
-import { Body, Controller, Post, Req, Res, ServiceUnavailableException } from '@nestjs/common'
+import {
+  Body,
+  Controller,
+  Inject,
+  Post,
+  Req,
+  Res,
+  ServiceUnavailableException,
+} from '@nestjs/common'
 import type { Request, Response } from 'express'
 
 import {
@@ -39,8 +47,8 @@ interface ChatStreamCompletion {
 @Controller('chat')
 export class ChatController {
   constructor(
-    private readonly adapters: ChatAdapterRegistry,
-    private readonly lifecycle: RequestLifecycleService,
+    @Inject(ChatAdapterRegistry) private readonly adapters: ChatAdapterRegistry,
+    @Inject(RequestLifecycleService) private readonly lifecycle: RequestLifecycleService,
   ) {}
 
   @Post('completions')
