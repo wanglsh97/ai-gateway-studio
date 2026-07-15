@@ -25,6 +25,7 @@ export WANXIANG_ENABLED=false
 export COGVIEW_ENABLED=false
 export DATABASE_URL="$TEST_DATABASE_URL"
 
+corepack pnpm db:generate
 corepack pnpm db:migrate:deploy
 corepack pnpm --filter @aigateway/sdk test
 corepack pnpm --filter @aigateway/api test
