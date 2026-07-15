@@ -2,6 +2,7 @@ import type { ChatMessage, TextModelAlias } from '@aigateway/sdk'
 import { Type } from 'class-transformer'
 import {
   ArrayMinSize,
+  ArrayMaxSize,
   Equals,
   IsArray,
   IsBoolean,
@@ -11,6 +12,7 @@ import {
   IsOptional,
   IsString,
   Max,
+  MaxLength,
   Min,
   MinLength,
   ValidateNested,
@@ -24,6 +26,7 @@ export class ChatMessageDto implements ChatMessage {
 
   @IsString()
   @MinLength(1)
+  @MaxLength(20_000)
   declare content: string
 }
 
@@ -33,6 +36,7 @@ export class ChatCompletionRequestDto {
 
   @IsArray()
   @ArrayMinSize(1)
+  @ArrayMaxSize(50)
   @ValidateNested({ each: true })
   @Type(() => ChatMessageDto)
   declare messages: ChatMessageDto[]
@@ -46,6 +50,12 @@ export class ChatCompletionRequestDto {
   @Min(0)
   @Max(2)
   declare temperature?: number
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(1)
+  declare topP?: number
 
   @IsOptional()
   @IsInt()

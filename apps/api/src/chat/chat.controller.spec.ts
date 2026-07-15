@@ -91,13 +91,20 @@ describe('ChatController', () => {
     const { consumeChat, controller, finish, start } = controllerFor(adapter)
     const { request, response, rawResponse, writes } = httpDoubles()
 
-    await controller.create(input, request, response)
+    await controller.create(
+      { ...input, temperature: 0.7, topP: 0.9, maxTokens: 512 },
+      request,
+      response,
+    )
 
     expect(consumeChat).toHaveBeenCalledWith('127.0.0.1')
     expect(consumeChat.mock.invocationCallOrder[0]).toBeLessThan(
       start.mock.invocationCallOrder[0] ?? 0,
     )
     expect(start.mock.invocationCallOrder[0]).toBeLessThan(stream.mock.invocationCallOrder[0] ?? 0)
+    expect(stream).toHaveBeenCalledWith(
+      expect.objectContaining({ temperature: 0.7, topP: 0.9, maxTokens: 512 }),
+    )
     expect(start).toHaveBeenCalledWith(
       expect.objectContaining({
         requestId,

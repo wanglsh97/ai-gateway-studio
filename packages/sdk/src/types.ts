@@ -33,6 +33,7 @@ export interface ChatRequest {
   messages: ChatMessage[]
   stream: true
   temperature?: number
+  topP?: number
   maxTokens?: number
 }
 

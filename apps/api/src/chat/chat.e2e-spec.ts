@@ -175,6 +175,25 @@ describe('Mock Chat API/SDK E2E', () => {
     await expect(prisma.requestLog.count()).resolves.toBe(0)
   })
 
+  it('rejects invalid DTO parameters before rate limiting, persistence and adapters', async () => {
+    const response = await fetch(`${baseUrl}/api/v1/chat/completions`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        model: 'qwen',
+        messages: [{ role: 'user', content: '非法参数请求' }],
+        stream: true,
+        temperature: 2.1,
+        topP: 1.1,
+        maxTokens: 4097,
+      }),
+    })
+
+    expect(response.status).toBe(400)
+    expect(consumeChat).not.toHaveBeenCalled()
+    await expect(prisma.requestLog.count()).resolves.toBe(0)
+  })
+
   async function waitForStatus(requestId: string, status: 'CANCELLED') {
     for (let attempt = 0; attempt < 40; attempt += 1) {
       const requestLog = await prisma.requestLog.findUnique({

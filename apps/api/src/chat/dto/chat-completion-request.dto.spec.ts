@@ -29,4 +29,24 @@ describe('ChatCompletionRequestDto', () => {
       [],
     )
   })
+
+  it('limits messages to 50 items and each content to 20,000 characters', async () => {
+    const messages = Array.from({ length: 50 }, () => ({ role: 'user', content: '有效内容' }))
+
+    await expect(validate(dto({ messages }))).resolves.toEqual([])
+    await expect(
+      validate(dto({ messages: [...messages, { role: 'user', content: '第 51 条' }] })),
+    ).resolves.not.toEqual([])
+    await expect(
+      validate(dto({ messages: [{ role: 'user', content: 'x'.repeat(20_001) }] })),
+    ).resolves.not.toEqual([])
+  })
+
+  it('enforces temperature, topP and maxTokens ranges', async () => {
+    await expect(validate(dto({ temperature: 0, topP: 0, maxTokens: 1 }))).resolves.toEqual([])
+    await expect(validate(dto({ temperature: 2, topP: 1, maxTokens: 4096 }))).resolves.toEqual([])
+    await expect(validate(dto({ temperature: 2.01 }))).resolves.not.toEqual([])
+    await expect(validate(dto({ topP: 1.01 }))).resolves.not.toEqual([])
+    await expect(validate(dto({ maxTokens: 4097 }))).resolves.not.toEqual([])
+  })
 })

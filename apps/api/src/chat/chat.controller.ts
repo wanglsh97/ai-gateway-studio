@@ -189,6 +189,7 @@ export class ChatController {
       messages: input.messages,
       signal,
       ...(input.temperature === undefined ? {} : { temperature: input.temperature }),
+      ...(input.topP === undefined ? {} : { topP: input.topP }),
       ...(input.maxTokens === undefined ? {} : { maxTokens: input.maxTokens }),
     })) {
       if (event.providerRequestId !== undefined) state.providerRequestId = event.providerRequestId

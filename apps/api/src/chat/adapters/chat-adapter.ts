@@ -9,6 +9,7 @@ export interface ChatAdapterRequest {
   messages: readonly ChatMessage[]
   signal: AbortSignal
   temperature?: number
+  topP?: number
   maxTokens?: number
 }
 
