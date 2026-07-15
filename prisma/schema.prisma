@@ -1,0 +1,131 @@
+generator client {
+  provider              = "prisma-client"
+  output                = "../apps/api/src/generated/prisma"
+  moduleFormat          = "cjs"
+  generatedFileExtension = "ts"
+  importFileExtension   = ""
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum RequestCapability {
+  CHAT
+  IMAGE
+  PROMPT
+}
+
+enum RequestStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+enum ImageTaskStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
+enum AdminAuditAction {
+  UPDATE
+  DELETE
+}
+
+model RequestLog {
+  id                String            @id @default(uuid()) @db.Uuid
+  requestId         String            @unique @default(uuid()) @db.Uuid
+  capability        RequestCapability
+  prompt            Json
+  modelAlias        String            @db.VarChar(64)
+  provider          String?           @db.VarChar(64)
+  resolvedModel     String?           @db.VarChar(128)
+  providerRequestId String?           @db.VarChar(191)
+  status            RequestStatus     @default(PENDING)
+  stream            Boolean           @default(false)
+  clientIp          String?           @db.VarChar(64)
+  startedAt         DateTime          @default(now()) @db.Timestamptz(3)
+  firstTokenAt      DateTime?         @db.Timestamptz(3)
+  completedAt       DateTime?         @db.Timestamptz(3)
+  durationMs        Int?
+  failoverFrom      String?           @db.VarChar(64)
+  failoverTo        String?           @db.VarChar(64)
+  failoverReason    String?           @db.VarChar(255)
+  errorCode         String?           @db.VarChar(64)
+  errorMessage      String?           @db.Text
+  errorDetails      Json?
+  metadata          Json?
+  createdAt         DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime          @updatedAt @db.Timestamptz(3)
+  billing           BillingRecord?
+  imageTask         ImageGenerationTask?
+
+  @@index([createdAt])
+  @@index([status, createdAt])
+  @@index([modelAlias, createdAt])
+  @@index([capability, createdAt])
+}
+
+model BillingRecord {
+  id               String     @id @default(uuid()) @db.Uuid
+  requestLogId     String     @unique @db.Uuid
+  inputTokens      Int?
+  outputTokens     Int?
+  totalTokens      Int?
+  usageUnknown     Boolean    @default(true)
+  priceVersion     String?    @db.VarChar(64)
+  inputCostCny     Decimal?   @db.Decimal(18, 8)
+  outputCostCny    Decimal?   @db.Decimal(18, 8)
+  estimatedCostCny Decimal?   @db.Decimal(18, 8)
+  createdAt        DateTime   @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime   @updatedAt @db.Timestamptz(3)
+  requestLog       RequestLog @relation(fields: [requestLogId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
+}
+
+model ImageGenerationTask {
+  id                 String          @id @default(uuid()) @db.Uuid
+  taskId             String          @unique @default(uuid()) @db.Uuid
+  requestLogId       String          @unique @db.Uuid
+  providerTaskId     String?         @db.VarChar(191)
+  prompt             String          @db.Text
+  modelAlias         String          @db.VarChar(64)
+  provider           String?         @db.VarChar(64)
+  resolvedModel      String?         @db.VarChar(128)
+  options            Json?
+  status             ImageTaskStatus @default(PENDING)
+  results            Json?
+  errorCode          String?         @db.VarChar(64)
+  errorMessage       String?         @db.Text
+  lastPolledAt       DateTime?       @db.Timestamptz(3)
+  startedAt          DateTime?       @db.Timestamptz(3)
+  completedAt        DateTime?       @db.Timestamptz(3)
+  createdAt          DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime        @updatedAt @db.Timestamptz(3)
+  requestLog         RequestLog      @relation(fields: [requestLogId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerTaskId])
+  @@index([status, createdAt])
+  @@index([createdAt])
+}
+
+model AdminAuditLog {
+  id          String           @id @default(uuid()) @db.Uuid
+  actor       String           @db.VarChar(64)
+  action      AdminAuditAction
+  targetTable String           @db.VarChar(64)
+  targetId    String           @db.VarChar(191)
+  beforeData  Json?
+  afterData   Json?
+  requestId   String?          @db.Uuid
+  sourceIp    String?          @db.VarChar(64)
+  createdAt   DateTime         @default(now()) @db.Timestamptz(3)
+
+  @@index([createdAt])
+  @@index([action, createdAt])
+  @@index([targetTable, createdAt])
+}

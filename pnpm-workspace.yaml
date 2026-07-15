@@ -1,0 +1,11 @@
+packages:
+  - apps/*
+  - packages/*
+
+strictPeerDependencies: true
+
+onlyBuiltDependencies:
+  - '@prisma/engines'
+  - esbuild
+  - prisma
+  - sharp

@@ -1,0 +1,20 @@
+export type { AIGatewayClient, ImageWaitOptions, RequestOptions } from './client.js'
+export type {
+  Capability,
+  ChatEvent,
+  ChatMessage,
+  ChatRequest,
+  GatewayError,
+  ImageModelAlias,
+  ImageRequest,
+  ImageResult,
+  ImageTask,
+  ImageTaskStatus,
+  ModelAlias,
+  ModelSummary,
+  OptimizePromptRequest,
+  OptimizePromptResult,
+  PromptOptimizationMode,
+  TextModelAlias,
+  Usage,
+} from './types.js'
