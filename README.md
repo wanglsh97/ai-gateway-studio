@@ -59,6 +59,14 @@ pnpm test:smoke:qwen
 
 冒烟命令不会打印 API Key，也不会被 `pnpm test` 或 CI 自动执行。
 
+GLM 同样使用显式的低额度冒烟命令，默认端点为智谱官方兼容地址：
+
+```bash
+GLM_API_KEY=*** \
+GLM_MODEL_ID=glm-4.7-flash \
+pnpm test:smoke:glm
+```
+
 浏览器手工验收时运行 `pnpm dev`，访问同源 `/chat` 发起请求；页面展示的 request ID 应能在 `RequestLog` 中查到唯一的 `SUCCEEDED` 记录及其一对一 `BillingRecord`。API 的注入点使用显式 token，使 `tsx watch` 开发态与 TypeScript 生产构建保持一致。
 
 重置测试数据库前必须显式提供数据库名包含 `_test` 或 `test_` 的 `DATABASE_URL`：

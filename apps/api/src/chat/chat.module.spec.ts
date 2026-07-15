@@ -2,11 +2,16 @@ import { ConfigModule } from '@nestjs/config'
 import { Test } from '@nestjs/testing'
 
 import { ChatAdapterRegistry } from './adapters/chat-adapter.registry'
+import { GlmChatAdapter } from './adapters/glm-chat-adapter'
 import { MockChatAdapter } from './adapters/mock-chat-adapter'
 import { QwenChatAdapter } from './adapters/qwen-chat-adapter'
 import { ChatModule } from './chat.module'
 
-async function createRegistry(options: { mockEnabled: boolean; qwenEnabled?: boolean }) {
+async function createRegistry(options: {
+  mockEnabled: boolean
+  qwenEnabled?: boolean
+  glmEnabled?: boolean
+}) {
   const module = await Test.createTestingModule({
     imports: [
       ConfigModule.forRoot({
@@ -18,6 +23,10 @@ async function createRegistry(options: { mockEnabled: boolean; qwenEnabled?: boo
             QWEN_API_KEY: 'sanitized-test-key',
             QWEN_BASE_URL: 'https://dashscope.example/compatible-mode/v1',
             QWEN_MODEL_ID: 'qwen-test-model',
+            GLM_ENABLED: options.glmEnabled ?? false,
+            GLM_API_KEY: 'sanitized-test-key',
+            GLM_BASE_URL: 'https://glm.example/api/paas/v4',
+            GLM_MODEL_ID: 'glm-test-model',
             DATABASE_URL: 'postgresql://aigateway:password@localhost:5432/aigateway_test',
             REDIS_URL: 'redis://localhost:6379',
             CHAT_RATE_LIMIT_PER_MINUTE: 10,
@@ -51,6 +60,14 @@ describe('ChatModule', () => {
 
     expect(registry.get('qwen')).toBeInstanceOf(QwenChatAdapter)
     expect(registry.get('qwen').resolvedModel).toBe('qwen-test-model')
+    await module.close()
+  })
+
+  it('registers the configured GLM adapter behind its feature flag', async () => {
+    const { module, registry } = await createRegistry({ mockEnabled: true, glmEnabled: true })
+
+    expect(registry.get('glm')).toBeInstanceOf(GlmChatAdapter)
+    expect(registry.get('glm').resolvedModel).toBe('glm-test-model')
     await module.close()
   })
 })

@@ -5,6 +5,7 @@ import { RequestLifecycleModule } from '../request-lifecycle/request-lifecycle.m
 import { RateLimitModule } from '../rate-limit/rate-limit.module'
 import type { ChatAdapter } from './adapters/chat-adapter'
 import { CHAT_ADAPTERS, ChatAdapterRegistry } from './adapters/chat-adapter.registry'
+import { GlmChatAdapter } from './adapters/glm-chat-adapter'
 import {
   DEFAULT_MOCK_CHAT_ADAPTER_OPTIONS,
   MOCK_CHAT_ADAPTER_OPTIONS,
@@ -39,6 +40,15 @@ import { OpenAICompatibleChatTransport } from './transports/openai-compatible-ch
               apiKey: config.getOrThrow<string>('QWEN_API_KEY'),
               baseUrl: config.getOrThrow<string>('QWEN_BASE_URL'),
               modelId: config.getOrThrow<string>('QWEN_MODEL_ID'),
+            }),
+          )
+        }
+        if (config.get<boolean>('GLM_ENABLED')) {
+          adapters.push(
+            new GlmChatAdapter(transport, {
+              apiKey: config.getOrThrow<string>('GLM_API_KEY'),
+              baseUrl: config.getOrThrow<string>('GLM_BASE_URL'),
+              modelId: config.getOrThrow<string>('GLM_MODEL_ID'),
             }),
           )
         }
