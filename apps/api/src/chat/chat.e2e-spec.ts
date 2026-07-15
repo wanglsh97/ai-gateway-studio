@@ -8,12 +8,15 @@ import { Test } from '@nestjs/testing'
 import { AppModule } from '../app.module'
 import { configureApplication } from '../configure-app'
 import { PrismaService } from '../database/prisma.service'
+import { RateLimitExceededException, RateLimitService } from '../rate-limit/rate-limit.service'
 
 const databaseUrl = process.env.TEST_DATABASE_URL
 
 describe('Mock Chat API/SDK E2E', () => {
   let app: INestApplication
+  let baseUrl: string
   let client: AIGatewayClient
+  let consumeChat: jest.Mock
   let prisma: PrismaService
 
   beforeAll(async () => {
@@ -21,17 +24,23 @@ describe('Mock Chat API/SDK E2E', () => {
       throw new Error('TEST_DATABASE_URL 必须指向名称包含 _test 或 test_ 的 PostgreSQL 测试库')
     }
 
-    const testingModule = await Test.createTestingModule({ imports: [AppModule] }).compile()
+    consumeChat = jest.fn().mockResolvedValue(undefined)
+    const testingModule = await Test.createTestingModule({ imports: [AppModule] })
+      .overrideProvider(RateLimitService)
+      .useValue({ consumeChat })
+      .compile()
     app = testingModule.createNestApplication()
     configureApplication(app)
     await app.listen(0, '127.0.0.1')
 
     const address = app.getHttpServer().address() as AddressInfo
-    client = createAIGatewayClient({ baseUrl: `http://127.0.0.1:${address.port}` })
+    baseUrl = `http://127.0.0.1:${address.port}`
+    client = createAIGatewayClient({ baseUrl })
     prisma = app.get(PrismaService)
   })
 
   beforeEach(async () => {
+    consumeChat.mockReset().mockResolvedValue(undefined)
     await prisma.imageGenerationTask.deleteMany()
     await prisma.requestLog.deleteMany()
   })
@@ -118,6 +127,52 @@ describe('Mock Chat API/SDK E2E', () => {
       outputTokens: null,
       totalTokens: null,
     })
+  })
+
+  it('trusts only the configured nearest proxy hop when resolving the client IP', async () => {
+    const response = await fetch(`${baseUrl}/api/v1/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-forwarded-for': '198.51.100.99, 10.0.0.8',
+      },
+      body: JSON.stringify({
+        model: 'qwen',
+        messages: [{ role: 'user', content: '可信代理 IP 验收' }],
+        stream: true,
+      }),
+    })
+    await response.text()
+
+    expect(response.status).toBe(200)
+    expect(consumeChat).toHaveBeenCalledWith('10.0.0.8')
+    const requestId = response.headers.get('x-request-id') ?? ''
+    await expect(prisma.requestLog.findUnique({ where: { requestId } })).resolves.toMatchObject({
+      clientIp: '10.0.0.8',
+    })
+  })
+
+  it('returns retry details and creates no request record when rate limited', async () => {
+    consumeChat.mockRejectedValueOnce(new RateLimitExceededException(42))
+
+    const response = await fetch(`${baseUrl}/api/v1/chat/completions`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        model: 'qwen',
+        messages: [{ role: 'user', content: '超限请求' }],
+        stream: true,
+      }),
+    })
+
+    expect(response.status).toBe(429)
+    expect(response.headers.get('retry-after')).toBe('42')
+    await expect(response.json()).resolves.toMatchObject({
+      code: 'RATE_LIMITED',
+      retryable: true,
+      details: { retryAfterSeconds: 42 },
+    })
+    await expect(prisma.requestLog.count()).resolves.toBe(0)
   })
 
   async function waitForStatus(requestId: string, status: 'CANCELLED') {

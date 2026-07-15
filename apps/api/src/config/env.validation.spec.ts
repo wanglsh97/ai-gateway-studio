@@ -12,7 +12,15 @@ describe('validateEnvironment', () => {
     expect(environment.MOCK_PROVIDER_ENABLED).toBe(true)
     expect(environment.QWEN_ENABLED).toBe(false)
     expect(environment.API_PORT).toBe(3001)
+    expect(environment.TRUSTED_PROXY_HOPS).toBe(1)
+    expect(environment.CHAT_RATE_LIMIT_PER_MINUTE).toBe(10)
     expect(environment.CHAT_MAX_TOKENS).toBe(4096)
+  })
+
+  it('rejects an unsafe trusted proxy hop count', () => {
+    expect(() => validateEnvironment({ ...requiredEnvironment, TRUSTED_PROXY_HOPS: '6' })).toThrow(
+      'TRUSTED_PROXY_HOPS',
+    )
   })
 
   it('requires key and model id when a real provider is enabled', () => {

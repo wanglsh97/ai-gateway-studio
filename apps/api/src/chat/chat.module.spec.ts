@@ -14,6 +14,8 @@ async function createRegistry(mockEnabled: boolean) {
           () => ({
             MOCK_PROVIDER_ENABLED: mockEnabled,
             DATABASE_URL: 'postgresql://aigateway:password@localhost:5432/aigateway_test',
+            REDIS_URL: 'redis://localhost:6379',
+            CHAT_RATE_LIMIT_PER_MINUTE: 10,
           }),
         ],
       }),

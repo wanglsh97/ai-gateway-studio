@@ -5,6 +5,7 @@ import type { Request, Response } from 'express'
 
 import type { RequestLifecycleService } from '../request-lifecycle/request-lifecycle.service'
 import { RequestLifecycleStartError } from '../request-lifecycle/request-lifecycle.service'
+import type { RateLimitService } from '../rate-limit/rate-limit.service'
 import type { ChatAdapter, ChatAdapterEvent } from './adapters/chat-adapter'
 import { ChatAdapterError } from './adapters/chat-adapter'
 import { ChatAdapterRegistry } from './adapters/chat-adapter.registry'
@@ -58,6 +59,7 @@ function adapterWith(events: readonly ChatAdapterEvent[], error?: Error) {
 }
 
 function controllerFor(adapter: ChatAdapter) {
+  const consumeChat = jest.fn().mockResolvedValue(undefined)
   const start = jest.fn().mockResolvedValue({
     id: 'log-1',
     requestId,
@@ -66,8 +68,9 @@ function controllerFor(adapter: ChatAdapter) {
   })
   const finish = jest.fn().mockResolvedValue(undefined)
   const lifecycle = { start, finish } as unknown as RequestLifecycleService
-  const controller = new ChatController(new ChatAdapterRegistry([adapter]), lifecycle)
-  return { controller, finish, start }
+  const rateLimit = { consumeChat } as unknown as RateLimitService
+  const controller = new ChatController(new ChatAdapterRegistry([adapter]), lifecycle, rateLimit)
+  return { consumeChat, controller, finish, start }
 }
 
 function frameData(writes: readonly string[]) {
@@ -85,11 +88,15 @@ describe('ChatController', () => {
       },
       { type: 'finish', finishReason: 'stop' },
     ])
-    const { controller, finish, start } = controllerFor(adapter)
+    const { consumeChat, controller, finish, start } = controllerFor(adapter)
     const { request, response, rawResponse, writes } = httpDoubles()
 
     await controller.create(input, request, response)
 
+    expect(consumeChat).toHaveBeenCalledWith('127.0.0.1')
+    expect(consumeChat.mock.invocationCallOrder[0]).toBeLessThan(
+      start.mock.invocationCallOrder[0] ?? 0,
+    )
     expect(start.mock.invocationCallOrder[0]).toBeLessThan(stream.mock.invocationCallOrder[0] ?? 0)
     expect(start).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -131,6 +138,19 @@ describe('ChatController', () => {
         aigateway: { estimated_cost_cny: null, usage_unknown: false },
       },
     })
+  })
+
+  it('does not persist or invoke an adapter when rate limiting rejects the request', async () => {
+    const { adapter, stream } = adapterWith([])
+    const { consumeChat, controller, start } = controllerFor(adapter)
+    consumeChat.mockRejectedValue(new Error('rate limited'))
+    const { request, response, rawResponse } = httpDoubles()
+
+    await expect(controller.create(input, request, response)).rejects.toThrow('rate limited')
+
+    expect(start).not.toHaveBeenCalled()
+    expect(stream).not.toHaveBeenCalled()
+    expect(rawResponse.flushHeaders).not.toHaveBeenCalled()
   })
 
   it('emits a normalized SSE error without DONE after the stream is open', async () => {

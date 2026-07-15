@@ -26,6 +26,7 @@ const environmentSchema = z
     DATABASE_URL: z.string().min(1, 'DATABASE_URL 必填'),
     DATABASE_POOL_MAX: z.coerce.number().int().min(1).max(50).default(10),
     REDIS_URL: z.string().min(1, 'REDIS_URL 必填'),
+    TRUSTED_PROXY_HOPS: z.coerce.number().int().min(0).max(5).default(1),
     MOCK_PROVIDER_ENABLED: booleanFromEnv.default(true),
     QWEN_ENABLED: booleanFromEnv.default(false),
     GLM_ENABLED: booleanFromEnv.default(false),

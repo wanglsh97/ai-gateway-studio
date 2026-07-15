@@ -18,6 +18,10 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const bodyRecord =
       typeof body === 'object' && body !== null ? (body as Record<string, unknown>) : undefined
     const rawMessage = bodyRecord?.message ?? (typeof body === 'string' ? body : undefined)
+    const details =
+      typeof bodyRecord?.details === 'object' && bodyRecord.details !== null
+        ? (bodyRecord.details as Record<string, unknown>)
+        : undefined
     const message = Array.isArray(rawMessage)
       ? rawMessage.filter((item): item is string => typeof item === 'string').join('; ')
       : typeof rawMessage === 'string'
@@ -26,11 +30,17 @@ export class HttpExceptionFilter implements ExceptionFilter {
           ? '服务暂时不可用'
           : '请求失败'
 
+    const retryAfterSeconds = details?.retryAfterSeconds
+    if (status === 429 && typeof retryAfterSeconds === 'number') {
+      response.setHeader('retry-after', String(retryAfterSeconds))
+    }
+
     response.status(status).json({
       requestId,
       code: this.toCode(status),
       message,
       retryable: status === 429 || status >= 500,
+      ...(details === undefined ? {} : { details }),
     })
   }
 

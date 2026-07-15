@@ -13,6 +13,10 @@ export function configureApplication(app: INestApplication): void {
   app.useLogger(app.get(Logger))
   app.use(pinoHttp(createPinoHttpOptions()))
   app.getHttpAdapter().getInstance().disable('x-powered-by')
+  app
+    .getHttpAdapter()
+    .getInstance()
+    .set('trust proxy', config.getOrThrow<number>('TRUSTED_PROXY_HOPS'))
   app.enableShutdownHooks()
   app.setGlobalPrefix('api/v1', {
     exclude: [

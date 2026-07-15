@@ -22,6 +22,7 @@ import {
   RequestLifecycleService,
   RequestLifecycleTransitionError,
 } from '../request-lifecycle/request-lifecycle.service'
+import { RateLimitService } from '../rate-limit/rate-limit.service'
 import { ChatAdapterError } from './adapters/chat-adapter'
 import type { ChatAdapter, ChatAdapterUsage } from './adapters/chat-adapter'
 import {
@@ -49,6 +50,7 @@ export class ChatController {
   constructor(
     @Inject(ChatAdapterRegistry) private readonly adapters: ChatAdapterRegistry,
     @Inject(RequestLifecycleService) private readonly lifecycle: RequestLifecycleService,
+    @Inject(RateLimitService) private readonly rateLimit: RateLimitService,
   ) {}
 
   @Post('completions')
@@ -58,6 +60,7 @@ export class ChatController {
     @Res() response: Response,
   ): Promise<void> {
     const requestId = request.id ?? randomUUID()
+    await this.rateLimit.consumeChat(request.ip)
     const adapter = this.resolveAdapter()
 
     const started = await this.lifecycle.start({
