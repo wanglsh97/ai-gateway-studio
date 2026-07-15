@@ -3,6 +3,15 @@ set -eu
 
 BASE_URL="${1:-${BASE_URL:-http://127.0.0.1}}"
 BASE_URL="${BASE_URL%/}"
+SMOKE_MODEL_ALIAS="${SMOKE_MODEL_ALIAS:-qwen}"
+
+case "$SMOKE_MODEL_ALIAS" in
+  qwen | glm | deepseek | kimi) ;;
+  *)
+    echo "不支持的 SMOKE_MODEL_ALIAS：$SMOKE_MODEL_ALIAS" >&2
+    exit 1
+    ;;
+esac
 
 temp_dir="$(mktemp -d)"
 fifo="$temp_dir/chat-stream"
@@ -26,7 +35,7 @@ mkfifo "$fifo"
 curl --fail --no-buffer --silent --show-error --max-time 30 \
   --request POST "$BASE_URL/api/v1/chat/completions" \
   --header 'Content-Type: application/json' \
-  --data '{"model":"qwen","messages":[{"role":"user","content":"生产部署流式冒烟"}],"stream":true,"maxTokens":64}' \
+  --data "{\"model\":\"$SMOKE_MODEL_ALIAS\",\"messages\":[{\"role\":\"user\",\"content\":\"生产部署流式冒烟\"}],\"stream\":true,\"maxTokens\":64}" \
   >"$fifo" &
 curl_pid=$!
 
