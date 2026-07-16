@@ -9,10 +9,10 @@ async function main(): Promise<void> {
   const apiKey = required('DEEPSEEK_API_KEY')
   const modelId = required('DEEPSEEK_MODEL_ID')
   const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), 30_000)
+  const timeout = setTimeout(() => controller.abort(), 65_000)
   try {
     const adapter = new DeepSeekChatAdapter(
-      new OpenAICompatibleChatTransport({ timeoutMs: 25_000 }),
+      new OpenAICompatibleChatTransport({ timeoutMs: 60_000 }),
       {
         apiKey,
         baseUrl: process.env.DEEPSEEK_BASE_URL ?? 'https://api.deepseek.com',
@@ -30,7 +30,8 @@ async function main(): Promise<void> {
       messages: [{ role: 'user', content: '只回复“OK”，不要补充其他内容。' }],
       signal: controller.signal,
       temperature: 0,
-      maxTokens: 16,
+      // Reasoning models may consume part of this budget before emitting visible content.
+      maxTokens: 64,
     })) {
       if (event.providerRequestId !== undefined) providerRequestId = event.providerRequestId
       if (event.type === 'delta') output.push(event.content)

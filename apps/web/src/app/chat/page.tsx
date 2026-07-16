@@ -1,6 +1,7 @@
 'use client'
 
 import { createAIGatewayClient } from '@aigateway/sdk'
+import type { TextModelAlias } from '@aigateway/sdk'
 import type { FormEvent, KeyboardEvent } from 'react'
 import { useReducer, useRef, useState } from 'react'
 
@@ -10,8 +11,16 @@ const client = createAIGatewayClient()
 
 const examples = ['解释什么是 API 网关', '为周末杭州之旅列一个计划', '用简单比喻介绍大语言模型']
 
+const modelOptions: ReadonlyArray<{ value: TextModelAlias; label: string }> = [
+  { value: 'kimi', label: 'Kimi' },
+  { value: 'qwen', label: '通义千问 Qwen' },
+  { value: 'glm', label: '智谱 GLM' },
+  { value: 'deepseek', label: 'DeepSeek' },
+]
+
 export default function ChatPage() {
   const [input, setInput] = useState('')
+  const [selectedModel, setSelectedModel] = useState<TextModelAlias>('kimi')
   const [state, dispatch] = useReducer(chatViewReducer, initialChatViewState)
   const activeRequest = useRef<AbortController | null>(null)
   const isGenerating = state.status === 'loading' || state.status === 'streaming'
@@ -28,7 +37,7 @@ export default function ChatPage() {
     try {
       for await (const chatEvent of client.chat.stream(
         {
-          model: 'kimi',
+          model: selectedModel,
           messages: [{ role: 'user', content: prompt }],
           stream: true,
         },
@@ -108,9 +117,22 @@ export default function ChatPage() {
                 清空对话
               </button>
             )}
-            <div className="inline-flex w-fit items-center gap-2 rounded-full border border-slate-200 bg-white/75 px-3 py-1.5 text-xs font-medium text-slate-600 shadow-sm dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-              kimi · Kimi / Mock 回退
+            <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-white/75 py-1 pl-3 pr-1.5 text-xs font-medium text-slate-600 shadow-sm dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden="true" />
+              <label htmlFor="chat-model">模型</label>
+              <select
+                id="chat-model"
+                value={selectedModel}
+                disabled={isGenerating}
+                onChange={(event) => setSelectedModel(event.target.value as TextModelAlias)}
+                className="min-h-8 max-w-44 rounded-full border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-800 outline-none transition focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/15 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10 dark:bg-slate-900 dark:text-white"
+              >
+                {modelOptions.map((model) => (
+                  <option key={model.value} value={model.value}>
+                    {model.label}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
         </div>
@@ -131,7 +153,7 @@ export default function ChatPage() {
                     从一个问题开始
                   </h2>
                   <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
-                    当前使用确定性 Mock Adapter，完整走通 SDK、SSE 与数据库记录链路。
+                    选择一个已启用模型，完整走通 SDK、网关、SSE 与数据库记录链路。
                   </p>
                   <div className="mt-6 flex flex-wrap justify-center gap-2">
                     {examples.map((example) => (

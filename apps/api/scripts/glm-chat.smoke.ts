@@ -10,9 +10,9 @@ async function main(): Promise<void> {
   const modelId = required('GLM_MODEL_ID')
   const baseUrl = process.env.GLM_BASE_URL ?? 'https://open.bigmodel.cn/api/paas/v4'
   const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), 30_000)
+  const timeout = setTimeout(() => controller.abort(), 65_000)
   try {
-    const adapter = new GlmChatAdapter(new OpenAICompatibleChatTransport({ timeoutMs: 25_000 }), {
+    const adapter = new GlmChatAdapter(new OpenAICompatibleChatTransport({ timeoutMs: 60_000 }), {
       apiKey,
       baseUrl,
       modelId,
@@ -28,7 +28,8 @@ async function main(): Promise<void> {
       messages: [{ role: 'user', content: '只回复“OK”，不要补充其他内容。' }],
       signal: controller.signal,
       temperature: 0,
-      maxTokens: 16,
+      // GLM reasoning models may consume the initial budget before emitting visible content.
+      maxTokens: 256,
     })) {
       if (event.providerRequestId !== undefined) providerRequestId = event.providerRequestId
       if (event.type === 'delta') output.push(event.content)
