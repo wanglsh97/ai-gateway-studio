@@ -27,13 +27,19 @@ describe('AIGatewayClient images', () => {
   it('polls with backoff and stops at a terminal state', async () => {
     const states = [pending, { ...pending, status: 'running' }, { ...pending, status: 'succeeded' }]
     let calls = 0
+    const updates: string[] = []
     const client = createAIGatewayClient({
       fetch: async () => Response.json(states[calls++] ?? states.at(-1)),
     })
 
-    const task = await client.images.wait('task-1', { intervalMs: 1, timeoutMs: 100 })
+    const task = await client.images.wait('task-1', {
+      intervalMs: 1,
+      timeoutMs: 100,
+      onUpdate: (update) => updates.push(update.status),
+    })
     assert.equal(task.status, 'succeeded')
     assert.equal(calls, 3)
+    assert.deepEqual(updates, ['pending', 'running', 'succeeded'])
   })
 
   it('returns typed timeout without changing the server task', async () => {

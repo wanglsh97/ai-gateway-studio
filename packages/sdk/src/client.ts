@@ -20,6 +20,7 @@ export interface RequestOptions {
 export interface ImageWaitOptions extends RequestOptions {
   intervalMs?: number
   timeoutMs?: number
+  onUpdate?(task: ImageTask): void
 }
 
 export interface CreateAIGatewayClientOptions {
@@ -279,6 +280,7 @@ async function waitForImage(
 
   while (true) {
     const task = await getImage(fetchImplementation, baseUrl, taskId, options)
+    options?.onUpdate?.(task)
     if (task.status === 'succeeded' || task.status === 'failed') return task
     const remaining = deadline - Date.now()
     if (remaining <= 0) throw new AIGatewayTimeoutError('images.wait', timeoutMs)
