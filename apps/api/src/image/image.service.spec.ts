@@ -1,4 +1,5 @@
 import type { PrismaService } from '../database/prisma.service'
+import { ConfigService } from '@nestjs/config'
 import { ImageTaskStatus } from '../generated/prisma/client'
 import type { ImageAdapter, ImageAdapterStatus } from './adapters/image-adapter'
 import { ImageAdapterRegistry } from './adapters/image-adapter.registry'
@@ -46,8 +47,12 @@ function setup(tasks: unknown[], status: ImageAdapterStatus = { status: 'running
     getStatus,
     download: jest.fn(),
   }
-  const service = new ImageService(prisma, new ImageAdapterRegistry([adapter]))
-  return { getStatus, service, transaction, updateManyLog, updateManyTask, upsert }
+  const service = new ImageService(
+    prisma,
+    new ImageAdapterRegistry([adapter]),
+    new ConfigService({ IMAGE_DOWNLOAD_MAX_BYTES: 1024 }),
+  )
+  return { adapter, getStatus, service, transaction, updateManyLog, updateManyTask, upsert }
 }
 
 describe('ImageService.get', () => {
@@ -111,5 +116,63 @@ describe('ImageService.get', () => {
       status: 'pending',
     })
     expect(getStatus).not.toHaveBeenCalled()
+  })
+})
+
+describe('ImageService.download', () => {
+  const terminal = {
+    ...baseTask,
+    status: ImageTaskStatus.SUCCEEDED,
+    results: [{ url: 'mock://image/result' }],
+  }
+
+  it('downloads only a whitelisted persisted result through its adapter', async () => {
+    const { adapter, service } = setup([terminal])
+    ;(adapter.download as jest.Mock).mockResolvedValue({
+      body: Uint8Array.from([1, 2, 3]),
+      contentType: 'image/png',
+    })
+
+    await expect(
+      service.download(terminal.taskId, 0, new AbortController().signal),
+    ).resolves.toEqual({
+      body: Uint8Array.from([1, 2, 3]),
+      contentType: 'image/png',
+    })
+    expect(adapter.download).toHaveBeenCalledWith({
+      url: 'mock://image/result',
+      signal: expect.any(AbortSignal),
+    })
+  })
+
+  it('rejects non-terminal tasks and invalid result indexes', async () => {
+    const { service: pending } = setup([baseTask])
+    await expect(
+      pending.download(baseTask.taskId, 0, new AbortController().signal),
+    ).rejects.toThrow('只有成功任务')
+    const { service } = setup([terminal])
+    await expect(
+      service.download(terminal.taskId, 2, new AbortController().signal),
+    ).rejects.toThrow('index 不存在')
+  })
+
+  it('rejects MIME spoofing and oversized provider responses', async () => {
+    const spoofed = setup([terminal])
+    ;(spoofed.adapter.download as jest.Mock).mockResolvedValue({
+      body: Uint8Array.from([1]),
+      contentType: 'text/html',
+    })
+    await expect(
+      spoofed.service.download(terminal.taskId, 0, new AbortController().signal),
+    ).rejects.toThrow('不支持的图片类型')
+
+    const oversized = setup([terminal])
+    ;(oversized.adapter.download as jest.Mock).mockResolvedValue({
+      body: new Uint8Array(1025),
+      contentType: 'image/png',
+    })
+    await expect(
+      oversized.service.download(terminal.taskId, 0, new AbortController().signal),
+    ).rejects.toThrow('超过下载大小限制')
   })
 })

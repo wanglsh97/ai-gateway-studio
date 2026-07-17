@@ -6,11 +6,13 @@ import {
   Controller,
   Get,
   Param,
+  ParseIntPipe,
   Post,
   Req,
+  Res,
   ServiceUnavailableException,
 } from '@nestjs/common'
-import type { Request } from 'express'
+import type { Request, Response } from 'express'
 
 import { RateLimitService } from '../rate-limit/rate-limit.service'
 import type { ImageAdapter } from './adapters/image-adapter'
@@ -67,6 +69,30 @@ export class ImageController {
     return this.images
       .get(taskId, abortController.signal)
       .finally(() => request.removeListener('aborted', abort))
+  }
+
+  @Get(':taskId/images/:index/download')
+  async download(
+    @Param('taskId') taskId: string,
+    @Param('index', ParseIntPipe) index: number,
+    @Req() request: RequestWithId,
+    @Res() response: Response,
+  ): Promise<void> {
+    const abortController = new AbortController()
+    const abort = () => abortController.abort()
+    request.once('aborted', abort)
+    const image = await this.images
+      .download(taskId, index, abortController.signal)
+      .finally(() => request.removeListener('aborted', abort))
+    const extension = image.contentType === 'image/jpeg' ? 'jpg' : image.contentType.split('/')[1]
+    response.set({
+      'content-type': image.contentType,
+      'content-length': String(image.body.byteLength),
+      'content-disposition': `attachment; filename="aigateway-${taskId}-${index}.${extension}"`,
+      'x-content-type-options': 'nosniff',
+      'cache-control': 'private, max-age=300',
+    })
+    response.send(Buffer.from(image.body))
   }
 
   private resolveAdapter(alias: CreateImageGenerationDto['model']): ImageAdapter {

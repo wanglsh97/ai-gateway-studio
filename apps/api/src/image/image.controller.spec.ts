@@ -36,10 +36,15 @@ function setup() {
     status: 'pending',
     results: [],
   })
+  const download = jest.fn().mockResolvedValue({
+    body: Uint8Array.from([1, 2, 3]),
+    contentType: 'image/png',
+  })
   const images = {
     createPending,
     recordSubmission,
     toPublicTask,
+    download,
   } as unknown as ImageService
   const controller = new ImageController(new ImageAdapterRegistry([adapter]), images, rateLimit)
   const request = Object.assign(new EventEmitter(), {
@@ -47,7 +52,7 @@ function setup() {
     ip: '127.0.0.1',
   }) as unknown as Request & { id: string }
 
-  return { consumeImage, controller, createPending, recordSubmission, request, submit }
+  return { consumeImage, controller, createPending, download, recordSubmission, request, submit }
 }
 
 describe('ImageController', () => {
@@ -84,5 +89,26 @@ describe('ImageController', () => {
 
     await expect(controller.create(input, request)).rejects.toThrow('database unavailable')
     expect(submit).not.toHaveBeenCalled()
+  })
+
+  it('sets safe attachment headers for proxied downloads', async () => {
+    const { controller, download, request } = setup()
+    const response = { set: jest.fn(), send: jest.fn() }
+
+    await controller.download('00000000-0000-4000-8000-000000000111', 0, request, response as never)
+
+    expect(download).toHaveBeenCalledWith(
+      '00000000-0000-4000-8000-000000000111',
+      0,
+      expect.any(AbortSignal),
+    )
+    expect(response.set).toHaveBeenCalledWith(
+      expect.objectContaining({
+        'content-type': 'image/png',
+        'content-disposition': expect.stringContaining('attachment;'),
+        'x-content-type-options': 'nosniff',
+      }),
+    )
+    expect(response.send).toHaveBeenCalledWith(expect.any(Buffer))
   })
 })

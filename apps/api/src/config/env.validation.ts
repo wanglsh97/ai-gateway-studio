@@ -70,6 +70,12 @@ const environmentSchema = z
     PROMPT_OPTIMIZER_MODEL: z.enum(['qwen', 'glm', 'deepseek']).default('qwen'),
     CHAT_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(10),
     IMAGE_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(5),
+    IMAGE_DOWNLOAD_MAX_BYTES: z.coerce
+      .number()
+      .int()
+      .min(1_024)
+      .max(50_000_000)
+      .default(10_000_000),
     ADMIN_LOGIN_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(5),
     CHAT_MAX_TOKENS: z.coerce.number().int().min(1).max(4096).default(4096),
     PROVIDER_HEALTH_TTL_SECONDS: z.coerce.number().int().min(30).max(3600).default(300),

@@ -1,5 +1,12 @@
 import type { ImageTask } from '@aigateway/sdk'
-import { Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common'
+import {
+  BadGatewayException,
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+  ServiceUnavailableException,
+} from '@nestjs/common'
+import { ConfigService } from '@nestjs/config'
 
 import { PrismaService } from '../database/prisma.service'
 import {
@@ -19,6 +26,7 @@ export class ImageService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly adapters: ImageAdapterRegistry,
+    private readonly config: ConfigService,
   ) {}
 
   async createPending(
@@ -133,6 +141,29 @@ export class ImageService {
     return this.toPublicTask(task)
   }
 
+  async download(taskId: string, index: number, signal: AbortSignal) {
+    if (!Number.isInteger(index) || index < 0) throw new BadRequestException('图片 index 无效')
+    const task = await this.findTask(taskId)
+    if (task.status !== ImageTaskStatus.SUCCEEDED) {
+      throw new BadRequestException('只有成功任务可以下载图片')
+    }
+    if (!task.provider || !isImageAdapterId(task.provider) || !this.adapters.has(task.provider)) {
+      throw new ServiceUnavailableException('图片任务对应的 Provider 当前不可用')
+    }
+    const result = internalResultAt(task.results, index)
+    if (!result) throw new NotFoundException('图片 index 不存在')
+
+    const download = await this.adapters.get(task.provider).download({ url: result.url, signal })
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(download.contentType.toLowerCase())) {
+      throw new BadGatewayException('Provider 返回了不支持的图片类型')
+    }
+    const maxBytes = this.config.get<number>('IMAGE_DOWNLOAD_MAX_BYTES', 10_000_000)
+    if (download.body.byteLength > maxBytes) {
+      throw new BadGatewayException('Provider 图片超过下载大小限制')
+    }
+    return download
+  }
+
   private async findTask(taskId: string) {
     const task = await this.prisma.imageGenerationTask.findUnique({
       where: { taskId },
@@ -200,4 +231,12 @@ function parsePublicResults(value: unknown): ImageTask['results'] {
       },
     ]
   })
+}
+
+function internalResultAt(value: unknown, index: number): { url: string } | undefined {
+  if (!Array.isArray(value)) return undefined
+  const item: unknown = value[index]
+  if (typeof item !== 'object' || item === null) return undefined
+  const url = (item as Record<string, unknown>).url
+  return typeof url === 'string' && url.length > 0 ? { url } : undefined
 }
