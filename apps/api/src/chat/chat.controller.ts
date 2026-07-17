@@ -27,6 +27,7 @@ import { RateLimitService } from '../rate-limit/rate-limit.service'
 import { ChatAdapterError } from './adapters/chat-adapter'
 import type { ChatAdapter, ChatAdapterUsage } from './adapters/chat-adapter'
 import { ChatAdapterRegistry } from './adapters/chat-adapter.registry'
+import { ChatFailoverService } from './chat-failover.service'
 import { writeChatSseDone, writeChatSsePayload } from './chat-sse.writer'
 import { ChatCompletionRequestDto } from './dto/chat-completion-request.dto'
 import { ProviderHealthService } from './provider-health.service'
@@ -44,6 +45,12 @@ interface ChatStreamCompletion {
   usage: ChatAdapterUsage
 }
 
+interface ChatExecutionResult {
+  completion: ChatStreamCompletion
+  adapter: ChatAdapter
+  failover?: { from: string; to: string; reason: string }
+}
+
 @Controller('chat')
 export class ChatController {
   constructor(
@@ -51,6 +58,7 @@ export class ChatController {
     @Inject(RequestLifecycleService) private readonly lifecycle: RequestLifecycleService,
     @Inject(RateLimitService) private readonly rateLimit: RateLimitService,
     @Inject(ProviderHealthService) private readonly providerHealth: ProviderHealthService,
+    @Inject(ChatFailoverService) private readonly failover: ChatFailoverService,
   ) {}
 
   @Post('completions')
@@ -73,6 +81,7 @@ export class ChatController {
       provider: adapter.id,
       resolvedModel: adapter.resolvedModel,
       stream: true,
+      ...(input.comparison === undefined ? {} : { metadata: { comparison: input.comparison } }),
       ...(request.ip === undefined ? {} : { clientIp: request.ip }),
     })
 
@@ -90,7 +99,7 @@ export class ChatController {
     let finalizationAttempted = false
 
     try {
-      const completion = await this.pipeAdapterStreamWithHealth(
+      const execution = await this.executeWithFailover(
         input,
         adapter,
         requestId,
@@ -110,9 +119,12 @@ export class ChatController {
         ...(state.providerRequestId === undefined
           ? {}
           : { providerRequestId: state.providerRequestId }),
-        usage: completion.usage,
+        provider: execution.adapter.id,
+        resolvedModel: execution.adapter.resolvedModel,
+        ...(execution.failover === undefined ? {} : { failover: execution.failover }),
+        usage: execution.completion.usage,
       })
-      this.writeCompletion(input, requestId, completion, response)
+      this.writeCompletion(input, requestId, execution.completion, response)
     } catch (error) {
       let responseError = error
 
@@ -255,12 +267,59 @@ export class ChatController {
         await this.providerHealth.recordFailure(adapter.id, Date.now() - startedAt, {
           code: error.code,
           affectsHealth:
-            error.statusCode === undefined ||
-            error.statusCode >= 500 ||
-            error.code.includes('TIMEOUT'),
+            error.retryable &&
+            (error.statusCode === undefined ||
+              error.statusCode >= 500 ||
+              error.code.includes('TIMEOUT')),
         })
       }
       throw error
+    }
+  }
+
+  private async executeWithFailover(
+    input: ChatCompletionRequestDto,
+    primary: ChatAdapter,
+    requestId: string,
+    signal: AbortSignal,
+    response: Response,
+    state: ChatStreamState,
+  ): Promise<ChatExecutionResult> {
+    try {
+      const completion = await this.pipeAdapterStreamWithHealth(
+        input,
+        primary,
+        requestId,
+        signal,
+        response,
+        state,
+      )
+      return { completion, adapter: primary }
+    } catch (error) {
+      if (state.firstTokenAt !== undefined || signal.aborted) throw error
+
+      const fallback = this.failover.resolve(input.model, error, input.comparison === true)
+      if (!fallback) throw error
+
+      delete state.providerRequestId
+      delete state.usage
+      const completion = await this.pipeAdapterStreamWithHealth(
+        input,
+        fallback,
+        requestId,
+        signal,
+        response,
+        state,
+      )
+      return {
+        completion,
+        adapter: fallback,
+        failover: {
+          from: primary.id,
+          to: fallback.id,
+          reason: error instanceof ChatAdapterError ? error.code : 'UPSTREAM_FAILURE',
+        },
+      }
     }
   }
 

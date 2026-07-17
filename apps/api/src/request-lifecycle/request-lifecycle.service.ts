@@ -54,6 +54,13 @@ export interface FinishRequestLifecycleInput {
   providerRequestId?: string
   usage?: RequestLifecycleUsage
   error?: RequestLifecycleError
+  provider?: string
+  resolvedModel?: string
+  failover?: {
+    from: string
+    to: string
+    reason: string
+  }
 }
 
 export class RequestLifecycleStartError extends ServiceUnavailableException {
@@ -147,6 +154,11 @@ export class RequestLifecycleService {
             durationMs: Math.max(0, completedAt.getTime() - input.startedAt.getTime()),
             firstTokenAt: input.firstTokenAt ?? null,
             providerRequestId: input.providerRequestId ?? null,
+            ...(input.provider === undefined ? {} : { provider: input.provider }),
+            ...(input.resolvedModel === undefined ? {} : { resolvedModel: input.resolvedModel }),
+            failoverFrom: input.failover?.from ?? null,
+            failoverTo: input.failover?.to ?? null,
+            failoverReason: input.failover?.reason ?? null,
             errorCode: input.error?.code ?? null,
             errorMessage: input.error?.message ?? null,
             errorDetails: input.error?.details ?? Prisma.DbNull,

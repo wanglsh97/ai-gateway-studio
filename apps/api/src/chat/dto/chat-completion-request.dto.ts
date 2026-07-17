@@ -62,4 +62,8 @@ export class ChatCompletionRequestDto {
   @Min(1)
   @Max(4096)
   declare maxTokens?: number
+
+  @IsOptional()
+  @IsBoolean()
+  declare comparison?: boolean
 }

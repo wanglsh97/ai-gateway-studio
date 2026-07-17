@@ -15,6 +15,7 @@ import {
 } from './adapters/mock-chat-adapter'
 import { QwenChatAdapter } from './adapters/qwen-chat-adapter'
 import { ChatController } from './chat.controller'
+import { ChatFailoverService } from './chat-failover.service'
 import { ModelsController } from './models.controller'
 import { ProviderHealthService } from './provider-health.service'
 import { OpenAICompatibleChatTransport } from './transports/openai-compatible-chat.transport'
@@ -78,6 +79,7 @@ import { OpenAICompatibleChatTransport } from './transports/openai-compatible-ch
       },
     },
     ChatAdapterRegistry,
+    ChatFailoverService,
     ProviderHealthService,
   ],
   controllers: [ChatController, ModelsController],

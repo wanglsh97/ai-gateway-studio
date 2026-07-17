@@ -126,7 +126,7 @@ describe('RequestLifecycleService.finish', () => {
     expect(transaction).toHaveBeenCalledTimes(1)
     expect(updateMany).toHaveBeenCalledWith({
       where: { id: 'log-1', status: 'PENDING' },
-      data: {
+      data: expect.objectContaining({
         status: 'SUCCEEDED',
         completedAt: new Date('2026-07-15T00:00:01.250Z'),
         durationMs: 1250,
@@ -134,8 +134,7 @@ describe('RequestLifecycleService.finish', () => {
         providerRequestId: 'mock-provider-request',
         errorCode: null,
         errorMessage: null,
-        errorDetails: expect.anything(),
-      },
+      }),
     })
     expect(upsert).toHaveBeenCalledWith({
       where: { requestLogId: 'log-1' },

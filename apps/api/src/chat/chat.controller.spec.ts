@@ -7,6 +7,7 @@ import type { RequestLifecycleService } from '../request-lifecycle/request-lifec
 import { RequestLifecycleStartError } from '../request-lifecycle/request-lifecycle.service'
 import type { RateLimitService } from '../rate-limit/rate-limit.service'
 import type { ProviderHealthService } from './provider-health.service'
+import type { ChatFailoverService } from './chat-failover.service'
 import type { ChatAdapter, ChatAdapterEvent } from './adapters/chat-adapter'
 import { ChatAdapterError } from './adapters/chat-adapter'
 import { ChatAdapterRegistry } from './adapters/chat-adapter.registry'
@@ -74,13 +75,17 @@ function controllerFor(adapter: ChatAdapter, additionalAdapters: readonly ChatAd
     recordSuccess: jest.fn().mockResolvedValue(undefined),
     recordFailure: jest.fn().mockResolvedValue(undefined),
   } as unknown as ProviderHealthService
+  const failover = {
+    resolve: jest.fn().mockReturnValue(undefined),
+  } as unknown as ChatFailoverService
   const controller = new ChatController(
     new ChatAdapterRegistry([adapter, ...additionalAdapters]),
     lifecycle,
     rateLimit,
     providerHealth,
+    failover,
   )
-  return { consumeChat, controller, finish, providerHealth, start }
+  return { consumeChat, controller, failover, finish, providerHealth, start }
 }
 
 function frameData(writes: readonly string[]) {
@@ -239,6 +244,49 @@ describe('ChatController', () => {
       })
     },
   )
+
+  it('switches once to a configured fallback before the first content delta', async () => {
+    const primaryError = new ChatAdapterError('主模型超时', {
+      code: 'UPSTREAM_TIMEOUT',
+      retryable: true,
+    })
+    const primary: ChatAdapter = {
+      id: 'qwen',
+      resolvedModel: 'qwen-real',
+      stream: () => ({
+        [Symbol.asyncIterator]: () => ({ next: jest.fn().mockRejectedValue(primaryError) }),
+      }),
+    }
+    const fallback: ChatAdapter = {
+      id: 'glm',
+      resolvedModel: 'glm-real',
+      stream: () =>
+        (async function* () {
+          yield { type: 'delta' as const, content: 'fallback 内容' }
+          yield {
+            type: 'usage' as const,
+            usage: { inputTokens: 1, outputTokens: 2, totalTokens: 3, usageUnknown: false },
+          }
+          yield { type: 'finish' as const, finishReason: 'stop' as const }
+        })(),
+    }
+    const { adapter: mock } = adapterWith([])
+    const { controller, failover, finish } = controllerFor(mock, [primary, fallback])
+    ;(failover.resolve as jest.Mock).mockReturnValue(fallback)
+    const { request, response, writes } = httpDoubles()
+
+    await controller.create(input, request, response)
+
+    expect(frameData(writes).join('\n')).toContain('fallback 内容')
+    expect(failover.resolve).toHaveBeenCalledTimes(1)
+    expect(finish).toHaveBeenCalledWith(
+      expect.objectContaining({
+        provider: 'glm',
+        resolvedModel: 'glm-real',
+        failover: { from: 'qwen', to: 'glm', reason: 'UPSTREAM_TIMEOUT' },
+      }),
+    )
+  })
 
   it('emits a normalized SSE error without DONE after the stream is open', async () => {
     const { adapter } = adapterWith(

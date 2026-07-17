@@ -35,6 +35,7 @@ export interface ChatRequest {
   temperature?: number
   topP?: number
   maxTokens?: number
+  comparison?: boolean
 }
 
 export type ChatFinishReason = 'stop' | 'length' | 'content_filter' | 'tool_calls' | 'unknown'

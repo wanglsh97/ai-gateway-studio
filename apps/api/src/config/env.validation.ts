@@ -17,6 +17,11 @@ const optionalModelId = z.preprocess(
   z.string().min(1).optional(),
 )
 
+const optionalTextModelAlias = z.preprocess(
+  (value) => (value === '' ? undefined : value),
+  z.enum(['qwen', 'glm', 'deepseek', 'kimi']).optional(),
+)
+
 const environmentSchema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -48,6 +53,10 @@ const environmentSchema = z
     GLM_MODEL_ID: optionalModelId,
     DEEPSEEK_MODEL_ID: optionalModelId,
     KIMI_MODEL_ID: optionalModelId,
+    QWEN_FALLBACK_ALIAS: optionalTextModelAlias,
+    GLM_FALLBACK_ALIAS: optionalTextModelAlias,
+    DEEPSEEK_FALLBACK_ALIAS: optionalTextModelAlias,
+    KIMI_FALLBACK_ALIAS: optionalTextModelAlias,
     WANXIANG_MODEL_ID: optionalModelId,
     COGVIEW_MODEL_ID: optionalModelId,
     PROMPT_OPTIMIZER_MODEL: z.enum(['qwen', 'glm', 'deepseek']).default('qwen'),
@@ -97,6 +106,22 @@ const environmentSchema = z
           code: 'custom',
           path: [`${provider.name}_MODEL_ID`],
           message: `${provider.name} 启用时必须配置实际模型 ID`,
+        })
+      }
+    }
+
+    const fallbacks = [
+      { alias: 'qwen', fallback: env.QWEN_FALLBACK_ALIAS },
+      { alias: 'glm', fallback: env.GLM_FALLBACK_ALIAS },
+      { alias: 'deepseek', fallback: env.DEEPSEEK_FALLBACK_ALIAS },
+      { alias: 'kimi', fallback: env.KIMI_FALLBACK_ALIAS },
+    ]
+    for (const { alias, fallback } of fallbacks) {
+      if (fallback === alias) {
+        context.addIssue({
+          code: 'custom',
+          path: [`${alias.toUpperCase()}_FALLBACK_ALIAS`],
+          message: 'fallback alias 不能与主模型 alias 相同',
         })
       }
     }
