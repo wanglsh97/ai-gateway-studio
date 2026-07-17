@@ -124,6 +124,14 @@ describe('AdminTableRowsService', () => {
       ),
     ).rejects.toMatchObject({ status: 400 })
     await expect(
+      service.update(
+        'admin-audit-logs',
+        '00000000-0000-4000-8000-000000000212',
+        { actor: 'intruder' },
+        { actor: 'root' },
+      ),
+    ).rejects.toMatchObject({ status: 400 })
+    await expect(
       service.delete('admin-audit-logs', '00000000-0000-4000-8000-000000000212', { actor: 'root' }),
     ).rejects.toMatchObject({ status: 400 })
     expect(transaction).not.toHaveBeenCalled()

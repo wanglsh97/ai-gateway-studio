@@ -45,7 +45,11 @@ export default function AdminDatabasePage() {
       .then((loaded) => {
         if (!active) return
         setTables(loaded)
-        setTableName((current) => current || loaded[0]?.name || '')
+        const requestedTable = new URLSearchParams(window.location.search).get('table')
+        const initialTable = loaded.some(({ name }) => name === requestedTable)
+          ? requestedTable
+          : loaded[0]?.name
+        setTableName((current) => current || initialTable || '')
       })
       .catch((caught: unknown) => handleError(caught, router, setError))
     return () => {

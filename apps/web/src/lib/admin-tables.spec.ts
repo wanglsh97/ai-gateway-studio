@@ -39,4 +39,22 @@ describe('admin table client', () => {
     assert.equal(calls[1]?.init?.method, 'DELETE')
     assert.ok(calls.every(({ url }) => url.endsWith('/row%2Fid')))
   })
+
+  it('exposes audit logs as a query-only capability', async () => {
+    const fetchImplementation: typeof fetch = async () =>
+      Response.json([
+        {
+          name: 'admin-audit-logs',
+          label: '管理员操作审计',
+          primaryKey: 'id',
+          operations: ['query'],
+          fields: [],
+        },
+      ])
+
+    const capabilities = await loadAdminTables(fetchImplementation)
+
+    assert.deepEqual(capabilities[0]?.operations, ['query'])
+    assert.equal(capabilities[0]?.name, 'admin-audit-logs')
+  })
 })

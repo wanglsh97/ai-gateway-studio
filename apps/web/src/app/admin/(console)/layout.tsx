@@ -75,6 +75,12 @@ export default function AdminConsoleLayout({ children }: Readonly<{ children: Re
           >
             数据库
           </Link>
+          <Link
+            className="block rounded-lg px-3 py-2 text-sm font-medium hover:bg-slate-100 dark:hover:bg-white/10"
+            href="/admin/database?table=admin-audit-logs"
+          >
+            操作审计
+          </Link>
         </nav>
         <button
           type="button"
