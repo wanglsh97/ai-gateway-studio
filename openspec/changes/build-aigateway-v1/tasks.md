@@ -126,7 +126,7 @@
 ### Chat 完整能力与多模型对比
 
 - [x] 3.7 完成多轮消息状态、模型选择、参数设置和新会话交互
-- [ ] 3.8 使用经过消毒的 Markdown 渲染 assistant 内容，禁止原始 HTML 和危险链接协议
+- [x] 3.8 使用经过消毒的 Markdown 渲染 assistant 内容，禁止原始 HTML 和危险链接协议
 - [ ] 3.9 在 SDK 实现 2–3 模型 compare helper，为每个模型创建独立请求和 AbortController
 - [ ] 3.10 实现多模型对比布局，每列独立显示 delta、loading、usage/cost、error 和停止操作
 - [ ] 3.11 添加对比 E2E，覆盖三路不同速度、单路失败、单路取消、全部取消和禁止 failover

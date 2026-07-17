@@ -7,6 +7,7 @@ import { useEffect, useReducer, useRef, useState } from 'react'
 
 import type { ChatViewMessage } from './chat-view-state'
 import { chatViewReducer, initialChatViewState, readableChatError } from './chat-view-state'
+import { AssistantMarkdown } from './assistant-markdown'
 
 const client = createAIGatewayClient()
 const examples = ['解释什么是 API 网关', '为周末杭州之旅列一个计划', '用简单比喻介绍大语言模型']
@@ -269,8 +270,8 @@ function MessageBubble({ message }: { message: ChatViewMessage }) {
         {assistant && message.status === 'loading' ? (
           '正在连接模型…'
         ) : (
-          <span className="whitespace-pre-wrap">
-            {message.content || '尚未返回内容'}
+          <span>
+            <AssistantMarkdown>{message.content || '尚未返回内容'}</AssistantMarkdown>
             {message.status === 'streaming' && (
               <span className="ml-1 inline-block h-4 w-0.5 animate-pulse bg-cyan-500" />
             )}
