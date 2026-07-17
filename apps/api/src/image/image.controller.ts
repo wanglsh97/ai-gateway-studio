@@ -1,7 +1,15 @@
 import { randomUUID } from 'node:crypto'
 
 import type { ImageTask } from '@aigateway/sdk'
-import { Body, Controller, Post, Req, ServiceUnavailableException } from '@nestjs/common'
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Req,
+  ServiceUnavailableException,
+} from '@nestjs/common'
 import type { Request } from 'express'
 
 import { RateLimitService } from '../rate-limit/rate-limit.service'
@@ -49,6 +57,16 @@ export class ImageController {
       submission.status,
     )
     return this.images.toPublicTask(updated)
+  }
+
+  @Get(':taskId')
+  async get(@Param('taskId') taskId: string, @Req() request: RequestWithId): Promise<ImageTask> {
+    const abortController = new AbortController()
+    const abort = () => abortController.abort()
+    request.once('aborted', abort)
+    return this.images
+      .get(taskId, abortController.signal)
+      .finally(() => request.removeListener('aborted', abort))
   }
 
   private resolveAdapter(alias: CreateImageGenerationDto['model']): ImageAdapter {
