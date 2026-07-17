@@ -44,3 +44,16 @@ export class AIGatewayFeatureUnavailableError extends AIGatewayError {
     this.name = 'AIGatewayFeatureUnavailableError'
   }
 }
+
+export class AIGatewayTimeoutError extends AIGatewayError {
+  constructor(operation: string, timeoutMs: number) {
+    super({
+      requestId: 'timeout',
+      code: 'SDK_TIMEOUT',
+      message: `${operation} timed out after ${timeoutMs}ms`,
+      retryable: true,
+      details: { timeoutMs },
+    })
+    this.name = 'AIGatewayTimeoutError'
+  }
+}

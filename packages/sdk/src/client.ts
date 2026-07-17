@@ -12,6 +12,7 @@ import {
   AIGatewayError,
   AIGatewayFeatureUnavailableError,
   AIGatewayProtocolError,
+  AIGatewayTimeoutError,
 } from './errors.js'
 import { readSseData } from './sse.js'
 
@@ -58,10 +59,13 @@ export function createAIGatewayClient(options: CreateAIGatewayClientOptions = {}
         streamChat(fetchImplementation, baseUrl, input, requestOptions),
     },
     images: {
-      create: async () => unavailable('images.create'),
-      get: async () => unavailable('images.get'),
-      wait: async () => unavailable('images.wait'),
-      downloadUrl: () => unavailable('images.downloadUrl'),
+      create: (input, requestOptions) =>
+        createImage(fetchImplementation, baseUrl, input, requestOptions),
+      get: (taskId, requestOptions) =>
+        getImage(fetchImplementation, baseUrl, taskId, requestOptions),
+      wait: (taskId, waitOptions) =>
+        waitForImage(fetchImplementation, baseUrl, taskId, waitOptions),
+      downloadUrl: (taskId, index) => imageDownloadUrl(baseUrl, taskId, index),
     },
     prompts: {
       optimize: async () => unavailable('prompts.optimize'),
@@ -70,6 +74,121 @@ export function createAIGatewayClient(options: CreateAIGatewayClientOptions = {}
       list: (requestOptions) => listModels(fetchImplementation, baseUrl, requestOptions),
     },
   }
+}
+
+async function createImage(
+  fetchImplementation: typeof globalThis.fetch,
+  baseUrl: string,
+  input: ImageRequest,
+  options: RequestOptions | undefined,
+): Promise<ImageTask> {
+  return requestImageTask(fetchImplementation, `${baseUrl}/api/v1/images/generations`, {
+    method: 'POST',
+    headers: { accept: 'application/json', 'content-type': 'application/json' },
+    body: JSON.stringify(input),
+    ...(options?.signal === undefined ? {} : { signal: options.signal }),
+  })
+}
+
+async function getImage(
+  fetchImplementation: typeof globalThis.fetch,
+  baseUrl: string,
+  taskId: string,
+  options: RequestOptions | undefined,
+): Promise<ImageTask> {
+  return requestImageTask(
+    fetchImplementation,
+    `${baseUrl}/api/v1/images/generations/${encodeURIComponent(taskId)}`,
+    {
+      method: 'GET',
+      headers: { accept: 'application/json' },
+      ...(options?.signal === undefined ? {} : { signal: options.signal }),
+    },
+  )
+}
+
+async function requestImageTask(
+  fetchImplementation: typeof globalThis.fetch,
+  url: string,
+  init: RequestInit,
+): Promise<ImageTask> {
+  const response = await fetchImplementation(url, init)
+  const requestId = response.headers.get('x-request-id')
+  if (!response.ok) throw await responseError(response, requestId)
+  let body: unknown
+  try {
+    body = await response.json()
+  } catch (error) {
+    throw new AIGatewayProtocolError(
+      requestId ?? 'unknown',
+      'Image task response is not valid JSON',
+      error,
+    )
+  }
+  return parseImageTask(body, requestId ?? 'unknown')
+}
+
+async function waitForImage(
+  fetchImplementation: typeof globalThis.fetch,
+  baseUrl: string,
+  taskId: string,
+  options: ImageWaitOptions | undefined,
+): Promise<ImageTask> {
+  const timeoutMs = options?.timeoutMs ?? 120_000
+  let intervalMs = options?.intervalMs ?? 1_000
+  if (timeoutMs <= 0 || intervalMs <= 0)
+    throw new TypeError('Image wait intervals must be positive')
+  const deadline = Date.now() + timeoutMs
+
+  while (true) {
+    const task = await getImage(fetchImplementation, baseUrl, taskId, options)
+    if (task.status === 'succeeded' || task.status === 'failed') return task
+    const remaining = deadline - Date.now()
+    if (remaining <= 0) throw new AIGatewayTimeoutError('images.wait', timeoutMs)
+    await abortableDelay(Math.min(intervalMs, remaining), options?.signal)
+    intervalMs = Math.min(5_000, Math.ceil(intervalMs * 1.5))
+  }
+}
+
+function imageDownloadUrl(baseUrl: string, taskId: string, index: number): string {
+  if (!Number.isInteger(index) || index < 0)
+    throw new TypeError('Image index must be a non-negative integer')
+  return `${baseUrl}/api/v1/images/generations/${encodeURIComponent(taskId)}/images/${index}/download`
+}
+
+function abortableDelay(ms: number, signal: AbortSignal | undefined): Promise<void> {
+  if (signal?.aborted)
+    return Promise.reject(new DOMException('The operation was aborted', 'AbortError'))
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(resolve, ms)
+    signal?.addEventListener(
+      'abort',
+      () => {
+        clearTimeout(timeout)
+        reject(new DOMException('The operation was aborted', 'AbortError'))
+      },
+      { once: true },
+    )
+  })
+}
+
+function parseImageTask(value: unknown, requestId: string): ImageTask {
+  const task = asRecord(value)
+  const taskId = stringValue(task?.taskId)
+  const model = stringValue(task?.model)
+  const status = stringValue(task?.status)
+  if (
+    !task ||
+    !taskId ||
+    !model ||
+    !['wanxiang', 'cogview'].includes(model) ||
+    !status ||
+    !['pending', 'running', 'succeeded', 'failed'].includes(status) ||
+    !Array.isArray(task.results)
+  ) {
+    throw new AIGatewayProtocolError(requestId, 'Image task response is invalid')
+  }
+  return value as ImageTask
 }
 
 async function listModels(

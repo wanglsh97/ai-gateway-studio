@@ -9,6 +9,7 @@ export {
   AIGatewayError,
   AIGatewayFeatureUnavailableError,
   AIGatewayProtocolError,
+  AIGatewayTimeoutError,
 } from './errors.js'
 export { CHAT_SSE_DONE, IMAGE_MODEL_ALIASES, TEXT_MODEL_ALIASES } from './types.js'
 export type {
