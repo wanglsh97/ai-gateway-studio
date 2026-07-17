@@ -96,7 +96,7 @@ export class RequestLifecycleService {
 
   async start(input: StartRequestLifecycleInput): Promise<StartedRequestLifecycle> {
     try {
-      return await this.prisma.requestLog.create({
+      const started = await this.prisma.requestLog.create({
         data: {
           requestId: input.requestId,
           capability: REQUEST_CAPABILITY_MAP[input.capability],
@@ -116,6 +116,21 @@ export class RequestLifecycleService {
           startedAt: true,
         },
       })
+      this.logger.log(
+        {
+          event: 'request.lifecycle.started',
+          requestLogId: started.id,
+          requestId: input.requestId,
+          capability: input.capability,
+          model: input.modelAlias,
+          provider: input.provider ?? null,
+          resolvedModel: input.resolvedModel ?? null,
+          stream: input.stream,
+          prompt: input.prompt,
+        },
+        'Request lifecycle started',
+      )
+      return started
     } catch (error) {
       this.logger.error(
         { error, requestId: input.requestId, capability: input.capability },
@@ -127,6 +142,7 @@ export class RequestLifecycleService {
 
   async finish(input: FinishRequestLifecycleInput): Promise<void> {
     const completedAt = input.completedAt ?? new Date()
+    const durationMs = Math.max(0, completedAt.getTime() - input.startedAt.getTime())
     const usage = input.usage ?? {
       inputTokens: null,
       outputTokens: null,
@@ -151,7 +167,7 @@ export class RequestLifecycleService {
           data: {
             status: TERMINAL_STATUS_MAP[input.status],
             completedAt,
-            durationMs: Math.max(0, completedAt.getTime() - input.startedAt.getTime()),
+            durationMs,
             firstTokenAt: input.firstTokenAt ?? null,
             providerRequestId: input.providerRequestId ?? null,
             ...(input.provider === undefined ? {} : { provider: input.provider }),
@@ -173,6 +189,32 @@ export class RequestLifecycleService {
           update: billingData,
         })
       })
+      this.logger.log(
+        {
+          event: 'request.lifecycle.finished',
+          requestLogId: input.requestLogId,
+          requestId: input.requestId,
+          status: input.status,
+          durationMs,
+          provider: input.provider ?? null,
+          resolvedModel: input.resolvedModel ?? null,
+          usage: {
+            inputTokens: usage.inputTokens,
+            outputTokens: usage.outputTokens,
+            totalTokens: usage.totalTokens,
+            usageUnknown: usage.usageUnknown,
+          },
+          cost: {
+            priceVersion: usage.priceVersion ?? null,
+            inputCostCny: usage.inputCostCny ?? null,
+            outputCostCny: usage.outputCostCny ?? null,
+            estimatedCostCny: usage.estimatedCostCny ?? null,
+          },
+          failover: input.failover ?? null,
+          error: input.error ?? null,
+        },
+        'Request lifecycle finished',
+      )
     } catch (error) {
       if (error instanceof RequestLifecycleTransitionError) throw error
       this.logger.error(

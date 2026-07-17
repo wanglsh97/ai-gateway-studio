@@ -46,6 +46,10 @@ function createService() {
 }
 
 describe('RequestLifecycleService.start', () => {
+  beforeEach(() => {
+    jest.spyOn(Logger.prototype, 'log').mockImplementation()
+  })
+
   afterEach(() => {
     jest.restoreAllMocks()
   })
@@ -75,6 +79,20 @@ describe('RequestLifecycleService.start', () => {
       },
       select: { id: true, requestId: true, status: true, startedAt: true },
     })
+    expect(Logger.prototype.log).toHaveBeenCalledWith(
+      {
+        event: 'request.lifecycle.started',
+        requestLogId: 'log-1',
+        requestId,
+        capability: 'chat',
+        model: 'qwen',
+        provider: 'mock',
+        resolvedModel: 'mock-chat-v1',
+        stream: true,
+        prompt: { messages },
+      },
+      'Request lifecycle started',
+    )
   })
 
   it('prevents provider invocation when the pending record cannot be created', async () => {
@@ -114,6 +132,10 @@ describe('RequestLifecycleService.finish', () => {
 
   afterEach(() => {
     jest.restoreAllMocks()
+  })
+
+  beforeEach(() => {
+    jest.spyOn(Logger.prototype, 'log').mockImplementation()
   })
 
   it('updates RequestLog and upserts its one-to-one BillingRecord in one transaction', async () => {
@@ -160,6 +182,32 @@ describe('RequestLifecycleService.finish', () => {
         estimatedCostCny: '0.00000000',
       },
     })
+    expect(Logger.prototype.log).toHaveBeenCalledWith(
+      {
+        event: 'request.lifecycle.finished',
+        requestLogId: 'log-1',
+        requestId,
+        status: 'succeeded',
+        durationMs: 1250,
+        provider: null,
+        resolvedModel: null,
+        usage: {
+          inputTokens: 10,
+          outputTokens: 20,
+          totalTokens: 30,
+          usageUnknown: false,
+        },
+        cost: {
+          priceVersion: 'mock-v1',
+          inputCostCny: null,
+          outputCostCny: null,
+          estimatedCostCny: '0.00000000',
+        },
+        failover: null,
+        error: null,
+      },
+      'Request lifecycle finished',
+    )
   })
 
   it.each([
