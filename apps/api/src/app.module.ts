@@ -8,6 +8,7 @@ import { validateEnvironment } from './config/env.validation'
 import { createPinoHttpOptions } from './config/logger.config'
 import { DatabaseModule } from './database/database.module'
 import { HealthModule } from './health/health.module'
+import { ImageModule } from './image/image.module'
 import { RedisModule } from './redis/redis.module'
 
 @Module({
@@ -26,6 +27,7 @@ import { RedisModule } from './redis/redis.module'
     RedisModule,
     HealthModule,
     ChatModule,
+    ImageModule,
   ],
   controllers: [AppController],
 })

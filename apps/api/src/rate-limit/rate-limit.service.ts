@@ -6,6 +6,7 @@ import { ConfigService } from '@nestjs/config'
 import { RedisService } from '../redis/redis.service'
 
 const CHAT_WINDOW_SECONDS = 60
+const IMAGE_WINDOW_SECONDS = 60
 
 export class RateLimitExceededException extends HttpException {
   constructor(readonly retryAfterSeconds: number) {
@@ -23,12 +24,14 @@ export class RateLimitExceededException extends HttpException {
 export class RateLimitService {
   private readonly logger = new Logger(RateLimitService.name)
   private readonly chatLimit: number
+  private readonly imageLimit: number
 
   constructor(
     @Inject(RedisService) private readonly redis: RedisService,
     @Inject(ConfigService) config: ConfigService,
   ) {
     this.chatLimit = config.getOrThrow<number>('CHAT_RATE_LIMIT_PER_MINUTE')
+    this.imageLimit = config.get<number>('IMAGE_RATE_LIMIT_PER_MINUTE', 5)
   }
 
   async consumeChat(clientIp: string | undefined): Promise<void> {
@@ -46,6 +49,35 @@ export class RateLimitService {
     } catch (error) {
       if (error instanceof RateLimitExceededException) throw error
       this.logger.error({ error, clientIp: normalizedIp }, 'Redis Chat rate limit failed closed')
+      throw new HttpException('限流服务暂时不可用', HttpStatus.SERVICE_UNAVAILABLE)
+    }
+  }
+
+  async consumeImage(clientIp: string | undefined): Promise<void> {
+    await this.consume('image', clientIp, this.imageLimit, IMAGE_WINDOW_SECONDS)
+  }
+
+  private async consume(
+    capability: 'image',
+    clientIp: string | undefined,
+    limit: number,
+    windowSeconds: number,
+  ): Promise<void> {
+    const normalizedIp = normalizeClientIp(clientIp)
+    const encodedIp = Buffer.from(normalizedIp).toString('base64url')
+
+    try {
+      const counter = await this.redis.incrementFixedWindow(
+        `rate:${capability}:${encodedIp}`,
+        windowSeconds,
+      )
+      if (counter.count > limit) throw new RateLimitExceededException(counter.retryAfterSeconds)
+    } catch (error) {
+      if (error instanceof RateLimitExceededException) throw error
+      this.logger.error(
+        { error, clientIp: normalizedIp, capability },
+        'Redis rate limit failed closed',
+      )
       throw new HttpException('限流服务暂时不可用', HttpStatus.SERVICE_UNAVAILABLE)
     }
   }

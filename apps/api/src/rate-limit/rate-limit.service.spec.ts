@@ -12,6 +12,7 @@ function createService(limit = 2) {
   const redis = { incrementFixedWindow } as unknown as RedisService
   const config = {
     getOrThrow: jest.fn().mockReturnValue(limit),
+    get: jest.fn().mockReturnValue(5),
   }
   const service = new RateLimitService(redis, config as never)
   return { incrementFixedWindow, service }
@@ -25,6 +26,14 @@ describe('RateLimitService', () => {
     await expect(service.consumeChat('::ffff:127.0.0.1')).resolves.toBeUndefined()
 
     expect(incrementFixedWindow).toHaveBeenCalledWith('rate:chat:MTI3LjAuMC4x', 60)
+  })
+
+  it('uses a separate image counter with the configured five-per-minute default', async () => {
+    const { incrementFixedWindow, service } = createService()
+    incrementFixedWindow.mockResolvedValue({ count: 5, retryAfterSeconds: 20 })
+
+    await expect(service.consumeImage('127.0.0.1')).resolves.toBeUndefined()
+    expect(incrementFixedWindow).toHaveBeenCalledWith('rate:image:MTI3LjAuMC4x', 60)
   })
 
   it('returns 429 with retry information after the configured limit', async () => {
