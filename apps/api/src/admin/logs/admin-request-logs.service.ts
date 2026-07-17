@@ -1,0 +1,79 @@
+import { BadRequestException, Injectable } from '@nestjs/common'
+
+import { PrismaService } from '../../database/prisma.service'
+import { RequestCapability, RequestStatus } from '../../generated/prisma/client'
+import type { Prisma } from '../../generated/prisma/client'
+import type { RequestLogQueryDto } from './dto/request-log-query.dto'
+
+const CAPABILITY = {
+  chat: RequestCapability.CHAT,
+  image: RequestCapability.IMAGE,
+  prompt: RequestCapability.PROMPT,
+} as const
+
+const STATUS = {
+  pending: RequestStatus.PENDING,
+  succeeded: RequestStatus.SUCCEEDED,
+  failed: RequestStatus.FAILED,
+  cancelled: RequestStatus.CANCELLED,
+} as const
+
+@Injectable()
+export class AdminRequestLogsService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async list(query: RequestLogQueryDto) {
+    const page = query.page ?? 1
+    const pageSize = query.pageSize ?? 20
+    const from = query.from === undefined ? undefined : new Date(query.from)
+    const to = query.to === undefined ? undefined : new Date(query.to)
+    if (from && to && from > to) throw new BadRequestException('开始时间不能晚于结束时间')
+
+    const where: Prisma.RequestLogWhereInput = {
+      ...(from || to
+        ? {
+            createdAt: {
+              ...(from === undefined ? {} : { gte: from }),
+              ...(to === undefined ? {} : { lte: to }),
+            },
+          }
+        : {}),
+      ...(query.capability === undefined ? {} : { capability: CAPABILITY[query.capability] }),
+      ...(query.model === undefined ? {} : { modelAlias: query.model }),
+      ...(query.status === undefined ? {} : { status: STATUS[query.status] }),
+      ...(query.requestId === undefined ? {} : { requestId: query.requestId }),
+    }
+    const [total, items] = await this.prisma.$transaction([
+      this.prisma.requestLog.count({ where }),
+      this.prisma.requestLog.findMany({
+        where,
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        select: {
+          requestId: true,
+          capability: true,
+          modelAlias: true,
+          provider: true,
+          status: true,
+          stream: true,
+          startedAt: true,
+          completedAt: true,
+          durationMs: true,
+          errorCode: true,
+          createdAt: true,
+          billing: {
+            select: {
+              inputTokens: true,
+              outputTokens: true,
+              totalTokens: true,
+              usageUnknown: true,
+              estimatedCostCny: true,
+            },
+          },
+        },
+      }),
+    ])
+    return { items, page, pageSize, total, pageCount: Math.ceil(total / pageSize) }
+  }
+}
