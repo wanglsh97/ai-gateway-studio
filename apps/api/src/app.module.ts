@@ -9,6 +9,7 @@ import { createPinoHttpOptions } from './config/logger.config'
 import { DatabaseModule } from './database/database.module'
 import { HealthModule } from './health/health.module'
 import { ImageModule } from './image/image.module'
+import { PromptModule } from './prompt/prompt.module'
 import { RedisModule } from './redis/redis.module'
 
 @Module({
@@ -28,6 +29,7 @@ import { RedisModule } from './redis/redis.module'
     HealthModule,
     ChatModule,
     ImageModule,
+    PromptModule,
   ],
   controllers: [AppController],
 })
