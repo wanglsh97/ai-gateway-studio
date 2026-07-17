@@ -22,6 +22,14 @@ const optionalTextModelAlias = z.preprocess(
   z.enum(['qwen', 'glm', 'deepseek', 'kimi']).optional(),
 )
 
+const optionalNonNegativeDecimal = z.preprocess(
+  (value) => (value === '' ? undefined : value),
+  z
+    .string()
+    .regex(/^\d+(?:\.\d+)?$/)
+    .optional(),
+)
+
 const environmentSchema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -66,6 +74,15 @@ const environmentSchema = z
     CHAT_MAX_TOKENS: z.coerce.number().int().min(1).max(4096).default(4096),
     PROVIDER_HEALTH_TTL_SECONDS: z.coerce.number().int().min(30).max(3600).default(300),
     PROVIDER_HEALTH_FAILURE_THRESHOLD: z.coerce.number().int().min(1).max(10).default(3),
+    PRICING_VERSION: z.string().min(1).default('dev-v1'),
+    QWEN_INPUT_PRICE_CNY_PER_MILLION: optionalNonNegativeDecimal,
+    QWEN_OUTPUT_PRICE_CNY_PER_MILLION: optionalNonNegativeDecimal,
+    GLM_INPUT_PRICE_CNY_PER_MILLION: optionalNonNegativeDecimal,
+    GLM_OUTPUT_PRICE_CNY_PER_MILLION: optionalNonNegativeDecimal,
+    DEEPSEEK_INPUT_PRICE_CNY_PER_MILLION: optionalNonNegativeDecimal,
+    DEEPSEEK_OUTPUT_PRICE_CNY_PER_MILLION: optionalNonNegativeDecimal,
+    KIMI_INPUT_PRICE_CNY_PER_MILLION: optionalNonNegativeDecimal,
+    KIMI_OUTPUT_PRICE_CNY_PER_MILLION: optionalNonNegativeDecimal,
   })
   .superRefine((env, context) => {
     const providers = [

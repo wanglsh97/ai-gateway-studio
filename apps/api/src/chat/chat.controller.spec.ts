@@ -8,6 +8,7 @@ import { RequestLifecycleStartError } from '../request-lifecycle/request-lifecyc
 import type { RateLimitService } from '../rate-limit/rate-limit.service'
 import type { ProviderHealthService } from './provider-health.service'
 import type { ChatFailoverService } from './chat-failover.service'
+import type { PricingService } from '../billing/pricing.service'
 import type { ChatAdapter, ChatAdapterEvent } from './adapters/chat-adapter'
 import { ChatAdapterError } from './adapters/chat-adapter'
 import { ChatAdapterRegistry } from './adapters/chat-adapter.registry'
@@ -88,14 +89,18 @@ function controllerFor(adapter: ChatAdapter, additionalAdapters: readonly ChatAd
   const failover = {
     resolve: jest.fn().mockReturnValue(undefined),
   } as unknown as ChatFailoverService
+  const pricing = {
+    calculate: jest.fn((_provider, usage) => usage),
+  } as unknown as PricingService
   const controller = new ChatController(
     new ChatAdapterRegistry([adapter, ...additionalAdapters]),
     lifecycle,
     rateLimit,
     providerHealth,
     failover,
+    pricing,
   )
-  return { consumeChat, controller, failover, finish, providerHealth, start }
+  return { consumeChat, controller, failover, finish, pricing, providerHealth, start }
 }
 
 function frameData(writes: readonly string[]) {
@@ -113,7 +118,17 @@ describe('ChatController', () => {
       },
       { type: 'finish', finishReason: 'stop' },
     ])
-    const { consumeChat, controller, finish, start } = controllerFor(adapter)
+    const { consumeChat, controller, finish, pricing, start } = controllerFor(adapter)
+    ;(pricing.calculate as jest.Mock).mockReturnValue({
+      inputTokens: 2,
+      outputTokens: 3,
+      totalTokens: 5,
+      usageUnknown: false,
+      priceVersion: 'mock-v1',
+      inputCostCny: '0.00000000',
+      outputCostCny: '0.00000000',
+      estimatedCostCny: '0.00000000',
+    })
     const { request, response, rawResponse, writes } = httpDoubles()
 
     await controller.create(
@@ -145,7 +160,13 @@ describe('ChatController', () => {
         requestLogId: 'log-1',
         requestId,
         status: 'succeeded',
-        usage: { inputTokens: 2, outputTokens: 3, totalTokens: 5, usageUnknown: false },
+        usage: expect.objectContaining({
+          inputTokens: 2,
+          outputTokens: 3,
+          totalTokens: 5,
+          priceVersion: 'mock-v1',
+          estimatedCostCny: '0.00000000',
+        }),
       }),
     )
 
@@ -167,7 +188,7 @@ describe('ChatController', () => {
         prompt_tokens: 2,
         completion_tokens: 3,
         total_tokens: 5,
-        aigateway: { estimated_cost_cny: null, usage_unknown: false },
+        aigateway: { estimated_cost_cny: '0.00000000', usage_unknown: false },
       },
     })
   })

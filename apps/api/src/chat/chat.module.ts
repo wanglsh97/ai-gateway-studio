@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common'
 import { ConfigModule, ConfigService } from '@nestjs/config'
 
 import { RequestLifecycleModule } from '../request-lifecycle/request-lifecycle.module'
+import { PricingService } from '../billing/pricing.service'
 import { RateLimitModule } from '../rate-limit/rate-limit.module'
 import type { ChatAdapter } from './adapters/chat-adapter'
 import { CHAT_ADAPTERS, ChatAdapterRegistry } from './adapters/chat-adapter.registry'
@@ -81,6 +82,7 @@ import { OpenAICompatibleChatTransport } from './transports/openai-compatible-ch
     ChatAdapterRegistry,
     ChatFailoverService,
     ProviderHealthService,
+    PricingService,
   ],
   controllers: [ChatController, ModelsController],
   exports: [ChatAdapterRegistry],

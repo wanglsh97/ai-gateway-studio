@@ -23,6 +23,8 @@ import {
   RequestLifecycleService,
   RequestLifecycleTransitionError,
 } from '../request-lifecycle/request-lifecycle.service'
+import type { RequestLifecycleUsage } from '../request-lifecycle/request-lifecycle.service'
+import { PricingService } from '../billing/pricing.service'
 import { RateLimitService } from '../rate-limit/rate-limit.service'
 import { ChatAdapterError } from './adapters/chat-adapter'
 import type { ChatAdapter, ChatAdapterUsage } from './adapters/chat-adapter'
@@ -42,7 +44,7 @@ interface ChatStreamState {
 
 interface ChatStreamCompletion {
   finishReason: ChatFinishReason
-  usage: ChatAdapterUsage
+  usage: RequestLifecycleUsage
 }
 
 interface ChatExecutionResult {
@@ -59,6 +61,7 @@ export class ChatController {
     @Inject(RateLimitService) private readonly rateLimit: RateLimitService,
     @Inject(ProviderHealthService) private readonly providerHealth: ProviderHealthService,
     @Inject(ChatFailoverService) private readonly failover: ChatFailoverService,
+    @Inject(PricingService) private readonly pricing: PricingService,
   ) {}
 
   @Post('completions')
@@ -108,6 +111,7 @@ export class ChatController {
         state,
       )
       if (abortController.signal.aborted) throw this.abortError()
+      const pricedUsage = this.pricing.calculate(execution.adapter.id, execution.completion.usage)
 
       finalizationAttempted = true
       await this.lifecycle.finish({
@@ -122,9 +126,14 @@ export class ChatController {
         provider: execution.adapter.id,
         resolvedModel: execution.adapter.resolvedModel,
         ...(execution.failover === undefined ? {} : { failover: execution.failover }),
-        usage: execution.completion.usage,
+        usage: pricedUsage,
       })
-      this.writeCompletion(input, requestId, execution.completion, response)
+      this.writeCompletion(
+        input,
+        requestId,
+        { ...execution.completion, usage: pricedUsage },
+        response,
+      )
     } catch (error) {
       let responseError = error
 
@@ -352,7 +361,7 @@ export class ChatController {
         completion_tokens: completion.usage.outputTokens,
         total_tokens: completion.usage.totalTokens,
         aigateway: {
-          estimated_cost_cny: null,
+          estimated_cost_cny: completion.usage.estimatedCostCny ?? null,
           usage_unknown: completion.usage.usageUnknown,
         },
       },
