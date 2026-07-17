@@ -188,8 +188,10 @@ async function deleteRecord(
   id: string,
 ) {
   switch (table) {
-    case 'request-logs':
+    case 'request-logs': {
+      await transaction.billingRecord.deleteMany({ where: { requestLogId: id } })
       return transaction.requestLog.delete({ where: { id } })
+    }
     case 'billing-records':
       return transaction.billingRecord.delete({ where: { id } })
     case 'image-generation-tasks':

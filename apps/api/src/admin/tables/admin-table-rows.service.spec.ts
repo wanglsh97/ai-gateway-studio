@@ -9,6 +9,7 @@ function delegate() {
     findUnique: jest.fn().mockResolvedValue({ id: 'row-1', inputTokens: 1 }),
     update: jest.fn().mockResolvedValue({ id: 'row-1', inputTokens: 2 }),
     delete: jest.fn().mockResolvedValue({ id: 'row-1' }),
+    deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
     create: jest.fn().mockResolvedValue({ id: 'audit-1' }),
   }
 }
@@ -183,6 +184,33 @@ describe('AdminTableRowsService', () => {
 
     expect(context.transaction).toHaveBeenCalledTimes(1)
     expect(context.imageGenerationTask.delete).toHaveBeenCalledTimes(1)
+    expect(context.adminAuditLog.create).toHaveBeenCalledTimes(1)
+  })
+
+  it('deletes a request billing relation in the same transaction and rejects a repeated delete', async () => {
+    const context = setup()
+    const id = '00000000-0000-4000-8000-000000000212'
+
+    await expect(context.service.delete('request-logs', id, { actor: 'root' })).resolves.toEqual({
+      deleted: true,
+      id,
+    })
+
+    expect(context.transaction).toHaveBeenCalledTimes(1)
+    expect(context.billingRecord.deleteMany).toHaveBeenCalledWith({
+      where: { requestLogId: id },
+    })
+    expect(context.requestLog.delete).toHaveBeenCalledWith({ where: { id } })
+    expect(context.adminAuditLog.create).toHaveBeenCalledTimes(1)
+
+    context.requestLog.findUnique.mockResolvedValueOnce(null)
+    await expect(
+      context.service.delete('request-logs', id, { actor: 'root' }),
+    ).rejects.toMatchObject({ status: 404 })
+
+    expect(context.transaction).toHaveBeenCalledTimes(2)
+    expect(context.billingRecord.deleteMany).toHaveBeenCalledTimes(1)
+    expect(context.requestLog.delete).toHaveBeenCalledTimes(1)
     expect(context.adminAuditLog.create).toHaveBeenCalledTimes(1)
   })
 })
