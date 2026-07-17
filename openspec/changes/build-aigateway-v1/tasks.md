@@ -44,7 +44,7 @@
 - [x] 1.30 实现单模型首 delta 前最多一次 failover，对比模式及首 delta 后禁止切换
 - [x] 1.31 添加 failover 测试，覆盖超时/5xx 切换、不可重试错误、首 delta 后失败和取消
 - [x] 1.32 实现版本化单价配置、usageUnknown 和输入/输出 token 人民币费用换算测试
-- [ ] 1.33 逐个启用 Qwen、GLM、DeepSeek；每启用一个都运行 Mock 基线、contract suite 和真实冒烟
+- [x] 1.33 逐个启用 Qwen、GLM、DeepSeek；每启用一个都运行 Mock 基线、contract suite 和真实冒烟
 
 ### 文生图网关能力
 
