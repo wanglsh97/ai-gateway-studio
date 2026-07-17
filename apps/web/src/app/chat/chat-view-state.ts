@@ -2,14 +2,21 @@ import type { TextModelAlias, Usage } from '@aigateway/sdk'
 
 export type ChatViewStatus = 'idle' | 'loading' | 'streaming' | 'success' | 'cancelled' | 'error'
 
-export interface ChatViewState {
-  status: ChatViewStatus
-  prompt: string
-  response: string
+export interface ChatViewMessage {
+  id: number
+  role: 'user' | 'assistant'
+  content: string
+  status?: Exclude<ChatViewStatus, 'idle'>
   requestId?: string
   model?: TextModelAlias
   usage?: Usage
   error?: string
+}
+
+export interface ChatViewState {
+  status: ChatViewStatus
+  messages: readonly ChatViewMessage[]
+  nextMessageId: number
 }
 
 export type ChatViewAction =
@@ -24,34 +31,78 @@ export type ChatViewAction =
 
 export const initialChatViewState: ChatViewState = {
   status: 'idle',
-  prompt: '',
-  response: '',
+  messages: [],
+  nextMessageId: 1,
 }
 
 export function chatViewReducer(state: ChatViewState, action: ChatViewAction): ChatViewState {
   switch (action.type) {
     case 'submit':
-      return { status: 'loading', prompt: action.prompt, response: '' }
+      return {
+        status: 'loading',
+        messages: [
+          ...state.messages,
+          { id: state.nextMessageId, role: 'user', content: action.prompt },
+          {
+            id: state.nextMessageId + 1,
+            role: 'assistant',
+            content: '',
+            status: 'loading',
+          },
+        ],
+        nextMessageId: state.nextMessageId + 2,
+      }
     case 'started':
       if (state.status !== 'loading') return state
-      return { ...state, requestId: action.requestId, model: action.model }
+      return updateActiveAssistant(state, {
+        requestId: action.requestId,
+        model: action.model,
+      })
     case 'delta':
-      if (state.status !== 'loading' && state.status !== 'streaming') return state
-      return { ...state, status: 'streaming', response: state.response + action.content }
+      if (!isGenerating(state.status)) return state
+      return updateActiveAssistant(
+        { ...state, status: 'streaming' },
+        { content: activeAssistant(state).content + action.content, status: 'streaming' },
+      )
     case 'usage':
-      if (state.status !== 'loading' && state.status !== 'streaming') return state
-      return { ...state, usage: action.usage }
+      if (!isGenerating(state.status)) return state
+      return updateActiveAssistant(state, { usage: action.usage })
     case 'complete':
-      if (state.status !== 'loading' && state.status !== 'streaming') return state
-      return { ...state, status: 'success' }
+      if (!isGenerating(state.status)) return state
+      return updateActiveAssistant({ ...state, status: 'success' }, { status: 'success' })
     case 'cancel':
-      if (state.status !== 'loading' && state.status !== 'streaming') return state
-      return { ...state, status: 'cancelled' }
+      if (!isGenerating(state.status)) return state
+      return updateActiveAssistant({ ...state, status: 'cancelled' }, { status: 'cancelled' })
     case 'clear':
       return initialChatViewState
     case 'fail':
-      if (state.status !== 'loading' && state.status !== 'streaming') return state
-      return { ...state, status: 'error', error: action.message }
+      if (!isGenerating(state.status)) return state
+      return updateActiveAssistant(
+        { ...state, status: 'error' },
+        { status: 'error', error: action.message },
+      )
+  }
+}
+
+function isGenerating(status: ChatViewStatus): boolean {
+  return status === 'loading' || status === 'streaming'
+}
+
+function activeAssistant(state: ChatViewState): ChatViewMessage {
+  const message = state.messages.at(-1)
+  if (!message || message.role !== 'assistant')
+    throw new Error('Active assistant message is missing')
+  return message
+}
+
+function updateActiveAssistant(
+  state: ChatViewState,
+  patch: Partial<ChatViewMessage>,
+): ChatViewState {
+  const active = activeAssistant(state)
+  return {
+    ...state,
+    messages: [...state.messages.slice(0, -1), { ...active, ...patch }],
   }
 }
 
