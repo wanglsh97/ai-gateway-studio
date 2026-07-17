@@ -1,4 +1,4 @@
-import type { ImageModelAlias, ImageRequest, ModelSummary } from '@aigateway/sdk'
+import type { ImageModelAlias, ImageRequest, ImageTask, ModelSummary } from '@aigateway/sdk'
 
 export interface ImageSizeOption {
   label: string
@@ -49,4 +49,15 @@ export function createImageRequest(input: {
     throw new TypeError('当前模型不支持该生成数量')
   }
   return { model: input.model, prompt, size: input.size, count: input.count }
+}
+
+export function imageResultItems(
+  task: ImageTask,
+  downloadUrl: (taskId: string, index: number) => string,
+) {
+  if (task.status !== 'succeeded') return []
+  return task.results.map((result) => ({
+    ...result,
+    url: downloadUrl(task.taskId, result.index),
+  }))
 }

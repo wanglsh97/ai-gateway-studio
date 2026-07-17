@@ -9,6 +9,7 @@ import {
   createImageRequest,
   enabledImageModels,
   IMAGE_SIZE_OPTIONS,
+  imageResultItems,
   maxImageCount,
 } from './image-form'
 
@@ -62,6 +63,7 @@ export default function ImagePage() {
 
   const available = models.length > 0
   const active = pageStatus === 'submitting' || pageStatus === 'polling'
+  const results = task ? imageResultItems(task, client.images.downloadUrl) : []
 
   async function submit() {
     if (active || !available) return
@@ -237,6 +239,58 @@ export default function ImagePage() {
             </p>
           </aside>
         </section>
+
+        {results.length > 0 && (
+          <section className="mt-7" aria-labelledby="image-results-title">
+            <div className="flex items-end justify-between gap-4">
+              <div>
+                <p className="text-xs font-bold tracking-[0.18em] text-violet-700 dark:text-violet-300">
+                  RESULTS
+                </p>
+                <h2 id="image-results-title" className="mt-2 text-2xl font-semibold">
+                  生成结果
+                </h2>
+              </div>
+              <p className="text-sm text-slate-500">{results.length} 张</p>
+            </div>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              {results.map((result) => (
+                <article
+                  key={result.index}
+                  className="overflow-hidden rounded-2xl border border-slate-200 bg-white/80 dark:border-white/10 dark:bg-white/5"
+                >
+                  <a
+                    href={result.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block bg-slate-100 dark:bg-slate-900"
+                    aria-label={`预览第 ${result.index + 1} 张图片`}
+                  >
+                    <img
+                      src={result.url}
+                      alt={`生成结果 ${result.index + 1}`}
+                      className="aspect-square w-full object-contain"
+                    />
+                  </a>
+                  <footer className="flex items-center justify-between gap-3 p-4 text-sm">
+                    <span className="text-slate-500">
+                      {result.width && result.height
+                        ? `${result.width} × ${result.height}`
+                        : `图片 ${result.index + 1}`}
+                    </span>
+                    <a
+                      href={result.url}
+                      download
+                      className="rounded-lg border border-slate-200 px-3 py-2 font-semibold dark:border-white/10"
+                    >
+                      下载
+                    </a>
+                  </footer>
+                </article>
+              ))}
+            </div>
+          </section>
+        )}
       </div>
     </main>
   )

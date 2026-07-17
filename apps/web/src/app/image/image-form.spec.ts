@@ -7,6 +7,7 @@ import {
   createImageRequest,
   enabledImageModels,
   IMAGE_SIZE_OPTIONS,
+  imageResultItems,
   maxImageCount,
 } from './image-form'
 
@@ -66,6 +67,24 @@ describe('image form contract', () => {
         }),
       /不支持该生成数量/,
     )
+  })
+
+  it('builds result URLs only through the gateway URL factory', () => {
+    const calls: Array<[string, number]> = []
+    const items = imageResultItems(
+      {
+        taskId: 'task/with slash',
+        model: 'wanxiang',
+        status: 'succeeded',
+        results: [{ index: 0, width: 1024, height: 1024 }],
+      },
+      (taskId, index) => {
+        calls.push([taskId, index])
+        return `/api/proxy/${encodeURIComponent(taskId)}/${index}`
+      },
+    )
+    assert.deepEqual(calls, [['task/with slash', 0]])
+    assert.equal(items[0]?.url, '/api/proxy/task%2Fwith%20slash/0')
   })
 })
 
