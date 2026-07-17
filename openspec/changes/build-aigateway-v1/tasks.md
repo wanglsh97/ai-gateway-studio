@@ -142,7 +142,7 @@
 
 ### Prompt 优化页面
 
-- [ ] 3.18 实现 `/prompt` 页面原始 Prompt 输入、expand/simplify/structure 三模式和三个快捷示例
+- [x] 3.18 实现 `/prompt` 页面原始 Prompt 输入、expand/simplify/structure 三模式和三个快捷示例
 - [ ] 3.19 通过 SDK 调用优化接口，展示消毒后的结果、模型、usage、费用和 request ID
 - [ ] 3.20 实现结果复制、提交防重、loading、错误和重试交互
 - [ ] 3.21 添加三模式页面测试，确认客户端不能注入任意 system Prompt
