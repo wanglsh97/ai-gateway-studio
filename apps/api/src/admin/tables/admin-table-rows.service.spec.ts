@@ -55,9 +55,22 @@ describe('AdminTableRowsService', () => {
     })
     expect(context[delegateName].findMany).toHaveBeenCalledWith({
       orderBy: { createdAt: 'desc' },
+      select: expect.any(Object),
       skip: 10,
       take: 10,
     })
+  })
+
+  it('never projects complete Prompt fields from generic database row lists', async () => {
+    const context = setup()
+
+    await context.service.list('request-logs', {})
+    await context.service.list('image-generation-tasks', {})
+
+    const requestSelect = context.requestLog.findMany.mock.calls[0]?.[0]?.select
+    const imageSelect = context.imageGenerationTask.findMany.mock.calls[0]?.[0]?.select
+    expect(requestSelect).not.toHaveProperty('prompt')
+    expect(imageSelect).not.toHaveProperty('prompt')
   })
 
   it('rejects unknown sort fields and unknown tables before querying Prisma', async () => {

@@ -29,11 +29,15 @@ export class AdminTableRowsService {
     }
     const orderBy = { [sortBy]: query.sortOrder ?? 'desc' }
     const skip = (page - 1) * pageSize
-    const [total, items] = await this.listAllowedTable(capability.name, {
-      orderBy,
-      skip,
-      take: pageSize,
-    })
+    const [total, items] = await this.listAllowedTable(
+      capability,
+      {
+        orderBy,
+        skip,
+        take: pageSize,
+      },
+      Object.fromEntries(capability.fields.map(({ name }) => [name, true])),
+    )
     return { items, page, pageSize, total, pageCount: Math.ceil(total / pageSize) }
   }
 
@@ -68,26 +72,30 @@ export class AdminTableRowsService {
   }
 
   private async listAllowedTable(
-    table: AdminTableName,
+    capability: AdminTableCapability,
     args: { orderBy: Record<string, 'asc' | 'desc'>; skip: number; take: number },
+    select: Record<string, true>,
   ): Promise<[number, unknown[]]> {
-    switch (table) {
+    switch (capability.name) {
       case 'request-logs':
-        return Promise.all([this.prisma.requestLog.count(), this.prisma.requestLog.findMany(args)])
+        return Promise.all([
+          this.prisma.requestLog.count(),
+          this.prisma.requestLog.findMany({ ...args, select }),
+        ])
       case 'billing-records':
         return Promise.all([
           this.prisma.billingRecord.count(),
-          this.prisma.billingRecord.findMany(args),
+          this.prisma.billingRecord.findMany({ ...args, select }),
         ])
       case 'image-generation-tasks':
         return Promise.all([
           this.prisma.imageGenerationTask.count(),
-          this.prisma.imageGenerationTask.findMany(args),
+          this.prisma.imageGenerationTask.findMany({ ...args, select }),
         ])
       case 'admin-audit-logs':
         return Promise.all([
           this.prisma.adminAuditLog.count(),
-          this.prisma.adminAuditLog.findMany(args),
+          this.prisma.adminAuditLog.findMany({ ...args, select }),
         ])
     }
   }
