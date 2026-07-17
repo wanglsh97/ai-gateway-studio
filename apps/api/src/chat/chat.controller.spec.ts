@@ -60,6 +60,16 @@ function adapterWith(events: readonly ChatAdapterEvent[], error?: Error) {
   return { adapter, stream }
 }
 
+function failingAdapter(id: ChatAdapter['id'], error: Error): ChatAdapter {
+  return {
+    id,
+    resolvedModel: `${id}-real`,
+    stream: () => ({
+      [Symbol.asyncIterator]: () => ({ next: jest.fn().mockRejectedValue(error) }),
+    }),
+  }
+}
+
 function controllerFor(adapter: ChatAdapter, additionalAdapters: readonly ChatAdapter[] = []) {
   const consumeChat = jest.fn().mockResolvedValue(undefined)
   const start = jest.fn().mockResolvedValue({
@@ -288,6 +298,60 @@ describe('ChatController', () => {
     )
   })
 
+  it('switches on an eligible 5xx before the first delta', async () => {
+    const primary = failingAdapter(
+      'qwen',
+      new ChatAdapterError('上游不可用', {
+        code: 'UPSTREAM_503',
+        retryable: true,
+        statusCode: 503,
+      }),
+    )
+    const fallback: ChatAdapter = {
+      id: 'glm',
+      resolvedModel: 'glm-real',
+      stream: () =>
+        (async function* () {
+          yield {
+            type: 'usage' as const,
+            usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2, usageUnknown: false },
+          }
+          yield { type: 'finish' as const, finishReason: 'stop' as const }
+        })(),
+    }
+    const { adapter: mock } = adapterWith([])
+    const { controller, failover, finish } = controllerFor(mock, [primary, fallback])
+    ;(failover.resolve as jest.Mock).mockReturnValue(fallback)
+    const { request, response } = httpDoubles()
+
+    await controller.create(input, request, response)
+
+    expect(failover.resolve).toHaveBeenCalledWith('qwen', expect.any(ChatAdapterError), false)
+    expect(finish).toHaveBeenCalledWith(
+      expect.objectContaining({ failover: { from: 'qwen', to: 'glm', reason: 'UPSTREAM_503' } }),
+    )
+  })
+
+  it('does not attempt a second failover when the fallback also fails', async () => {
+    const primary = failingAdapter(
+      'qwen',
+      new ChatAdapterError('主模型超时', { code: 'UPSTREAM_TIMEOUT', retryable: true }),
+    )
+    const fallback = failingAdapter(
+      'glm',
+      new ChatAdapterError('fallback 超时', { code: 'UPSTREAM_TIMEOUT', retryable: true }),
+    )
+    const { adapter: mock } = adapterWith([])
+    const { controller, failover, finish } = controllerFor(mock, [primary, fallback])
+    ;(failover.resolve as jest.Mock).mockReturnValue(fallback)
+    const { request, response } = httpDoubles()
+
+    await controller.create(input, request, response)
+
+    expect(failover.resolve).toHaveBeenCalledTimes(1)
+    expect(finish).toHaveBeenCalledWith(expect.objectContaining({ status: 'failed' }))
+  })
+
   it('emits a normalized SSE error without DONE after the stream is open', async () => {
     const { adapter } = adapterWith(
       [{ type: 'delta', content: '部分内容' }],
@@ -296,7 +360,8 @@ describe('ChatController', () => {
         retryable: false,
       }),
     )
-    const { controller, finish } = controllerFor(adapter)
+    const { controller, failover, finish } = controllerFor(adapter)
+    ;(failover.resolve as jest.Mock).mockReturnValue(adapterWith([]).adapter)
     const { request, response, writes } = httpDoubles()
 
     await controller.create(input, request, response)
@@ -323,6 +388,7 @@ describe('ChatController', () => {
         },
       }),
     )
+    expect(failover.resolve).not.toHaveBeenCalled()
   })
 
   it('does not open the stream or invoke the adapter when persistence fails', async () => {
@@ -377,7 +443,7 @@ describe('ChatController', () => {
         yield { type: 'finish', finishReason: 'stop' }
       },
     }
-    const { controller, finish } = controllerFor(adapter)
+    const { controller, failover, finish } = controllerFor(adapter)
     const { request, response, rawResponse } = httpDoubles()
 
     const operation = controller.create(input, request, response)
@@ -389,5 +455,6 @@ describe('ChatController', () => {
     expect(finish).toHaveBeenCalledWith(
       expect.objectContaining({ status: 'cancelled', requestLogId: 'log-1' }),
     )
+    expect(failover.resolve).not.toHaveBeenCalled()
   })
 })

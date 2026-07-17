@@ -41,6 +41,35 @@ describe('ChatFailoverService', () => {
     expect(service.resolve('qwen', timeout, false)).toBeUndefined()
   })
 
+  it('does not switch for non-retryable 5xx or adapter protocol failures', () => {
+    const service = new ChatFailoverService(
+      new ConfigService({ QWEN_FALLBACK_ALIAS: 'glm' }),
+      new ChatAdapterRegistry([adapter('qwen'), adapter('glm')]),
+    )
+
+    expect(
+      service.resolve(
+        'qwen',
+        new ChatAdapterError('not retryable', {
+          code: 'UPSTREAM_503',
+          retryable: false,
+          statusCode: 503,
+        }),
+        false,
+      ),
+    ).toBeUndefined()
+    expect(
+      service.resolve(
+        'qwen',
+        new ChatAdapterError('protocol', {
+          code: 'ADAPTER_PROTOCOL_ERROR',
+          retryable: false,
+        }),
+        false,
+      ),
+    ).toBeUndefined()
+  })
+
   it('only treats timeout, transport, and 5xx adapter failures as eligible', () => {
     expect(isEligibleFailure(timeout)).toBe(true)
     expect(
