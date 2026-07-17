@@ -62,45 +62,82 @@ function setup(
 }
 
 describe('PromptController', () => {
-  it('uses a server template and the shared gateway lifecycle for optimization', async () => {
-    const { calculate, consumeChat, controller, finish, request, start, stream } = setup()
+  it.each([
+    ['expand', '扩写'],
+    ['simplify', '精简'],
+    ['structure', '结构化'],
+  ] as const)(
+    'uses the versioned server template and complete lifecycle fields for %s mode',
+    async (mode, instruction) => {
+      const { calculate, consumeChat, controller, finish, request, start, stream } = setup()
 
-    await expect(
-      controller.optimize({ prompt: '帮我写代码', mode: 'structure' }, request),
-    ).resolves.toEqual({
-      requestId: request.id,
-      model: 'qwen',
-      optimizedPrompt: '优化后的 Prompt',
-      templateVersion: '2026-07-v1',
-      usage: {
-        inputTokens: 10,
-        outputTokens: 5,
-        totalTokens: 15,
-        estimatedCostCny: '0.00000000',
-        usageUnknown: false,
-      },
-    })
-    expect(consumeChat).toHaveBeenCalledWith('127.0.0.1')
-    expect(start.mock.invocationCallOrder[0]).toBeLessThan(stream.mock.invocationCallOrder[0] ?? 0)
-    expect(start).toHaveBeenCalledWith(
-      expect.objectContaining({
+      await expect(controller.optimize({ prompt: '帮我写代码', mode }, request)).resolves.toEqual({
+        requestId: request.id,
+        model: 'qwen',
+        optimizedPrompt: '优化后的 Prompt',
+        templateVersion: '2026-07-v1',
+        usage: {
+          inputTokens: 10,
+          outputTokens: 5,
+          totalTokens: 15,
+          estimatedCostCny: '0.00000000',
+          usageUnknown: false,
+        },
+      })
+      expect(consumeChat).toHaveBeenCalledWith('127.0.0.1')
+      expect(start.mock.invocationCallOrder[0]).toBeLessThan(
+        stream.mock.invocationCallOrder[0] ?? 0,
+      )
+      expect(start).toHaveBeenCalledWith({
+        requestId: request.id,
         capability: 'prompt',
-        prompt: expect.objectContaining({ mode: 'structure', templateVersion: '2026-07-v1' }),
-      }),
-    )
-    expect(stream).toHaveBeenCalledWith(
-      expect.objectContaining({
-        messages: [
-          expect.objectContaining({ role: 'system', content: expect.stringContaining('结构化') }),
-          { role: 'user', content: '帮我写代码' },
-        ],
-      }),
-    )
-    expect(calculate).toHaveBeenCalledWith('mock', expect.objectContaining({ totalTokens: 15 }))
-    expect(finish).toHaveBeenCalledWith(
-      expect.objectContaining({ status: 'succeeded', usage: expect.any(Object) }),
-    )
-  })
+        prompt: {
+          mode,
+          templateVersion: '2026-07-v1',
+          messages: [
+            expect.objectContaining({
+              role: 'system',
+              content: expect.stringContaining(instruction),
+            }),
+            { role: 'user', content: '帮我写代码' },
+          ],
+        },
+        modelAlias: 'qwen',
+        provider: 'mock',
+        resolvedModel: 'mock-chat-v1',
+        stream: false,
+        clientIp: '127.0.0.1',
+      })
+      expect(stream).toHaveBeenCalledWith(
+        expect.objectContaining({
+          messages: [
+            expect.objectContaining({
+              role: 'system',
+              content: expect.stringContaining(instruction),
+            }),
+            { role: 'user', content: '帮我写代码' },
+          ],
+        }),
+      )
+      expect(calculate).toHaveBeenCalledWith('mock', expect.objectContaining({ totalTokens: 15 }))
+      expect(finish).toHaveBeenCalledWith({
+        requestLogId: 'log-1',
+        requestId: request.id,
+        startedAt: new Date('2026-07-17T00:00:00.000Z'),
+        status: 'succeeded',
+        provider: 'mock',
+        resolvedModel: 'mock-chat-v1',
+        usage: {
+          inputTokens: 10,
+          outputTokens: 5,
+          totalTokens: 15,
+          usageUnknown: false,
+          priceVersion: 'mock-v1',
+          estimatedCostCny: '0.00000000',
+        },
+      })
+    },
+  )
 
   it('finalizes a provider failure without returning a partial optimization', async () => {
     const { controller, finish, request } = setup(new Error('upstream failed'))
