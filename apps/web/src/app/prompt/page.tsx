@@ -24,23 +24,38 @@ export default function PromptPage() {
   const [prompt, setPrompt] = useState('')
   const [mode, setMode] = useState<PromptOptimizationMode>('expand')
   const [submittedPrompt, setSubmittedPrompt] = useState('')
+  const [submittedMode, setSubmittedMode] = useState<PromptOptimizationMode>('expand')
   const [result, setResult] = useState<OptimizePromptResult | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [copied, setCopied] = useState(false)
 
-  async function submit() {
-    const original = prompt.trim()
+  async function submit(retry = false) {
+    const original = retry ? submittedPrompt : prompt.trim()
+    const selectedMode = retry ? submittedMode : mode
     if (!original || loading) return
     setLoading(true)
     setError('')
     setResult(null)
+    setCopied(false)
     setSubmittedPrompt(original)
+    setSubmittedMode(selectedMode)
     try {
-      setResult(await client.prompts.optimize({ prompt: original, mode }))
+      setResult(await client.prompts.optimize({ prompt: original, mode: selectedMode }))
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Prompt 优化失败')
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function copyResult() {
+    if (!result) return
+    try {
+      await navigator.clipboard.writeText(result.optimizedPrompt)
+      setCopied(true)
+    } catch {
+      setError('复制失败，请手动选择结果文本')
     }
   }
 
@@ -126,9 +141,22 @@ export default function PromptPage() {
             {loading ? '正在优化…' : '优化 Prompt'}
           </button>
           {error && (
-            <p role="alert" className="mt-4 text-sm text-rose-600">
-              {error}
-            </p>
+            <div
+              role="alert"
+              className="mt-4 flex flex-wrap items-center gap-3 text-sm text-rose-600"
+            >
+              <p>{error}</p>
+              {submittedPrompt && (
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={() => void submit(true)}
+                  className="rounded-lg border border-rose-300 px-3 py-1.5 font-semibold"
+                >
+                  重试
+                </button>
+              )}
+            </div>
           )}
         </form>
 
@@ -139,9 +167,18 @@ export default function PromptPage() {
               <p className="mt-4 whitespace-pre-wrap text-sm leading-7">{submittedPrompt}</p>
             </article>
             <article className="rounded-3xl border border-emerald-200 bg-emerald-50/60 p-6 dark:border-emerald-900 dark:bg-emerald-950/20">
-              <p className="text-xs font-bold tracking-[0.16em] text-emerald-700 dark:text-emerald-300">
-                OPTIMIZED
-              </p>
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs font-bold tracking-[0.16em] text-emerald-700 dark:text-emerald-300">
+                  OPTIMIZED
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void copyResult()}
+                  className="rounded-lg border border-emerald-300 px-3 py-1.5 text-xs font-semibold dark:border-emerald-800"
+                >
+                  {copied ? '已复制' : '复制结果'}
+                </button>
+              </div>
               <div className="mt-4 text-sm leading-7">
                 <AssistantMarkdown>{result.optimizedPrompt}</AssistantMarkdown>
               </div>
