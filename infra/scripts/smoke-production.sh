@@ -26,13 +26,13 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-curl --fail --silent --show-error --max-time 10 "$BASE_URL/health/live" >/dev/null
-curl --fail --silent --show-error --max-time 10 "$BASE_URL/health/ready" >/dev/null
-curl --fail --silent --show-error --max-time 10 "$BASE_URL/" >/dev/null
+curl --noproxy '*' --fail --silent --show-error --max-time 10 "$BASE_URL/health/live" >/dev/null
+curl --noproxy '*' --fail --silent --show-error --max-time 10 "$BASE_URL/health/ready" >/dev/null
+curl --noproxy '*' --fail --silent --show-error --max-time 10 "$BASE_URL/" >/dev/null
 
 mkfifo "$fifo"
 
-curl --fail --no-buffer --silent --show-error --max-time 30 \
+curl --noproxy '*' --fail --no-buffer --silent --show-error --max-time 30 \
   --request POST "$BASE_URL/api/v1/chat/completions" \
   --header 'Content-Type: application/json' \
   --data "{\"model\":\"$SMOKE_MODEL_ALIAS\",\"messages\":[{\"role\":\"user\",\"content\":\"生产部署流式冒烟\"}],\"stream\":true,\"maxTokens\":64}" \
@@ -45,11 +45,15 @@ last_delta_ms=''
 usage_seen=0
 done_seen=0
 
+epoch_ms() {
+  node -e 'process.stdout.write(String(Date.now()))'
+}
+
 while IFS= read -r line; do
   printf '%s\n' "$line" >>"$transcript"
   case "$line" in
     data:*'"content":'*)
-      now_ms="$(date +%s%3N)"
+      now_ms="$(epoch_ms)"
       delta_count=$((delta_count + 1))
       if [ -z "$first_delta_ms" ]; then first_delta_ms="$now_ms"; fi
       last_delta_ms="$now_ms"

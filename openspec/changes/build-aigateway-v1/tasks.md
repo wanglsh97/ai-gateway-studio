@@ -76,7 +76,7 @@
 - [x] 1.53 为 Web/API 创建多阶段生产 Dockerfile，以非 root 用户运行并配置健康检查
 - [x] 1.54 创建生产 Docker Compose，编排 Nginx、Web、API、PostgreSQL、Redis、持久卷、健康依赖和 4C8G 资源上限
 - [x] 1.55 配置 Nginx 的 Web、Admin、API、Swagger 和 health 路由，同时支持指定域名与公网 IP
-- [ ] 1.56 为 Chat SSE 关闭 proxy buffering/cache、配置读取超时和断连传播，并用延迟 Mock chunk 验证
+- [x] 1.56 为 Chat SSE 关闭 proxy buffering/cache、配置读取超时和断连传播，并用延迟 Mock chunk 验证
 - [x] 1.57 配置 Docker 日志大小/数量轮转，防止完整 Prompt 日志持续占满系统盘
 - [x] 1.58 编写 PostgreSQL 备份、恢复和发布前备份流程，明确 Redis 无需备份
 - [x] 1.59 编写 ECS 初始化、环境注入、启动、迁移、health、日志、发布和回滚 runbook
