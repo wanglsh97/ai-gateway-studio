@@ -67,9 +67,67 @@ export function createAIGatewayClient(options: CreateAIGatewayClientOptions = {}
       optimize: async () => unavailable('prompts.optimize'),
     },
     models: {
-      list: async () => unavailable('models.list'),
+      list: (requestOptions) => listModels(fetchImplementation, baseUrl, requestOptions),
     },
   }
+}
+
+async function listModels(
+  fetchImplementation: typeof globalThis.fetch,
+  baseUrl: string,
+  options: RequestOptions | undefined,
+): Promise<ModelSummary[]> {
+  const response = await fetchImplementation(`${baseUrl}/api/v1/models`, {
+    method: 'GET',
+    headers: { accept: 'application/json' },
+    ...(options?.signal === undefined ? {} : { signal: options.signal }),
+  })
+  const requestId = response.headers.get('x-request-id')
+
+  if (!response.ok) throw await responseError(response, requestId)
+
+  let body: unknown
+  try {
+    body = await response.json()
+  } catch (error) {
+    throw new AIGatewayProtocolError(
+      requestId ?? 'unknown',
+      'Models response is not valid JSON',
+      error,
+    )
+  }
+
+  if (!Array.isArray(body)) {
+    throw new AIGatewayProtocolError(requestId ?? 'unknown', 'Models response must be an array')
+  }
+
+  return body.map((value) => parseModelSummary(value, requestId ?? 'unknown'))
+}
+
+function parseModelSummary(value: unknown, requestId: string): ModelSummary {
+  const model = asRecord(value)
+  const alias = stringValue(model?.alias)
+  const displayName = stringValue(model?.displayName)
+  const capabilities = model?.capabilities
+  const enabled = booleanValue(model?.enabled)
+  const configured = booleanValue(model?.configured)
+  const health = model?.health
+
+  if (
+    !model ||
+    !alias ||
+    !['qwen', 'glm', 'deepseek', 'kimi', 'wanxiang', 'cogview'].includes(alias) ||
+    !displayName ||
+    !Array.isArray(capabilities) ||
+    !capabilities.every((item) => ['chat', 'image', 'prompt'].includes(String(item))) ||
+    enabled === undefined ||
+    configured === undefined ||
+    !['unknown', 'healthy', 'unhealthy'].includes(String(health))
+  ) {
+    throw new AIGatewayProtocolError(requestId, 'Models response contains an invalid model summary')
+  }
+
+  return value as ModelSummary
 }
 
 async function* streamChat(

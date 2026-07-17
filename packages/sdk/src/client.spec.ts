@@ -213,3 +213,38 @@ describe('createAIGatewayClient chat.stream', () => {
     assert.equal(cancelled, true)
   })
 })
+
+describe('createAIGatewayClient models.list', () => {
+  it('fetches and returns typed enabled model summaries', async () => {
+    const calls: Array<{ input: string; init?: RequestInit }> = []
+    const models = [
+      {
+        alias: 'qwen',
+        capabilities: ['chat', 'prompt'],
+        displayName: '通义千问',
+        enabled: true,
+        configured: true,
+        health: 'unknown',
+      },
+    ]
+    const client = createAIGatewayClient({
+      baseUrl: 'http://localhost:3001/',
+      fetch: async (fetchInput, init) => {
+        calls.push({ input: String(fetchInput), ...(init === undefined ? {} : { init }) })
+        return Response.json(models)
+      },
+    })
+
+    assert.deepEqual(await client.models.list(), models)
+    assert.equal(calls[0]?.input, 'http://localhost:3001/api/v1/models')
+    assert.equal(calls[0]?.init?.method, 'GET')
+  })
+
+  it('rejects malformed model summaries', async () => {
+    const client = createAIGatewayClient({
+      fetch: async () => Response.json([{ alias: 'secret-provider-model-id' }]),
+    })
+
+    await assert.rejects(() => client.models.list(), AIGatewayProtocolError)
+  })
+})

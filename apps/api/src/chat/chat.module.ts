@@ -15,6 +15,7 @@ import {
 } from './adapters/mock-chat-adapter'
 import { QwenChatAdapter } from './adapters/qwen-chat-adapter'
 import { ChatController } from './chat.controller'
+import { ModelsController } from './models.controller'
 import { OpenAICompatibleChatTransport } from './transports/openai-compatible-chat.transport'
 
 @Module({
@@ -77,7 +78,7 @@ import { OpenAICompatibleChatTransport } from './transports/openai-compatible-ch
     },
     ChatAdapterRegistry,
   ],
-  controllers: [ChatController],
+  controllers: [ChatController, ModelsController],
   exports: [ChatAdapterRegistry],
 })
 export class ChatModule {}
