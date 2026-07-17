@@ -8,12 +8,7 @@ import type {
   OptimizePromptRequest,
   OptimizePromptResult,
 } from './types.js'
-import {
-  AIGatewayError,
-  AIGatewayFeatureUnavailableError,
-  AIGatewayProtocolError,
-  AIGatewayTimeoutError,
-} from './errors.js'
+import { AIGatewayError, AIGatewayProtocolError, AIGatewayTimeoutError } from './errors.js'
 import { readSseData } from './sse.js'
 
 export interface RequestOptions {
@@ -68,10 +63,78 @@ export function createAIGatewayClient(options: CreateAIGatewayClientOptions = {}
       downloadUrl: (taskId, index) => imageDownloadUrl(baseUrl, taskId, index),
     },
     prompts: {
-      optimize: async () => unavailable('prompts.optimize'),
+      optimize: (input, requestOptions) =>
+        optimizePrompt(fetchImplementation, baseUrl, input, requestOptions),
     },
     models: {
       list: (requestOptions) => listModels(fetchImplementation, baseUrl, requestOptions),
+    },
+  }
+}
+
+async function optimizePrompt(
+  fetchImplementation: typeof globalThis.fetch,
+  baseUrl: string,
+  input: OptimizePromptRequest,
+  options: RequestOptions | undefined,
+): Promise<OptimizePromptResult> {
+  const response = await fetchImplementation(`${baseUrl}/api/v1/prompts/optimize`, {
+    method: 'POST',
+    headers: { accept: 'application/json', 'content-type': 'application/json' },
+    body: JSON.stringify(input),
+    ...(options?.signal === undefined ? {} : { signal: options.signal }),
+  })
+  const headerRequestId = response.headers.get('x-request-id')
+  if (!response.ok) throw await responseError(response, headerRequestId)
+
+  let body: unknown
+  try {
+    body = await response.json()
+  } catch (error) {
+    throw new AIGatewayProtocolError(
+      headerRequestId ?? 'unknown',
+      'Prompt optimization response is not valid JSON',
+      error,
+    )
+  }
+  return parseOptimizePromptResult(body, headerRequestId)
+}
+
+function parseOptimizePromptResult(
+  value: unknown,
+  headerRequestId: string | null,
+): OptimizePromptResult {
+  const result = asRecord(value)
+  const requestId = stringValue(result?.requestId)
+  const model = stringValue(result?.model)
+  const optimizedPrompt = stringValue(result?.optimizedPrompt)
+  const templateVersion = stringValue(result?.templateVersion)
+  const usage = asRecord(result?.usage)
+  const protocolRequestId = requestId ?? headerRequestId ?? 'unknown'
+  if (
+    !result ||
+    !requestId ||
+    (headerRequestId !== null && requestId !== headerRequestId) ||
+    !model ||
+    !['qwen', 'glm', 'deepseek', 'kimi'].includes(model) ||
+    !optimizedPrompt ||
+    !templateVersion ||
+    !usage
+  ) {
+    throw new AIGatewayProtocolError(protocolRequestId, 'Prompt optimization response is invalid')
+  }
+
+  return {
+    requestId,
+    model: model as OptimizePromptResult['model'],
+    optimizedPrompt,
+    templateVersion,
+    usage: {
+      inputTokens: nullableNumber(usage.inputTokens, requestId),
+      outputTokens: nullableNumber(usage.outputTokens, requestId),
+      totalTokens: nullableNumber(usage.totalTokens, requestId),
+      estimatedCostCny: nullableString(usage.estimatedCostCny, requestId),
+      usageUnknown: requiredBoolean(usage.usageUnknown, requestId),
     },
   }
 }
@@ -457,8 +520,4 @@ function stringValue(value: unknown): string | undefined {
 
 function booleanValue(value: unknown): boolean | undefined {
   return typeof value === 'boolean' ? value : undefined
-}
-
-function unavailable(feature: string): never {
-  throw new AIGatewayFeatureUnavailableError(feature)
 }
