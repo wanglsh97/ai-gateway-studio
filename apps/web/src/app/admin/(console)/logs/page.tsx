@@ -5,8 +5,12 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 import { AdminApiError } from '../../../../lib/admin-auth-client'
-import { loadRequestLogs } from '../../../../lib/admin-request-logs'
-import type { RequestLogFilters, RequestLogPage } from '../../../../lib/admin-request-logs'
+import { loadRequestLogDetail, loadRequestLogs } from '../../../../lib/admin-request-logs'
+import type {
+  RequestLogDetail,
+  RequestLogFilters,
+  RequestLogPage,
+} from '../../../../lib/admin-request-logs'
 
 const initialFilters: RequestLogFilters = { page: 1, pageSize: 20 }
 
@@ -17,6 +21,9 @@ export default function AdminRequestLogsPage() {
   const [result, setResult] = useState<RequestLogPage | null>(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
+  const [detail, setDetail] = useState<RequestLogDetail | null>(null)
+  const [detailLoading, setDetailLoading] = useState(false)
+  const [detailError, setDetailError] = useState('')
 
   useEffect(() => {
     let active = true
@@ -54,6 +61,22 @@ export default function AdminRequestLogsPage() {
   function goTo(page: number) {
     setDraft((current) => ({ ...current, page }))
     setFilters((current) => ({ ...current, page }))
+  }
+
+  async function openDetail(requestId: string) {
+    setDetailLoading(true)
+    setDetailError('')
+    try {
+      setDetail(await loadRequestLogDetail(requestId))
+    } catch (caught) {
+      if (caught instanceof AdminApiError && caught.status === 401) {
+        router.replace('/admin/login')
+        return
+      }
+      setDetailError(caught instanceof Error ? caught.message : '详情加载失败')
+    } finally {
+      setDetailLoading(false)
+    }
   }
 
   return (
@@ -181,7 +204,15 @@ export default function AdminRequestLogsPage() {
                     <td className="whitespace-nowrap px-4 py-3">
                       {new Date(item.createdAt).toLocaleString('zh-CN')}
                     </td>
-                    <td className="px-4 py-3 font-mono text-xs">{item.requestId}</td>
+                    <td className="px-4 py-3">
+                      <button
+                        type="button"
+                        onClick={() => openDetail(item.requestId)}
+                        className="font-mono text-xs text-cyan-700 underline-offset-2 hover:underline dark:text-cyan-300"
+                      >
+                        {item.requestId}
+                      </button>
+                    </td>
                     <td className="px-4 py-3">{item.capability}</td>
                     <td className="px-4 py-3">{item.modelAlias}</td>
                     <td className="px-4 py-3">{item.status}</td>
@@ -223,7 +254,105 @@ export default function AdminRequestLogsPage() {
           </footer>
         )}
       </section>
+      {(detailLoading || detailError || detail) && (
+        <div
+          className="fixed inset-0 z-[70] flex justify-end bg-slate-950/40"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setDetail(null)
+              setDetailError('')
+            }
+          }}
+        >
+          <aside
+            role="dialog"
+            aria-modal="true"
+            aria-label="请求日志详情"
+            className="h-full w-full max-w-2xl overflow-y-auto bg-white p-6 shadow-2xl dark:bg-slate-950 sm:p-8"
+          >
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-semibold">请求详情</h2>
+              <button
+                type="button"
+                onClick={() => {
+                  setDetail(null)
+                  setDetailError('')
+                }}
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm dark:border-white/10"
+              >
+                关闭
+              </button>
+            </div>
+            {detailLoading ? (
+              <p aria-busy="true" className="py-16 text-center text-slate-400">
+                正在加载详情…
+              </p>
+            ) : detailError ? (
+              <p
+                role="alert"
+                className="mt-6 rounded-xl bg-rose-50 p-4 text-rose-700 dark:bg-rose-950/40 dark:text-rose-200"
+              >
+                {detailError}
+              </p>
+            ) : (
+              detail && <DetailContent detail={detail} />
+            )}
+          </aside>
+        </div>
+      )}
     </main>
+  )
+}
+
+function DetailContent({ detail }: { detail: RequestLogDetail }) {
+  return (
+    <div className="mt-6 space-y-6 text-sm">
+      <dl className="grid gap-4 sm:grid-cols-2">
+        {[
+          ['Request ID', detail.requestId],
+          ['状态', detail.status],
+          ['能力', detail.capability],
+          ['模型 alias', detail.modelAlias],
+          ['Provider', detail.provider],
+          ['Resolved model', detail.resolvedModel],
+          ['Provider request ID', detail.providerRequestId],
+          ['耗时', detail.durationMs === null ? null : `${detail.durationMs} ms`],
+        ].map(([label, value]) => (
+          <div key={label}>
+            <dt className="text-xs text-slate-400">{label}</dt>
+            <dd className="mt-1 break-all font-medium">{value ?? '—'}</dd>
+          </div>
+        ))}
+      </dl>
+      <JsonSection title="完整 Prompt / Messages" value={detail.prompt} />
+      <JsonSection title="Usage / Cost" value={detail.billing} />
+      <JsonSection
+        title="Failover"
+        value={{ from: detail.failoverFrom, to: detail.failoverTo, reason: detail.failoverReason }}
+      />
+      <JsonSection
+        title="完整错误"
+        value={{
+          code: detail.errorCode,
+          message: detail.errorMessage,
+          details: detail.errorDetails,
+        }}
+      />
+      {detail.imageTask && <JsonSection title="图片任务" value={detail.imageTask} />}
+      <JsonSection title="Metadata" value={detail.metadata} />
+    </div>
+  )
+}
+
+function JsonSection({ title, value }: { title: string; value: unknown }) {
+  return (
+    <section>
+      <h3 className="font-semibold">{title}</h3>
+      <pre className="mt-2 overflow-x-auto whitespace-pre-wrap break-words rounded-xl bg-slate-100 p-4 text-xs leading-6 dark:bg-white/5">
+        {JSON.stringify(value, null, 2) ?? 'null'}
+      </pre>
+    </section>
   )
 }
 

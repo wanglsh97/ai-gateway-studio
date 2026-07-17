@@ -40,6 +40,23 @@ export interface RequestLogPage {
   pageCount: number
 }
 
+export interface RequestLogDetail extends Omit<RequestLogListItem, 'billing'> {
+  prompt: unknown
+  resolvedModel: string | null
+  providerRequestId: string | null
+  clientIp: string | null
+  firstTokenAt: string | null
+  failoverFrom: string | null
+  failoverTo: string | null
+  failoverReason: string | null
+  errorMessage: string | null
+  errorDetails: unknown
+  metadata: unknown
+  updatedAt: string
+  billing: Record<string, unknown> | null
+  imageTask: Record<string, unknown> | null
+}
+
 export async function loadRequestLogs(
   filters: RequestLogFilters,
   fetchImplementation: typeof fetch = fetch,
@@ -53,14 +70,33 @@ export async function loadRequestLogs(
     credentials: 'same-origin',
   })
   if (!response.ok) {
-    let message = '请求日志加载失败'
-    try {
-      const body = (await response.json()) as { message?: unknown }
-      if (typeof body.message === 'string') message = body.message
-    } catch {
-      // Keep a stable fallback for non-JSON failures.
-    }
-    throw new AdminApiError(response.status, message)
+    throw await responseError(response, '请求日志加载失败')
   }
   return (await response.json()) as RequestLogPage
+}
+
+export async function loadRequestLogDetail(
+  requestId: string,
+  fetchImplementation: typeof fetch = fetch,
+): Promise<RequestLogDetail> {
+  const response = await fetchImplementation(
+    `/api/v1/admin/logs/${encodeURIComponent(requestId)}`,
+    {
+      headers: { accept: 'application/json' },
+      credentials: 'same-origin',
+    },
+  )
+  if (!response.ok) throw await responseError(response, '请求日志详情加载失败')
+  return (await response.json()) as RequestLogDetail
+}
+
+async function responseError(response: Response, fallback: string): Promise<AdminApiError> {
+  let message = fallback
+  try {
+    const body = (await response.json()) as { message?: unknown }
+    if (typeof body.message === 'string') message = body.message
+  } catch {
+    // Keep a stable fallback for non-JSON failures.
+  }
+  return new AdminApiError(response.status, message)
 }

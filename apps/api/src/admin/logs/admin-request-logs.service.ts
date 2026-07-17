@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common'
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 
 import { PrismaService } from '../../database/prisma.service'
 import { RequestCapability, RequestStatus } from '../../generated/prisma/client'
@@ -75,5 +75,49 @@ export class AdminRequestLogsService {
       }),
     ])
     return { items, page, pageSize, total, pageCount: Math.ceil(total / pageSize) }
+  }
+
+  async detail(requestId: string) {
+    const detail = await this.prisma.requestLog.findUnique({
+      where: { requestId },
+      select: {
+        requestId: true,
+        capability: true,
+        prompt: true,
+        modelAlias: true,
+        provider: true,
+        resolvedModel: true,
+        providerRequestId: true,
+        status: true,
+        stream: true,
+        clientIp: true,
+        startedAt: true,
+        firstTokenAt: true,
+        completedAt: true,
+        durationMs: true,
+        failoverFrom: true,
+        failoverTo: true,
+        failoverReason: true,
+        errorCode: true,
+        errorMessage: true,
+        errorDetails: true,
+        metadata: true,
+        createdAt: true,
+        updatedAt: true,
+        billing: true,
+        imageTask: {
+          select: {
+            taskId: true,
+            providerTaskId: true,
+            status: true,
+            results: true,
+            errorCode: true,
+            errorMessage: true,
+          },
+        },
+      },
+    })
+    if (!detail) throw new NotFoundException('请求日志不存在')
+    return detail
   }
 }

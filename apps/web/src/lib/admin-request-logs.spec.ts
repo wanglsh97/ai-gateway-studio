@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 
 import { AdminApiError } from './admin-auth-client'
-import { loadRequestLogs } from './admin-request-logs'
+import { loadRequestLogDetail, loadRequestLogs } from './admin-request-logs'
 
 describe('loadRequestLogs', () => {
   it('serializes non-empty filters and uses same-origin credentials', async () => {
@@ -24,5 +24,14 @@ describe('loadRequestLogs', () => {
       () => loadRequestLogs({}, async () => Response.json({}, { status: 401 })),
       (error: unknown) => error instanceof AdminApiError && error.status === 401,
     )
+  })
+
+  it('loads an encoded authenticated detail endpoint', async () => {
+    let url = ''
+    await loadRequestLogDetail('request/id', async (input) => {
+      url = String(input)
+      return Response.json({ requestId: 'request/id', prompt: { messages: [] } })
+    })
+    assert.equal(url, '/api/v1/admin/logs/request%2Fid')
   })
 })

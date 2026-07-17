@@ -4,12 +4,13 @@ import { AdminRequestLogsService } from './admin-request-logs.service'
 function setup() {
   const count = jest.fn().mockReturnValue('count-query')
   const findMany = jest.fn().mockReturnValue('items-query')
+  const findUnique = jest.fn()
   const transaction = jest.fn().mockResolvedValue([2, [{ requestId: 'request-1' }]])
   const prisma = {
-    requestLog: { count, findMany },
+    requestLog: { count, findMany, findUnique },
     $transaction: transaction,
   } as unknown as PrismaService
-  return { count, findMany, service: new AdminRequestLogsService(prisma), transaction }
+  return { count, findMany, findUnique, service: new AdminRequestLogsService(prisma), transaction }
 }
 
 describe('AdminRequestLogsService', () => {
@@ -59,5 +60,41 @@ describe('AdminRequestLogsService', () => {
       service.list({ from: '2026-07-18T00:00:00.000Z', to: '2026-07-17T00:00:00.000Z' }),
     ).rejects.toMatchObject({ status: 400 })
     expect(count).toHaveBeenCalledTimes(1)
+  })
+
+  it('returns the authenticated diagnostic detail including complete Prompt and relations', async () => {
+    const { findUnique, service } = setup()
+    findUnique.mockResolvedValue({
+      requestId: '00000000-0000-4000-8000-000000000210',
+      prompt: { messages: [{ role: 'user', content: '完整问题' }] },
+      billing: { totalTokens: 10 },
+    })
+
+    await expect(service.detail('00000000-0000-4000-8000-000000000210')).resolves.toMatchObject({
+      prompt: expect.any(Object),
+      billing: expect.any(Object),
+    })
+    expect(findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { requestId: '00000000-0000-4000-8000-000000000210' },
+        select: expect.objectContaining({
+          prompt: true,
+          providerRequestId: true,
+          failoverReason: true,
+          errorDetails: true,
+          billing: true,
+          imageTask: expect.any(Object),
+        }),
+      }),
+    )
+  })
+
+  it('returns 404 for an unknown request ID', async () => {
+    const { findUnique, service } = setup()
+    findUnique.mockResolvedValue(null)
+
+    await expect(service.detail('00000000-0000-4000-8000-000000000210')).rejects.toMatchObject({
+      status: 404,
+    })
   })
 })
