@@ -4,6 +4,7 @@ import { LoggerModule } from 'nestjs-pino'
 
 import { AppController } from './app.controller'
 import { AdminAuthModule } from './admin/auth/admin-auth.module'
+import { AdminDashboardModule } from './admin/dashboard/admin-dashboard.module'
 import { ChatModule } from './chat/chat.module'
 import { validateEnvironment } from './config/env.validation'
 import { createPinoHttpOptions } from './config/logger.config'
@@ -32,6 +33,7 @@ import { RedisModule } from './redis/redis.module'
     ImageModule,
     PromptModule,
     AdminAuthModule,
+    AdminDashboardModule,
   ],
   controllers: [AppController],
 })

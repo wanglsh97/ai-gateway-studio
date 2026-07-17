@@ -93,6 +93,6 @@ import { OpenAICompatibleChatTransport } from './transports/openai-compatible-ch
     PricingService,
   ],
   controllers: [ChatController, ModelsController],
-  exports: [ChatAdapterRegistry],
+  exports: [ChatAdapterRegistry, ProviderHealthService],
 })
 export class ChatModule {}
