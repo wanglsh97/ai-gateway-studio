@@ -110,11 +110,13 @@ curl --fail http://127.0.0.1/health/live
 curl --fail http://127.0.0.1/health/ready
 ```
 
-分别使用公网 IP 和域名执行生产冒烟：
+使用门禁脚本同时验证公网 IP 和域名。脚本会先确认生产环境仍是 Mock-only，避免首次公网验收意外产生真实模型费用：
 
 ```bash
-./infra/scripts/smoke-production.sh "http://<公网IP>"
-./infra/scripts/smoke-production.sh "http://<域名>"
+PUBLIC_IP_BASE_URL="http://<公网IP>" \
+DOMAIN_BASE_URL="http://<域名>" \
+ENV_FILE="$ENV_FILE" \
+./infra/scripts/smoke-public-entrypoints.sh
 ```
 
 确认 Web/API 不是 root，且宿主机没有暴露内部端口：
