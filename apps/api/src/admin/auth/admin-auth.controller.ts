@@ -3,6 +3,8 @@ import { ConfigService } from '@nestjs/config'
 import type { Request, Response } from 'express'
 
 import { RateLimitService } from '../../rate-limit/rate-limit.service'
+import { AdminPublic } from './admin-public.decorator'
+import type { AdminRequest } from './admin.guard'
 import { ADMIN_SESSION_COOKIE, AdminAuthService } from './admin-auth.service'
 import { AdminLoginDto } from './dto/admin-login.dto'
 
@@ -19,6 +21,7 @@ export class AdminAuthController {
   }
 
   @Post('login')
+  @AdminPublic()
   async login(
     @Body() input: AdminLoginDto,
     @Req() request: Request,
@@ -32,8 +35,8 @@ export class AdminAuthController {
   }
 
   @Get('session')
-  session(@Req() request: Request) {
-    return this.auth.readSession(request.cookies?.[ADMIN_SESSION_COOKIE] as string | undefined)
+  session(@Req() request: AdminRequest) {
+    return request.adminSession
   }
 
   @Post('logout')

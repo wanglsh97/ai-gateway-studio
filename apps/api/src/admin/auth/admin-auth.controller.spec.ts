@@ -67,14 +67,15 @@ describe('AdminAuthController', () => {
     )
   })
 
-  it('reads the cookie for session queries and clears it on logout', async () => {
+  it('returns the guard-verified session and clears its cookie on logout', () => {
     const { controller, readSession, response } = setup()
     const request = {
       cookies: { [ADMIN_SESSION_COOKIE]: 'signed-token' },
-    } as unknown as Request
+      adminSession: { username: 'root', expiresAt: '2026-07-17T12:00:00.000Z' },
+    } as unknown as Parameters<typeof controller.session>[0]
 
-    await expect(controller.session(request)).resolves.toMatchObject({ username: 'root' })
-    expect(readSession).toHaveBeenCalledWith('signed-token')
+    expect(controller.session(request)).toMatchObject({ username: 'root' })
+    expect(readSession).not.toHaveBeenCalled()
     expect(controller.logout(response)).toEqual({ success: true })
     expect(response.clearCookie).toHaveBeenCalledWith(
       ADMIN_SESSION_COOKIE,
