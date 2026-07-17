@@ -83,6 +83,7 @@ const environmentSchema = z
       .max(50_000_000)
       .default(10_000_000),
     ADMIN_LOGIN_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(5),
+    ADMIN_FIXED_CREDENTIALS_ENABLED: booleanFromEnv.default(true),
     ADMIN_SESSION_SECRET: adminSessionSecret,
     ADMIN_SESSION_TTL_SECONDS: z.coerce.number().int().min(60).max(86_400).default(900),
     CHAT_MAX_TOKENS: z.coerce.number().int().min(1).max(4096).default(4096),
@@ -109,6 +110,13 @@ const environmentSchema = z
         code: 'custom',
         path: ['ADMIN_SESSION_SECRET'],
         message: '生产环境必须配置独立的管理员会话密钥',
+      })
+    }
+    if (env.NODE_ENV === 'production' && env.ADMIN_FIXED_CREDENTIALS_ENABLED) {
+      context.addIssue({
+        code: 'custom',
+        path: ['ADMIN_FIXED_CREDENTIALS_ENABLED'],
+        message: '生产环境禁止启用固定 root/123456 凭证；升级认证前必须关闭管理员登录',
       })
     }
     const providers = [

@@ -5,9 +5,10 @@ import { AdminAuthService } from './admin-auth.service'
 
 const secret = 'unit-test-admin-session-secret-at-least-32-chars'
 
-function createService(nodeEnv = 'test') {
+function createService(fixedCredentialsEnabled = true) {
   const config = new ConfigService({
-    NODE_ENV: nodeEnv,
+    NODE_ENV: 'test',
+    ADMIN_FIXED_CREDENTIALS_ENABLED: fixedCredentialsEnabled,
     ADMIN_SESSION_SECRET: secret,
     ADMIN_SESSION_TTL_SECONDS: 900,
   })
@@ -25,6 +26,12 @@ describe('AdminAuthService', () => {
     ]) {
       expect(() => service.verifyCredentials(username!, password!)).toThrow('用户名或密码错误')
     }
+  })
+
+  it('refuses fixed credential login when the production release gate disables it', () => {
+    const service = createService(false)
+
+    expect(() => service.verifyCredentials('root', '123456')).toThrow('正式开放前必须升级认证方案')
   })
 
   it('creates and verifies a short-lived signed administrator session', async () => {

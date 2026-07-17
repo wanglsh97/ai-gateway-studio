@@ -23,6 +23,7 @@ describe('validateEnvironment', () => {
     expect(environment.PROVIDER_TIMEOUT_MS).toBe(60_000)
     expect(environment.PROVIDER_MAX_CONNECTIONS).toBe(20)
     expect(environment.ADMIN_SESSION_TTL_SECONDS).toBe(900)
+    expect(environment.ADMIN_FIXED_CREDENTIALS_ENABLED).toBe(true)
   })
 
   it('rejects an unsafe trusted proxy hop count', () => {
@@ -44,6 +45,25 @@ describe('validateEnvironment', () => {
     expect(() => validateEnvironment({ ...requiredEnvironment, NODE_ENV: 'production' })).toThrow(
       'ADMIN_SESSION_SECRET',
     )
+  })
+
+  it('blocks fixed development credentials in production', () => {
+    expect(() =>
+      validateEnvironment({
+        ...requiredEnvironment,
+        NODE_ENV: 'production',
+        ADMIN_SESSION_SECRET: 'production-session-secret-with-32-characters',
+      }),
+    ).toThrow('ADMIN_FIXED_CREDENTIALS_ENABLED')
+
+    expect(() =>
+      validateEnvironment({
+        ...requiredEnvironment,
+        NODE_ENV: 'production',
+        ADMIN_SESSION_SECRET: 'production-session-secret-with-32-characters',
+        ADMIN_FIXED_CREDENTIALS_ENABLED: 'false',
+      }),
+    ).not.toThrow()
   })
 
   it('does not include configured secret values in validation errors', () => {

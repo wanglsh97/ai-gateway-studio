@@ -1,6 +1,6 @@
 import { timingSafeEqual } from 'node:crypto'
 
-import { Injectable, UnauthorizedException } from '@nestjs/common'
+import { Injectable, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { JwtService } from '@nestjs/jwt'
 import type { CookieOptions } from 'express'
@@ -23,6 +23,7 @@ interface AdminSessionClaims {
 export class AdminAuthService {
   private readonly secret: string
   private readonly ttlSeconds: number
+  private readonly fixedCredentialsEnabled: boolean
 
   constructor(
     private readonly jwt: JwtService,
@@ -30,9 +31,13 @@ export class AdminAuthService {
   ) {
     this.secret = config.getOrThrow<string>('ADMIN_SESSION_SECRET')
     this.ttlSeconds = config.get<number>('ADMIN_SESSION_TTL_SECONDS', 900)
+    this.fixedCredentialsEnabled = config.get<boolean>('ADMIN_FIXED_CREDENTIALS_ENABLED', true)
   }
 
   verifyCredentials(username: string, password: string): void {
+    if (!this.fixedCredentialsEnabled) {
+      throw new ServiceUnavailableException('管理员登录未开放；正式开放前必须升级认证方案')
+    }
     if (!safeEqual(username, 'root') || !safeEqual(password, '123456')) {
       throw new UnauthorizedException('用户名或密码错误')
     }

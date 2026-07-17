@@ -9,6 +9,7 @@
 - 当前 Compose 默认提供 HTTP，供公网 IP 和域名部署联调。域名正式公开前必须完成 ICP 备案并配置 HTTPS，避免 Prompt 和 Cookie 以明文传输。
 - V1 尚未实现全站成本硬顶和独立内容审核。首次部署必须使用 Mock-only；真实 Key 只在基础链路验收后逐个启用。
 - 固定管理员账号只允许开发联调；管理员认证升级前不得把管理入口视为可安全公开的生产能力。
+- 生产配置必须保持 `ADMIN_FIXED_CREDENTIALS_ENABLED=false`。API 会拒绝以固定凭证启动生产配置；正式开放管理员入口前，必须在后续 change 中接入密码哈希账号体系或外部身份认证并替换此硬门槛。
 
 ## 2. ECS 初始化
 
@@ -69,6 +70,7 @@ DEEPSEEK_ENABLED=false
 KIMI_ENABLED=false
 WANXIANG_ENABLED=false
 COGVIEW_ENABLED=false
+ADMIN_FIXED_CREDENTIALS_ENABLED=false
 ```
 
 不要把 `.env.production`、API Key、数据库密码、Cookie secret、证书私钥或数据库备份提交到 Git。
