@@ -129,7 +129,7 @@
 - [x] 3.8 使用经过消毒的 Markdown 渲染 assistant 内容，禁止原始 HTML 和危险链接协议
 - [x] 3.9 在 SDK 实现 2–3 模型 compare helper，为每个模型创建独立请求和 AbortController
 - [x] 3.10 实现多模型对比布局，每列独立显示 delta、loading、usage/cost、error 和停止操作
-- [ ] 3.11 添加对比 E2E，覆盖三路不同速度、单路失败、单路取消、全部取消和禁止 failover
+- [x] 3.11 添加对比 E2E，覆盖三路不同速度、单路失败、单路取消、全部取消和禁止 failover
 - [ ] 3.12 验证窄屏、桌面、亮色和暗色主题下的 Chat 可用性与流式状态
 
 ### 文生图页面
