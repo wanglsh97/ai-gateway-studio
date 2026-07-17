@@ -1,6 +1,9 @@
 export { createAIGatewayClient } from './client.js'
 export type {
   AIGatewayClient,
+  ChatCompareRequest,
+  ChatCompareRun,
+  ChatCompareSession,
   CreateAIGatewayClientOptions,
   ImageWaitOptions,
   RequestOptions,

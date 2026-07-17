@@ -1,5 +1,6 @@
 import type {
   ChatEvent,
+  ChatMessage,
   ChatRequest,
   GatewayError,
   ImageRequest,
@@ -7,6 +8,7 @@ import type {
   ModelSummary,
   OptimizePromptRequest,
   OptimizePromptResult,
+  TextModelAlias,
 } from './types.js'
 import { AIGatewayError, AIGatewayProtocolError, AIGatewayTimeoutError } from './errors.js'
 import { readSseData } from './sse.js'
@@ -25,9 +27,29 @@ export interface CreateAIGatewayClientOptions {
   fetch?: typeof globalThis.fetch
 }
 
+export interface ChatCompareRequest {
+  models: readonly TextModelAlias[]
+  messages: ChatMessage[]
+  temperature?: number
+  topP?: number
+  maxTokens?: number
+}
+
+export interface ChatCompareRun {
+  model: TextModelAlias
+  events: AsyncIterable<ChatEvent>
+  cancel(reason?: unknown): void
+}
+
+export interface ChatCompareSession {
+  runs: readonly ChatCompareRun[]
+  cancelAll(reason?: unknown): void
+}
+
 export interface AIGatewayClient {
   chat: {
     stream(input: ChatRequest, options?: RequestOptions): AsyncIterable<ChatEvent>
+    compare(input: ChatCompareRequest, options?: RequestOptions): ChatCompareSession
   }
   images: {
     create(input: ImageRequest, options?: RequestOptions): Promise<ImageTask>
@@ -52,6 +74,8 @@ export function createAIGatewayClient(options: CreateAIGatewayClientOptions = {}
     chat: {
       stream: (input, requestOptions) =>
         streamChat(fetchImplementation, baseUrl, input, requestOptions),
+      compare: (input, requestOptions) =>
+        compareChat(fetchImplementation, baseUrl, input, requestOptions),
     },
     images: {
       create: (input, requestOptions) =>
@@ -68,6 +92,56 @@ export function createAIGatewayClient(options: CreateAIGatewayClientOptions = {}
     },
     models: {
       list: (requestOptions) => listModels(fetchImplementation, baseUrl, requestOptions),
+    },
+  }
+}
+
+function compareChat(
+  fetchImplementation: typeof globalThis.fetch,
+  baseUrl: string,
+  input: ChatCompareRequest,
+  options: RequestOptions | undefined,
+): ChatCompareSession {
+  if (input.models.length < 2 || input.models.length > 3) {
+    throw new TypeError('Chat comparison requires 2 or 3 models')
+  }
+  if (new Set(input.models).size !== input.models.length) {
+    throw new TypeError('Chat comparison models must be unique')
+  }
+
+  const controllers = input.models.map(() => new AbortController())
+  const abortAllFromCaller = () => {
+    for (const controller of controllers) controller.abort(options?.signal?.reason)
+  }
+  if (options?.signal?.aborted) abortAllFromCaller()
+  else options?.signal?.addEventListener('abort', abortAllFromCaller, { once: true })
+
+  const runs = input.models.map((model, index): ChatCompareRun => {
+    const controller = controllers[index]!
+    return {
+      model,
+      events: streamChat(
+        fetchImplementation,
+        baseUrl,
+        {
+          model,
+          messages: input.messages,
+          stream: true,
+          comparison: true,
+          ...(input.temperature === undefined ? {} : { temperature: input.temperature }),
+          ...(input.topP === undefined ? {} : { topP: input.topP }),
+          ...(input.maxTokens === undefined ? {} : { maxTokens: input.maxTokens }),
+        },
+        { signal: controller.signal },
+      ),
+      cancel: (reason) => controller.abort(reason),
+    }
+  })
+
+  return {
+    runs,
+    cancelAll: (reason) => {
+      for (const controller of controllers) controller.abort(reason)
     },
   }
 }
