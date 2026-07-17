@@ -22,6 +22,19 @@ export class ModelsController {
   async list(): Promise<ModelSummary[]> {
     const adapters = this.adapters.list().filter((adapter) => adapter.id !== 'mock')
 
+    if (adapters.length === 0 && this.adapters.has('mock')) {
+      return [
+        {
+          alias: 'qwen',
+          capabilities: ['chat', 'prompt'],
+          displayName: '通义千问（Mock）',
+          enabled: true,
+          configured: false,
+          health: 'unknown',
+        },
+      ]
+    }
+
     return Promise.all(
       adapters.map(async (adapter) => ({
         alias: adapter.id as TextModelAlias,

@@ -44,13 +44,22 @@ describe('ModelsController', () => {
     ])
   })
 
-  it('does not expose or query the internal Mock adapter', async () => {
+  it('exposes a stable public alias without querying health in a Mock-only environment', async () => {
     const controller = new ModelsController(
       new ChatAdapterRegistry([adapter('mock')]),
       providerHealth,
     )
 
-    await expect(controller.list()).resolves.toEqual([])
+    await expect(controller.list()).resolves.toEqual([
+      {
+        alias: 'qwen',
+        capabilities: ['chat', 'prompt'],
+        displayName: '通义千问（Mock）',
+        enabled: true,
+        configured: false,
+        health: 'unknown',
+      },
+    ])
     expect(providerHealth.getStatus).not.toHaveBeenCalledWith('mock')
   })
 })
