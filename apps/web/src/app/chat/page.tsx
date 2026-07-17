@@ -2,6 +2,7 @@
 
 import { createAIGatewayClient } from '@aigateway/sdk'
 import type { ChatMessage, TextModelAlias } from '@aigateway/sdk'
+import Link from 'next/link'
 import type { FormEvent, KeyboardEvent } from 'react'
 import { useEffect, useReducer, useRef, useState } from 'react'
 
@@ -137,6 +138,12 @@ export default function ChatPage() {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href="/chat/compare"
+              className="min-h-9 rounded-full border border-slate-200 bg-white/75 px-3 py-2 text-xs font-medium dark:border-white/10 dark:bg-white/5"
+            >
+              多模型对比
+            </Link>
             {state.messages.length > 0 && (
               <ToolbarButton onClick={newConversation}>新会话</ToolbarButton>
             )}
