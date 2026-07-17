@@ -15,7 +15,7 @@ import {
   RequestCapability,
   RequestStatus,
 } from '../generated/prisma/client'
-import type { ImageAdapter } from './adapters/image-adapter'
+import type { ImageAdapter, ImageAdapterSubmission } from './adapters/image-adapter'
 import { ImageAdapterRegistry } from './adapters/image-adapter.registry'
 import type { CreateImageGenerationDto } from './dto/create-image-generation.dto'
 import { isImageAdapterId, isImageModelAlias } from './image.constants'
@@ -72,14 +72,48 @@ export class ImageService {
     }
   }
 
-  async recordSubmission(taskId: string, providerTaskId: string, status: 'pending' | 'running') {
-    return this.prisma.imageGenerationTask.update({
-      where: { taskId },
-      data: {
-        providerTaskId,
-        status: status === 'running' ? ImageTaskStatus.RUNNING : ImageTaskStatus.PENDING,
-        startedAt: new Date(),
-      },
+  async recordSubmission(taskId: string, submission: ImageAdapterSubmission) {
+    const startedAt = new Date()
+    if (submission.status !== 'succeeded') {
+      return this.prisma.imageGenerationTask.update({
+        where: { taskId },
+        data: {
+          providerTaskId: submission.providerTaskId,
+          status:
+            submission.status === 'running' ? ImageTaskStatus.RUNNING : ImageTaskStatus.PENDING,
+          startedAt,
+        },
+      })
+    }
+
+    return this.prisma.$transaction(async (transaction) => {
+      const task = await transaction.imageGenerationTask.findUnique({ where: { taskId } })
+      if (!task) throw new NotFoundException('图片任务不存在')
+      const completedAt = new Date()
+      const updated = await transaction.imageGenerationTask.update({
+        where: { taskId },
+        data: {
+          providerTaskId: submission.providerTaskId,
+          status: ImageTaskStatus.SUCCEEDED,
+          results: submission.results.map((result) => ({ ...result })) as Prisma.InputJsonValue,
+          startedAt,
+          completedAt,
+        },
+      })
+      await transaction.requestLog.update({
+        where: { id: task.requestLogId },
+        data: {
+          status: RequestStatus.SUCCEEDED,
+          completedAt,
+          durationMs: Math.max(0, completedAt.getTime() - task.createdAt.getTime()),
+        },
+      })
+      await transaction.billingRecord.upsert({
+        where: { requestLogId: task.requestLogId },
+        create: { requestLogId: task.requestLogId, usageUnknown: true },
+        update: { usageUnknown: true },
+      })
+      return updated
     })
   }
 

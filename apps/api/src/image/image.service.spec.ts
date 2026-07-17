@@ -119,6 +119,60 @@ describe('ImageService.get', () => {
   })
 })
 
+describe('ImageService.recordSubmission', () => {
+  it('atomically persists a synchronous provider terminal result and finishes billing', async () => {
+    const task = { ...baseTask, status: ImageTaskStatus.PENDING }
+    const updated = {
+      ...task,
+      providerTaskId: 'cogview-request-1',
+      status: ImageTaskStatus.SUCCEEDED,
+      results: [{ url: 'https://cdn.bigmodel.cn/generated/image.png' }],
+    }
+    const imageFindUnique = jest.fn().mockResolvedValue(task)
+    const imageUpdate = jest.fn().mockResolvedValue(updated)
+    const requestUpdate = jest.fn().mockResolvedValue({})
+    const billingUpsert = jest.fn().mockResolvedValue({})
+    const transactionClient = {
+      imageGenerationTask: { findUnique: imageFindUnique, update: imageUpdate },
+      requestLog: { update: requestUpdate },
+      billingRecord: { upsert: billingUpsert },
+    }
+    const transaction = jest.fn(async (operation: (client: typeof transactionClient) => unknown) =>
+      operation(transactionClient),
+    )
+    const prisma = { $transaction: transaction } as unknown as PrismaService
+    const service = new ImageService(
+      prisma,
+      new ImageAdapterRegistry([]),
+      new ConfigService({ IMAGE_DOWNLOAD_MAX_BYTES: 1024 }),
+    )
+
+    await expect(
+      service.recordSubmission(task.taskId, {
+        providerTaskId: 'cogview-request-1',
+        status: 'succeeded',
+        results: [{ url: 'https://cdn.bigmodel.cn/generated/image.png' }],
+      }),
+    ).resolves.toEqual(updated)
+
+    expect(transaction).toHaveBeenCalledTimes(1)
+    expect(imageUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          providerTaskId: 'cogview-request-1',
+          status: ImageTaskStatus.SUCCEEDED,
+        }),
+      }),
+    )
+    expect(requestUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: 'SUCCEEDED' }) }),
+    )
+    expect(billingUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { requestLogId: task.requestLogId } }),
+    )
+  })
+})
+
 describe('ImageService.download', () => {
   const terminal = {
     ...baseTask,

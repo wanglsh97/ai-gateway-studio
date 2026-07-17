@@ -64,6 +64,7 @@ const environmentSchema = z
     WANXIANG_API_KEY: optionalSecret,
     WANXIANG_BASE_URL: z.string().url().default('https://dashscope.aliyuncs.com/api/v1'),
     COGVIEW_API_KEY: optionalSecret,
+    COGVIEW_BASE_URL: z.string().url().default('https://open.bigmodel.cn/api/paas/v4'),
     QWEN_MODEL_ID: optionalModelId,
     GLM_MODEL_ID: optionalModelId,
     DEEPSEEK_MODEL_ID: optionalModelId,

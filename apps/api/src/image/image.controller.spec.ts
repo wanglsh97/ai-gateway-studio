@@ -67,11 +67,10 @@ describe('ImageController', () => {
     expect(createPending.mock.invocationCallOrder[0]).toBeLessThan(
       submit.mock.invocationCallOrder[0] ?? 0,
     )
-    expect(recordSubmission).toHaveBeenCalledWith(
-      '00000000-0000-4000-8000-000000000111',
-      'provider-1',
-      'pending',
-    )
+    expect(recordSubmission).toHaveBeenCalledWith('00000000-0000-4000-8000-000000000111', {
+      providerTaskId: 'provider-1',
+      status: 'pending',
+    })
   })
 
   it('does not persist or invoke an adapter when image rate limiting rejects', async () => {

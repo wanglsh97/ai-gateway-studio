@@ -53,11 +53,7 @@ export class ImageController {
         ...(input.count === undefined ? {} : { count: input.count }),
       })
       .finally(() => request.removeListener('aborted', abort))
-    const updated = await this.images.recordSubmission(
-      task.taskId,
-      submission.providerTaskId,
-      submission.status,
-    )
+    const updated = await this.images.recordSubmission(task.taskId, submission)
     return this.images.toPublicTask(updated)
   }
 

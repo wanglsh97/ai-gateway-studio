@@ -12,10 +12,16 @@ export interface ImageAdapterSubmitRequest {
   count?: number
 }
 
-export interface ImageAdapterSubmission {
-  providerTaskId: string
-  status: Extract<ImageTaskStatus, 'pending' | 'running'>
-}
+export type ImageAdapterSubmission =
+  | {
+      providerTaskId: string
+      status: Extract<ImageTaskStatus, 'pending' | 'running'>
+    }
+  | {
+      providerTaskId: string
+      status: 'succeeded'
+      results: readonly ImageAdapterResult[]
+    }
 
 export interface ImageAdapterResult {
   url: string

@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 
 import { RateLimitModule } from '../rate-limit/rate-limit.module'
+import { CogViewImageAdapter } from './adapters/cogview-image-adapter'
 import type { ImageAdapter } from './adapters/image-adapter'
 import { IMAGE_ADAPTERS, ImageAdapterRegistry } from './adapters/image-adapter.registry'
 import {
@@ -30,6 +31,15 @@ import { WanxiangImageAdapter } from './adapters/wanxiang-image-adapter'
               apiKey: config.getOrThrow<string>('WANXIANG_API_KEY'),
               baseUrl: config.getOrThrow<string>('WANXIANG_BASE_URL'),
               modelId: config.getOrThrow<string>('WANXIANG_MODEL_ID'),
+            }),
+          )
+        }
+        if (config.get<boolean>('COGVIEW_ENABLED')) {
+          adapters.push(
+            new CogViewImageAdapter({
+              apiKey: config.getOrThrow<string>('COGVIEW_API_KEY'),
+              baseUrl: config.getOrThrow<string>('COGVIEW_BASE_URL'),
+              modelId: config.getOrThrow<string>('COGVIEW_MODEL_ID'),
             }),
           )
         }
