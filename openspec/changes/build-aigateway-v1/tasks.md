@@ -106,7 +106,7 @@
 - [x] 2.11 实现服务端表/字段/操作 allowlist，明确四张业务表的查询、编辑和删除能力
 - [x] 2.12 实现白名单 rows 查询、字段级 PATCH 和允许记录 DELETE，拒绝任意表名、SQL 和不可编辑字段
 - [x] 2.13 实现数据库表展示页面、字段编辑表单和删除二次确认
-- [ ] 2.14 在同一 Prisma 事务中提交业务变更与不可变 AdminAuditLog，失败时整体回滚
+- [x] 2.14 在同一 Prisma 事务中提交业务变更与不可变 AdminAuditLog，失败时整体回滚
 - [ ] 2.15 实现 RequestLog 删除时 BillingRecord 关系处理及事务/重复请求测试
 - [ ] 2.16 实现只读审计日志查询与展示，不提供 AuditLog PATCH/DELETE 路由
 - [ ] 2.17 完成中后台安全验收：未认证探测、Prompt 访问边界、allowlist 绕过、修改/删除与审计原子性

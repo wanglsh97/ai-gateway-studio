@@ -150,4 +150,39 @@ describe('AdminTableRowsService', () => {
       }),
     )
   })
+
+  it('rejects the update transaction when its audit snapshot cannot be persisted', async () => {
+    const context = setup()
+    const auditFailure = new Error('audit persistence failed')
+    context.adminAuditLog.create.mockRejectedValueOnce(auditFailure)
+
+    await expect(
+      context.service.update(
+        'billing-records',
+        '00000000-0000-4000-8000-000000000212',
+        { inputTokens: 3 },
+        { actor: 'root' },
+      ),
+    ).rejects.toBe(auditFailure)
+
+    expect(context.transaction).toHaveBeenCalledTimes(1)
+    expect(context.billingRecord.update).toHaveBeenCalledTimes(1)
+    expect(context.adminAuditLog.create).toHaveBeenCalledTimes(1)
+  })
+
+  it('rejects the delete transaction when its audit snapshot cannot be persisted', async () => {
+    const context = setup()
+    const auditFailure = new Error('audit persistence failed')
+    context.adminAuditLog.create.mockRejectedValueOnce(auditFailure)
+
+    await expect(
+      context.service.delete('image-generation-tasks', '00000000-0000-4000-8000-000000000212', {
+        actor: 'root',
+      }),
+    ).rejects.toBe(auditFailure)
+
+    expect(context.transaction).toHaveBeenCalledTimes(1)
+    expect(context.imageGenerationTask.delete).toHaveBeenCalledTimes(1)
+    expect(context.adminAuditLog.create).toHaveBeenCalledTimes(1)
+  })
 })
