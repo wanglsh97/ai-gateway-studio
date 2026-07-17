@@ -12,6 +12,12 @@ import {
   imageResultItems,
   maxImageCount,
 } from './image-form'
+import {
+  IMAGE_HISTORY_KEY,
+  type ImageHistoryEntry,
+  readImageHistory,
+  upsertImageHistory,
+} from './image-history'
 
 const client = createAIGatewayClient()
 const examples = ['雨后江南古镇，水墨画风格', 'A tiny astronaut tending flowers on Mars']
@@ -28,6 +34,8 @@ export default function ImagePage() {
   const [task, setTask] = useState<ImageTask | null>(null)
   const [pageStatus, setPageStatus] = useState<PageStatus>('idle')
   const [taskError, setTaskError] = useState('')
+  const [submittedPrompt, setSubmittedPrompt] = useState('')
+  const [history, setHistory] = useState<ImageHistoryEntry[]>([])
   const activeRequest = useRef<AbortController | null>(null)
 
   useEffect(() => {
@@ -55,6 +63,27 @@ export default function ImagePage() {
     }
   }, [])
 
+  useEffect(() => {
+    setHistory(readImageHistory(localStorage.getItem(IMAGE_HISTORY_KEY)))
+  }, [])
+
+  useEffect(() => {
+    if (!task || !submittedPrompt) return
+    setHistory((current) => {
+      const next = upsertImageHistory(current, {
+        prompt: submittedPrompt,
+        savedAt: new Date().toISOString(),
+        task,
+      })
+      try {
+        localStorage.setItem(IMAGE_HISTORY_KEY, JSON.stringify(next))
+      } catch {
+        // Storage can be unavailable or full; the active task remains usable in memory.
+      }
+      return next
+    })
+  }, [submittedPrompt, task])
+
   function changeModel(next: ImageModelAlias) {
     setModel(next)
     setSize(IMAGE_SIZE_OPTIONS[next][0]!.value)
@@ -71,6 +100,7 @@ export default function ImagePage() {
     const controller = new AbortController()
     activeRequest.current = controller
     setTask(null)
+    setSubmittedPrompt(request.prompt)
     setTaskError('')
     setPageStatus('submitting')
     try {
@@ -288,6 +318,41 @@ export default function ImagePage() {
                   </footer>
                 </article>
               ))}
+            </div>
+          </section>
+        )}
+
+        {history.length > 0 && (
+          <section className="mt-10" aria-labelledby="image-history-title">
+            <h2 id="image-history-title" className="text-2xl font-semibold">
+              最近生成
+            </h2>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+              {history.map((entry) => {
+                const thumbnail = imageResultItems(entry.task, client.images.downloadUrl)[0]
+                return (
+                  <article
+                    key={entry.task.taskId}
+                    className="overflow-hidden rounded-2xl border border-slate-200 bg-white/75 dark:border-white/10 dark:bg-white/5"
+                  >
+                    {thumbnail ? (
+                      <img
+                        src={thumbnail.url}
+                        alt="历史生成缩略图"
+                        className="aspect-square w-full bg-slate-100 object-cover dark:bg-slate-900"
+                      />
+                    ) : (
+                      <div className="grid aspect-square place-items-center bg-slate-100 text-xs text-slate-500 dark:bg-slate-900">
+                        {entry.task.status}
+                      </div>
+                    )}
+                    <div className="p-3">
+                      <p className="line-clamp-2 text-xs leading-5">{entry.prompt}</p>
+                      <p className="mt-2 text-[0.68rem] text-slate-400">{entry.task.model}</p>
+                    </div>
+                  </article>
+                )
+              })}
             </div>
           </section>
         )}
