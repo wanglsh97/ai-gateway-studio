@@ -55,6 +55,8 @@ const environmentSchema = z
     IMAGE_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(5),
     ADMIN_LOGIN_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(5),
     CHAT_MAX_TOKENS: z.coerce.number().int().min(1).max(4096).default(4096),
+    PROVIDER_HEALTH_TTL_SECONDS: z.coerce.number().int().min(30).max(3600).default(300),
+    PROVIDER_HEALTH_FAILURE_THRESHOLD: z.coerce.number().int().min(1).max(10).default(3),
   })
   .superRefine((env, context) => {
     const providers = [

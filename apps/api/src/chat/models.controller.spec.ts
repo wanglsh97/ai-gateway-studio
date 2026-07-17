@@ -1,6 +1,7 @@
 import type { ChatAdapter } from './adapters/chat-adapter'
 import { ChatAdapterRegistry } from './adapters/chat-adapter.registry'
 import { ModelsController } from './models.controller'
+import type { ProviderHealthService } from './provider-health.service'
 
 function adapter(id: ChatAdapter['id']): ChatAdapter {
   return {
@@ -11,19 +12,26 @@ function adapter(id: ChatAdapter['id']): ChatAdapter {
 }
 
 describe('ModelsController', () => {
-  it('returns only enabled public aliases without resolved model IDs or provider details', () => {
+  const providerHealth = {
+    getStatus: jest.fn(async (provider: string) =>
+      provider === 'qwen' ? ('healthy' as const) : ('unhealthy' as const),
+    ),
+  } as unknown as ProviderHealthService
+
+  it('returns only enabled public aliases with their passive health summary', async () => {
     const controller = new ModelsController(
       new ChatAdapterRegistry([adapter('mock'), adapter('qwen'), adapter('deepseek')]),
+      providerHealth,
     )
 
-    expect(controller.list()).toEqual([
+    await expect(controller.list()).resolves.toEqual([
       {
         alias: 'qwen',
         capabilities: ['chat', 'prompt'],
         displayName: '通义千问',
         enabled: true,
         configured: true,
-        health: 'unknown',
+        health: 'healthy',
       },
       {
         alias: 'deepseek',
@@ -31,14 +39,18 @@ describe('ModelsController', () => {
         displayName: 'DeepSeek',
         enabled: true,
         configured: true,
-        health: 'unknown',
+        health: 'unhealthy',
       },
     ])
   })
 
-  it('does not expose the internal Mock adapter as a public model alias', () => {
-    const controller = new ModelsController(new ChatAdapterRegistry([adapter('mock')]))
+  it('does not expose or query the internal Mock adapter', async () => {
+    const controller = new ModelsController(
+      new ChatAdapterRegistry([adapter('mock')]),
+      providerHealth,
+    )
 
-    expect(controller.list()).toEqual([])
+    await expect(controller.list()).resolves.toEqual([])
+    expect(providerHealth.getStatus).not.toHaveBeenCalledWith('mock')
   })
 })

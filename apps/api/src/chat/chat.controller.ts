@@ -29,6 +29,7 @@ import type { ChatAdapter, ChatAdapterUsage } from './adapters/chat-adapter'
 import { ChatAdapterRegistry } from './adapters/chat-adapter.registry'
 import { writeChatSseDone, writeChatSsePayload } from './chat-sse.writer'
 import { ChatCompletionRequestDto } from './dto/chat-completion-request.dto'
+import { ProviderHealthService } from './provider-health.service'
 
 type RequestWithId = Request & { id?: string }
 
@@ -49,6 +50,7 @@ export class ChatController {
     @Inject(ChatAdapterRegistry) private readonly adapters: ChatAdapterRegistry,
     @Inject(RequestLifecycleService) private readonly lifecycle: RequestLifecycleService,
     @Inject(RateLimitService) private readonly rateLimit: RateLimitService,
+    @Inject(ProviderHealthService) private readonly providerHealth: ProviderHealthService,
   ) {}
 
   @Post('completions')
@@ -88,7 +90,7 @@ export class ChatController {
     let finalizationAttempted = false
 
     try {
-      const completion = await this.pipeAdapterStream(
+      const completion = await this.pipeAdapterStreamWithHealth(
         input,
         adapter,
         requestId,
@@ -225,6 +227,41 @@ export class ChatController {
     if (!state.usage) throw this.protocolError('Adapter stream ended without usage')
 
     return { finishReason, usage: state.usage }
+  }
+
+  private async pipeAdapterStreamWithHealth(
+    input: ChatCompletionRequestDto,
+    adapter: ChatAdapter,
+    requestId: string,
+    signal: AbortSignal,
+    response: Response,
+    state: ChatStreamState,
+  ): Promise<ChatStreamCompletion> {
+    const startedAt = Date.now()
+
+    try {
+      const completion = await this.pipeAdapterStream(
+        input,
+        adapter,
+        requestId,
+        signal,
+        response,
+        state,
+      )
+      await this.providerHealth.recordSuccess(adapter.id, Date.now() - startedAt)
+      return completion
+    } catch (error) {
+      if (!signal.aborted && error instanceof ChatAdapterError) {
+        await this.providerHealth.recordFailure(adapter.id, Date.now() - startedAt, {
+          code: error.code,
+          affectsHealth:
+            error.statusCode === undefined ||
+            error.statusCode >= 500 ||
+            error.code.includes('TIMEOUT'),
+        })
+      }
+      throw error
+    }
   }
 
   private writeCompletion(

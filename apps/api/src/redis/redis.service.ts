@@ -67,6 +67,16 @@ export class RedisService implements OnModuleDestroy {
     }
   }
 
+  async get(key: string): Promise<string | null> {
+    await this.ensureConnected()
+    return this.client.get(key)
+  }
+
+  async setWithTtl(key: string, value: string, ttlSeconds: number): Promise<void> {
+    await this.ensureConnected()
+    await this.client.set(key, value, { EX: ttlSeconds })
+  }
+
   private async ensureConnected() {
     if (this.client.isOpen) return
 

@@ -6,6 +6,7 @@ import type { Request, Response } from 'express'
 import type { RequestLifecycleService } from '../request-lifecycle/request-lifecycle.service'
 import { RequestLifecycleStartError } from '../request-lifecycle/request-lifecycle.service'
 import type { RateLimitService } from '../rate-limit/rate-limit.service'
+import type { ProviderHealthService } from './provider-health.service'
 import type { ChatAdapter, ChatAdapterEvent } from './adapters/chat-adapter'
 import { ChatAdapterError } from './adapters/chat-adapter'
 import { ChatAdapterRegistry } from './adapters/chat-adapter.registry'
@@ -69,12 +70,17 @@ function controllerFor(adapter: ChatAdapter, additionalAdapters: readonly ChatAd
   const finish = jest.fn().mockResolvedValue(undefined)
   const lifecycle = { start, finish } as unknown as RequestLifecycleService
   const rateLimit = { consumeChat } as unknown as RateLimitService
+  const providerHealth = {
+    recordSuccess: jest.fn().mockResolvedValue(undefined),
+    recordFailure: jest.fn().mockResolvedValue(undefined),
+  } as unknown as ProviderHealthService
   const controller = new ChatController(
     new ChatAdapterRegistry([adapter, ...additionalAdapters]),
     lifecycle,
     rateLimit,
+    providerHealth,
   )
-  return { consumeChat, controller, finish, start }
+  return { consumeChat, controller, finish, providerHealth, start }
 }
 
 function frameData(writes: readonly string[]) {
@@ -185,7 +191,7 @@ describe('ChatController', () => {
         resolvedModel,
         stream: providerStream,
       }
-      const { controller, start } = controllerFor(mock, [realAdapter])
+      const { controller, providerHealth, start } = controllerFor(mock, [realAdapter])
       const { request, response } = httpDoubles()
 
       await controller.create({ ...input, model: adapterId }, request, response)
@@ -197,6 +203,40 @@ describe('ChatController', () => {
       expect(start).toHaveBeenCalledWith(
         expect.objectContaining({ provider: adapterId, resolvedModel }),
       )
+      expect(providerHealth.recordSuccess).toHaveBeenCalledWith(adapterId, expect.any(Number))
+    },
+  )
+
+  it.each([
+    [503, true],
+    [400, false],
+  ] as const)(
+    'classifies provider HTTP %s failures for passive health',
+    async (statusCode, affectsHealth) => {
+      const { adapter: mock } = adapterWith([])
+      const providerError = new ChatAdapterError('上游失败', {
+        code: `UPSTREAM_${statusCode}`,
+        retryable: statusCode >= 500,
+        statusCode,
+      })
+      const realAdapter: ChatAdapter = {
+        id: 'qwen',
+        resolvedModel: 'qwen-real',
+        stream: () => ({
+          [Symbol.asyncIterator]: () => ({
+            next: jest.fn().mockRejectedValue(providerError),
+          }),
+        }),
+      }
+      const { controller, providerHealth } = controllerFor(mock, [realAdapter])
+      const { request, response } = httpDoubles()
+
+      await controller.create(input, request, response)
+
+      expect(providerHealth.recordFailure).toHaveBeenCalledWith('qwen', expect.any(Number), {
+        code: `UPSTREAM_${statusCode}`,
+        affectsHealth,
+      })
     },
   )
 

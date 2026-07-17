@@ -2,6 +2,7 @@ import type { ModelSummary, TextModelAlias } from '@aigateway/sdk'
 import { Controller, Get } from '@nestjs/common'
 
 import { ChatAdapterRegistry } from './adapters/chat-adapter.registry'
+import { ProviderHealthService } from './provider-health.service'
 
 const MODEL_DISPLAY_NAMES: Readonly<Record<TextModelAlias, string>> = {
   qwen: '通义千问',
@@ -12,23 +13,24 @@ const MODEL_DISPLAY_NAMES: Readonly<Record<TextModelAlias, string>> = {
 
 @Controller('models')
 export class ModelsController {
-  constructor(private readonly adapters: ChatAdapterRegistry) {}
+  constructor(
+    private readonly adapters: ChatAdapterRegistry,
+    private readonly providerHealth: ProviderHealthService,
+  ) {}
 
   @Get()
-  list(): ModelSummary[] {
-    return this.adapters.list().flatMap((adapter) => {
-      if (adapter.id === 'mock') return []
+  async list(): Promise<ModelSummary[]> {
+    const adapters = this.adapters.list().filter((adapter) => adapter.id !== 'mock')
 
-      return [
-        {
-          alias: adapter.id,
-          capabilities: ['chat', 'prompt'],
-          displayName: MODEL_DISPLAY_NAMES[adapter.id],
-          enabled: true,
-          configured: true,
-          health: 'unknown',
-        },
-      ]
-    })
+    return Promise.all(
+      adapters.map(async (adapter) => ({
+        alias: adapter.id as TextModelAlias,
+        capabilities: ['chat', 'prompt'],
+        displayName: MODEL_DISPLAY_NAMES[adapter.id as TextModelAlias],
+        enabled: true,
+        configured: true,
+        health: await this.providerHealth.getStatus(adapter.id),
+      })),
+    )
   }
 }
