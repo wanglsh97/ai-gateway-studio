@@ -104,6 +104,7 @@ export interface ImageResult {
   index: number
   width?: number
   height?: number
+  contentType?: string
 }
 
 export interface ImageTask {
@@ -112,6 +113,8 @@ export interface ImageTask {
   status: ImageTaskStatus
   results: ImageResult[]
   error?: GatewayError
+  createdAt?: string
+  updatedAt?: string
 }
 
 export type PromptOptimizationMode = 'expand' | 'simplify' | 'structure'
