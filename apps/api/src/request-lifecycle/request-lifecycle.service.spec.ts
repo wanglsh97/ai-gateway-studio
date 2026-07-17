@@ -33,17 +33,57 @@ const input: StartRequestLifecycleInput = {
 
 function createService() {
   const create = jest.fn()
+  const findMany = jest.fn()
   const updateMany = jest.fn()
   const upsert = jest.fn()
   const transaction = jest.fn(async (operation: (client: unknown) => Promise<unknown>) =>
     operation({ requestLog: { updateMany }, billingRecord: { upsert } }),
   )
   const prisma = {
-    requestLog: { create },
+    requestLog: { create, findMany },
     $transaction: transaction,
   } as unknown as PrismaService
-  return { create, service: new RequestLifecycleService(prisma), transaction, updateMany, upsert }
+  return {
+    create,
+    findMany,
+    service: new RequestLifecycleService(prisma),
+    transaction,
+    updateMany,
+    upsert,
+  }
 }
+
+describe('RequestLifecycleService.listStalePending', () => {
+  it('returns oldest pending summaries before a cutoff without selecting Prompt', async () => {
+    const cutoff = new Date('2026-07-15T00:05:00.000Z')
+    const { findMany, service } = createService()
+    findMany.mockResolvedValue([])
+
+    await expect(service.listStalePending(cutoff, 50)).resolves.toEqual([])
+    expect(findMany).toHaveBeenCalledWith({
+      where: { status: 'PENDING', startedAt: { lte: cutoff } },
+      orderBy: { startedAt: 'asc' },
+      take: 50,
+      select: {
+        id: true,
+        requestId: true,
+        capability: true,
+        modelAlias: true,
+        provider: true,
+        startedAt: true,
+        createdAt: true,
+      },
+    })
+  })
+
+  it('bounds invalid cutoff and page sizes before querying', async () => {
+    const { findMany, service } = createService()
+
+    await expect(service.listStalePending(new Date('invalid'))).rejects.toThrow('valid date')
+    await expect(service.listStalePending(new Date(), 201)).rejects.toThrow('between 1 and 200')
+    expect(findMany).not.toHaveBeenCalled()
+  })
+})
 
 describe('RequestLifecycleService.start', () => {
   beforeEach(() => {

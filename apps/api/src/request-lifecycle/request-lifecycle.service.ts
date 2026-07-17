@@ -24,6 +24,10 @@ export interface StartRequestLifecycleInput {
 }
 
 export type StartedRequestLifecycle = Pick<RequestLog, 'id' | 'requestId' | 'status' | 'startedAt'>
+export type StalePendingRequest = Pick<
+  RequestLog,
+  'id' | 'requestId' | 'capability' | 'modelAlias' | 'provider' | 'startedAt' | 'createdAt'
+>
 
 export type RequestLifecycleTerminalStatus = 'succeeded' | 'failed' | 'cancelled'
 
@@ -93,6 +97,28 @@ export class RequestLifecycleService {
   private readonly logger = new Logger(RequestLifecycleService.name)
 
   constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
+
+  async listStalePending(olderThan: Date, take = 100): Promise<StalePendingRequest[]> {
+    if (Number.isNaN(olderThan.getTime())) throw new TypeError('olderThan must be a valid date')
+    if (!Number.isInteger(take) || take < 1 || take > 200) {
+      throw new TypeError('take must be an integer between 1 and 200')
+    }
+
+    return this.prisma.requestLog.findMany({
+      where: { status: RequestStatus.PENDING, startedAt: { lte: olderThan } },
+      orderBy: { startedAt: 'asc' },
+      take,
+      select: {
+        id: true,
+        requestId: true,
+        capability: true,
+        modelAlias: true,
+        provider: true,
+        startedAt: true,
+        createdAt: true,
+      },
+    })
+  }
 
   async start(input: StartRequestLifecycleInput): Promise<StartedRequestLifecycle> {
     try {
