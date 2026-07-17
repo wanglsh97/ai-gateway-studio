@@ -135,7 +135,7 @@
 ### 文生图页面
 
 - [x] 3.13 实现 `/image` 表单，支持中英文 Prompt、启用模型和受支持尺寸/参数选择
-- [ ] 3.14 通过 SDK 串通创建任务和轮询，展示 pending/running/succeeded/failed 与超时/取消状态
+- [x] 3.14 通过 SDK 串通创建任务和轮询，展示 pending/running/succeeded/failed 与超时/取消状态
 - [ ] 3.15 实现图片结果预览和网关代理下载，不直接拼接不可信 provider URL
 - [ ] 3.16 实现 localStorage 最近 5 条任务、缩略图和 Prompt 历史，容忍损坏、过期和缺失结果
 - [ ] 3.17 完成 Image 页面 Mock E2E，并分别对已启用 Wanxiang/CogView 执行低额度真实验收

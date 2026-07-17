@@ -1,14 +1,20 @@
 'use client'
 
-import { createAIGatewayClient } from '@aigateway/sdk'
-import type { ImageModelAlias, ModelSummary } from '@aigateway/sdk'
+import { AIGatewayTimeoutError, createAIGatewayClient } from '@aigateway/sdk'
+import type { ImageModelAlias, ImageTask, ModelSummary } from '@aigateway/sdk'
 import type { ReactNode } from 'react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
-import { enabledImageModels, IMAGE_SIZE_OPTIONS, maxImageCount } from './image-form'
+import {
+  createImageRequest,
+  enabledImageModels,
+  IMAGE_SIZE_OPTIONS,
+  maxImageCount,
+} from './image-form'
 
 const client = createAIGatewayClient()
 const examples = ['雨后江南古镇，水墨画风格', 'A tiny astronaut tending flowers on Mars']
+type PageStatus = 'idle' | 'submitting' | 'polling' | 'cancelled' | 'timeout' | 'error'
 
 export default function ImagePage() {
   const [models, setModels] = useState<ModelSummary[]>([])
@@ -18,6 +24,10 @@ export default function ImagePage() {
   const [count, setCount] = useState(1)
   const [loadingModels, setLoadingModels] = useState(true)
   const [modelError, setModelError] = useState('')
+  const [task, setTask] = useState<ImageTask | null>(null)
+  const [pageStatus, setPageStatus] = useState<PageStatus>('idle')
+  const [taskError, setTaskError] = useState('')
+  const activeRequest = useRef<AbortController | null>(null)
 
   useEffect(() => {
     let active = true
@@ -51,6 +61,48 @@ export default function ImagePage() {
   }
 
   const available = models.length > 0
+  const active = pageStatus === 'submitting' || pageStatus === 'polling'
+
+  async function submit() {
+    if (active || !available) return
+    const request = createImageRequest({ model, prompt, size, count })
+    const controller = new AbortController()
+    activeRequest.current = controller
+    setTask(null)
+    setTaskError('')
+    setPageStatus('submitting')
+    try {
+      const created = await client.images.create(request, { signal: controller.signal })
+      setTask(created)
+      if (created.status === 'succeeded' || created.status === 'failed') {
+        setPageStatus('idle')
+        return
+      }
+      setPageStatus('polling')
+      const completed = await client.images.wait(created.taskId, {
+        signal: controller.signal,
+        timeoutMs: 120_000,
+        onUpdate: setTask,
+      })
+      setTask(completed)
+      setPageStatus('idle')
+    } catch (error) {
+      if (controller.signal.aborted) {
+        setPageStatus('cancelled')
+      } else if (error instanceof AIGatewayTimeoutError) {
+        setPageStatus('timeout')
+      } else {
+        setPageStatus('error')
+        setTaskError(error instanceof Error ? error.message : '图片任务处理失败')
+      }
+    } finally {
+      if (activeRequest.current === controller) activeRequest.current = null
+    }
+  }
+
+  function cancelPolling() {
+    activeRequest.current?.abort()
+  }
 
   return (
     <main className="px-5 py-8 sm:px-8 sm:py-12 lg:px-10">
@@ -67,7 +119,10 @@ export default function ImagePage() {
 
         <section className="mt-7 grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(18rem,0.85fr)]">
           <form
-            onSubmit={(event) => event.preventDefault()}
+            onSubmit={(event) => {
+              event.preventDefault()
+              void submit()
+            }}
             className="rounded-3xl border border-slate-200/80 bg-white/80 p-5 shadow-xl shadow-slate-900/5 sm:p-7 dark:border-white/10 dark:bg-white/5"
           >
             <label className="block text-sm font-semibold" htmlFor="image-prompt">
@@ -76,6 +131,7 @@ export default function ImagePage() {
             <textarea
               id="image-prompt"
               value={prompt}
+              disabled={active}
               onChange={(event) => setPrompt(event.target.value)}
               maxLength={4000}
               rows={8}
@@ -87,6 +143,7 @@ export default function ImagePage() {
                 <button
                   key={example}
                   type="button"
+                  disabled={active}
                   onClick={() => setPrompt(example)}
                   className="rounded-full border border-slate-200 px-3 py-2 text-left text-xs dark:border-white/10"
                 >
@@ -106,14 +163,25 @@ export default function ImagePage() {
               </p>
             )}
 
-            <button
-              type="submit"
-              disabled={!prompt.trim() || !available}
-              className="mt-6 min-h-11 w-full rounded-xl bg-slate-950 px-5 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40 dark:bg-white dark:text-slate-950"
-            >
-              {loadingModels ? '加载模型中…' : '生成图片'}
-            </button>
-            <p className="mt-3 text-xs text-slate-400">任务提交与轮询将在下一功能点接入。</p>
+            {active ? (
+              <button
+                type="button"
+                onClick={cancelPolling}
+                className="mt-6 min-h-11 w-full rounded-xl border border-rose-300 px-5 font-semibold text-rose-600"
+              >
+                停止等待
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={!prompt.trim() || !available}
+                className="mt-6 min-h-11 w-full rounded-xl bg-slate-950 px-5 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40 dark:bg-white dark:text-slate-950"
+              >
+                {loadingModels ? '加载模型中…' : '生成图片'}
+              </button>
+            )}
+
+            <TaskStatus task={task} pageStatus={pageStatus} error={taskError} />
           </form>
 
           <aside className="h-fit rounded-3xl border border-slate-200/80 bg-white/70 p-5 sm:p-6 dark:border-white/10 dark:bg-white/5">
@@ -122,7 +190,7 @@ export default function ImagePage() {
               <Field label="模型">
                 <select
                   value={model}
-                  disabled={!available}
+                  disabled={!available || active}
                   onChange={(event) => changeModel(event.target.value as ImageModelAlias)}
                   className="mt-2 min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 dark:border-white/10 dark:bg-slate-900"
                 >
@@ -136,7 +204,7 @@ export default function ImagePage() {
               <Field label="图片尺寸">
                 <select
                   value={size}
-                  disabled={!available}
+                  disabled={!available || active}
                   onChange={(event) => setSize(event.target.value)}
                   className="mt-2 min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 dark:border-white/10 dark:bg-slate-900"
                 >
@@ -150,7 +218,7 @@ export default function ImagePage() {
               <Field label="生成数量">
                 <select
                   value={count}
-                  disabled={!available}
+                  disabled={!available || active}
                   onChange={(event) => setCount(Number(event.target.value))}
                   className="mt-2 min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 dark:border-white/10 dark:bg-slate-900"
                 >
@@ -171,6 +239,40 @@ export default function ImagePage() {
         </section>
       </div>
     </main>
+  )
+}
+
+function TaskStatus({
+  task,
+  pageStatus,
+  error,
+}: {
+  task: ImageTask | null
+  pageStatus: PageStatus
+  error: string
+}) {
+  if (!task && pageStatus === 'idle') return null
+  const status =
+    pageStatus === 'submitting'
+      ? '正在提交任务…'
+      : pageStatus === 'cancelled'
+        ? '已停止本页轮询，服务端任务可能仍在运行。'
+        : pageStatus === 'timeout'
+          ? '等待超时，服务端任务状态未被修改，可稍后继续查询。'
+          : pageStatus === 'error'
+            ? error
+            : task?.status === 'pending'
+              ? '任务已提交，等待模型处理…'
+              : task?.status === 'running'
+                ? '模型正在生成图片…'
+                : task?.status === 'succeeded'
+                  ? '图片生成完成。'
+                  : task?.error?.message || '图片生成失败。'
+  return (
+    <section aria-live="polite" className="mt-5 rounded-2xl bg-slate-100 p-4 dark:bg-white/5">
+      <p className="text-sm font-semibold">{status}</p>
+      {task && <p className="mt-2 break-all text-xs text-slate-500">Task ID：{task.taskId}</p>}
+    </section>
   )
 }
 
