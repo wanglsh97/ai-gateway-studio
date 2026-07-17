@@ -8,4 +8,5 @@ DATABASE_URL="$test_database_url" TEST_DATABASE_URL="$test_database_url" \
   chat/chat.e2e-spec.ts \
   chat/chat-compare.e2e-spec.ts \
   image/image.e2e-spec.ts \
-  prompt/prompt.e2e-spec.ts
+  prompt/prompt.e2e-spec.ts \
+  admin/admin-privacy.e2e-spec.ts
