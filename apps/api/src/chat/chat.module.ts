@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config'
 
 import { RequestLifecycleModule } from '../request-lifecycle/request-lifecycle.module'
 import { PricingService } from '../billing/pricing.service'
+import { ImageModule } from '../image/image.module'
 import { RateLimitModule } from '../rate-limit/rate-limit.module'
 import type { ChatAdapter } from './adapters/chat-adapter'
 import { CHAT_ADAPTERS, ChatAdapterRegistry } from './adapters/chat-adapter.registry'
@@ -22,7 +23,7 @@ import { ProviderHealthService } from './provider-health.service'
 import { OpenAICompatibleChatTransport } from './transports/openai-compatible-chat.transport'
 
 @Module({
-  imports: [ConfigModule, RequestLifecycleModule, RateLimitModule],
+  imports: [ConfigModule, RequestLifecycleModule, RateLimitModule, ImageModule],
   providers: [
     {
       provide: MOCK_CHAT_ADAPTER_OPTIONS,

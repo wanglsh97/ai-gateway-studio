@@ -1,6 +1,7 @@
-import type { ModelSummary, TextModelAlias } from '@aigateway/sdk'
+import type { ImageModelAlias, ModelSummary, TextModelAlias } from '@aigateway/sdk'
 import { Controller, Get } from '@nestjs/common'
 
+import { ImageAdapterRegistry } from '../image/adapters/image-adapter.registry'
 import { ChatAdapterRegistry } from './adapters/chat-adapter.registry'
 import { ProviderHealthService } from './provider-health.service'
 
@@ -16,34 +17,57 @@ export class ModelsController {
   constructor(
     private readonly adapters: ChatAdapterRegistry,
     private readonly providerHealth: ProviderHealthService,
+    private readonly imageAdapters: ImageAdapterRegistry,
   ) {}
 
   @Get()
   async list(): Promise<ModelSummary[]> {
     const adapters = this.adapters.list().filter((adapter) => adapter.id !== 'mock')
 
-    if (adapters.length === 0 && this.adapters.has('mock')) {
-      return [
-        {
-          alias: 'qwen',
-          capabilities: ['chat', 'prompt'],
-          displayName: '通义千问（Mock）',
-          enabled: true,
-          configured: false,
-          health: 'unknown',
-        },
-      ]
-    }
+    const chatModels: ModelSummary[] =
+      adapters.length === 0 && this.adapters.has('mock')
+        ? [
+            {
+              alias: 'qwen' as const,
+              capabilities: ['chat', 'prompt'],
+              displayName: '通义千问（Mock）',
+              enabled: true,
+              configured: false,
+              health: 'unknown',
+            },
+          ]
+        : await Promise.all(
+            adapters.map(async (adapter) => ({
+              alias: adapter.id as TextModelAlias,
+              capabilities: ['chat', 'prompt'],
+              displayName: MODEL_DISPLAY_NAMES[adapter.id as TextModelAlias],
+              enabled: true,
+              configured: true,
+              health: await this.providerHealth.getStatus(adapter.id),
+            })),
+          )
+    const imageAdapters = this.imageAdapters.list().filter((adapter) => adapter.id !== 'mock')
+    const imageModels: ModelSummary[] =
+      imageAdapters.length === 0 && this.imageAdapters.has('mock')
+        ? [
+            {
+              alias: 'wanxiang',
+              capabilities: ['image'],
+              displayName: '通义万相（Mock）',
+              enabled: true,
+              configured: false,
+              health: 'unknown',
+            },
+          ]
+        : imageAdapters.map((adapter) => ({
+            alias: adapter.id as ImageModelAlias,
+            capabilities: ['image'],
+            displayName: adapter.id === 'wanxiang' ? '通义万相' : '智谱 CogView',
+            enabled: true,
+            configured: true,
+            health: 'unknown',
+          }))
 
-    return Promise.all(
-      adapters.map(async (adapter) => ({
-        alias: adapter.id as TextModelAlias,
-        capabilities: ['chat', 'prompt'],
-        displayName: MODEL_DISPLAY_NAMES[adapter.id as TextModelAlias],
-        enabled: true,
-        configured: true,
-        health: await this.providerHealth.getStatus(adapter.id),
-      })),
-    )
+    return [...chatModels, ...imageModels]
   }
 }

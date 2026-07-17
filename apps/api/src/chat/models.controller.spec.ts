@@ -1,5 +1,7 @@
 import type { ChatAdapter } from './adapters/chat-adapter'
 import { ChatAdapterRegistry } from './adapters/chat-adapter.registry'
+import type { ImageAdapter } from '../image/adapters/image-adapter'
+import { ImageAdapterRegistry } from '../image/adapters/image-adapter.registry'
 import { ModelsController } from './models.controller'
 import type { ProviderHealthService } from './provider-health.service'
 
@@ -8,6 +10,16 @@ function adapter(id: ChatAdapter['id']): ChatAdapter {
     id,
     resolvedModel: `${id}-model`,
     stream: jest.fn(),
+  }
+}
+
+function imageAdapter(id: ImageAdapter['id']): ImageAdapter {
+  return {
+    id,
+    resolvedModel: `${id}-image-model`,
+    submit: jest.fn(),
+    getStatus: jest.fn(),
+    download: jest.fn(),
   }
 }
 
@@ -22,6 +34,7 @@ describe('ModelsController', () => {
     const controller = new ModelsController(
       new ChatAdapterRegistry([adapter('mock'), adapter('qwen'), adapter('deepseek')]),
       providerHealth,
+      new ImageAdapterRegistry([imageAdapter('wanxiang'), imageAdapter('cogview')]),
     )
 
     await expect(controller.list()).resolves.toEqual([
@@ -41,6 +54,22 @@ describe('ModelsController', () => {
         configured: true,
         health: 'unhealthy',
       },
+      {
+        alias: 'wanxiang',
+        capabilities: ['image'],
+        displayName: '通义万相',
+        enabled: true,
+        configured: true,
+        health: 'unknown',
+      },
+      {
+        alias: 'cogview',
+        capabilities: ['image'],
+        displayName: '智谱 CogView',
+        enabled: true,
+        configured: true,
+        health: 'unknown',
+      },
     ])
   })
 
@@ -48,6 +77,7 @@ describe('ModelsController', () => {
     const controller = new ModelsController(
       new ChatAdapterRegistry([adapter('mock')]),
       providerHealth,
+      new ImageAdapterRegistry([imageAdapter('mock')]),
     )
 
     await expect(controller.list()).resolves.toEqual([
@@ -55,6 +85,14 @@ describe('ModelsController', () => {
         alias: 'qwen',
         capabilities: ['chat', 'prompt'],
         displayName: '通义千问（Mock）',
+        enabled: true,
+        configured: false,
+        health: 'unknown',
+      },
+      {
+        alias: 'wanxiang',
+        capabilities: ['image'],
+        displayName: '通义万相（Mock）',
         enabled: true,
         configured: false,
         health: 'unknown',
