@@ -48,11 +48,11 @@ describe('AdminGuard', () => {
   it('rejects anonymous admin APIs through the session verifier', async () => {
     const { guard, readSession } = setup()
     readSession.mockRejectedValue(Object.assign(new Error('unauthorized'), { status: 401 }))
+    const request = { originalUrl: '/api/v1/admin/dashboard/overview' }
 
-    await expect(
-      guard.canActivate(contextFor({ originalUrl: '/api/v1/admin/dashboard/overview' })),
-    ).rejects.toMatchObject({ status: 401 })
+    await expect(guard.canActivate(contextFor(request))).rejects.toMatchObject({ status: 401 })
     expect(readSession).toHaveBeenCalledWith(undefined)
+    expect(request).not.toHaveProperty('adminSession')
   })
 
   it('attaches a verified administrator session for downstream handlers', async () => {

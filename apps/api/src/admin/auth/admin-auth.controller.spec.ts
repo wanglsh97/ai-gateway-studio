@@ -5,6 +5,7 @@ import { AdminAuthController } from './admin-auth.controller'
 import { ADMIN_SESSION_COOKIE } from './admin-auth.service'
 import type { AdminAuthService } from './admin-auth.service'
 import type { RateLimitService } from '../../rate-limit/rate-limit.service'
+import { RateLimitExceededException } from '../../rate-limit/rate-limit.service'
 
 function setup() {
   const verifyCredentials = jest.fn()
@@ -85,11 +86,11 @@ describe('AdminAuthController', () => {
 
   it('does not verify credentials or set a cookie when the login limit rejects', async () => {
     const { consumeAdminLogin, controller, request, response, verifyCredentials } = setup()
-    consumeAdminLogin.mockRejectedValue(new Error('rate limited'))
+    consumeAdminLogin.mockRejectedValue(new RateLimitExceededException(37))
 
     await expect(
       controller.login({ username: 'root', password: '123456' }, request, response),
-    ).rejects.toThrow('rate limited')
+    ).rejects.toMatchObject({ status: 429, retryAfterSeconds: 37 })
     expect(verifyCredentials).not.toHaveBeenCalled()
     expect(response.cookie).not.toHaveBeenCalled()
   })

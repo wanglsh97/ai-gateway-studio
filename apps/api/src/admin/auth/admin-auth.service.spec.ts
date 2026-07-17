@@ -37,14 +37,19 @@ describe('AdminAuthService', () => {
     await expect(service.readSession(token)).resolves.toEqual(session)
   })
 
-  it('rejects missing, forged and wrong-purpose tokens', async () => {
+  it('rejects missing, expired, forged and wrong-purpose tokens', async () => {
     const service = createService()
+    const expired = await new JwtService().signAsync(
+      { sub: 'root', type: 'admin_session', version: 1 },
+      { secret, expiresIn: -1 },
+    )
     const wrongPurpose = await new JwtService().signAsync(
       { sub: 'root', type: 'public_session', version: 1 },
       { secret, expiresIn: 900 },
     )
 
     await expect(service.readSession(undefined)).rejects.toMatchObject({ status: 401 })
+    await expect(service.readSession(expired)).rejects.toMatchObject({ status: 401 })
     await expect(service.readSession('forged.token.value')).rejects.toMatchObject({ status: 401 })
     await expect(service.readSession(wrongPurpose)).rejects.toMatchObject({ status: 401 })
   })
