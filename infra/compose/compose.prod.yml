@@ -104,6 +104,7 @@ services:
       KIMI_MODEL_ID: '${KIMI_MODEL_ID:-}'
       WANXIANG_ENABLED: '${WANXIANG_ENABLED:-false}'
       WANXIANG_API_KEY: '${WANXIANG_API_KEY:-}'
+      WANXIANG_BASE_URL: '${WANXIANG_BASE_URL:-https://dashscope.aliyuncs.com/api/v1}'
       WANXIANG_MODEL_ID: '${WANXIANG_MODEL_ID:-}'
       COGVIEW_ENABLED: '${COGVIEW_ENABLED:-false}'
       COGVIEW_API_KEY: '${COGVIEW_API_KEY:-}'

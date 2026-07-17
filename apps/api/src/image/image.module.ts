@@ -11,6 +11,7 @@ import {
 } from './adapters/mock-image-adapter'
 import { ImageController } from './image.controller'
 import { ImageService } from './image.service'
+import { WanxiangImageAdapter } from './adapters/wanxiang-image-adapter'
 
 @Module({
   imports: [RateLimitModule],
@@ -20,8 +21,20 @@ import { ImageService } from './image.service'
     {
       provide: IMAGE_ADAPTERS,
       inject: [ConfigService, MockImageAdapter],
-      useFactory: (config: ConfigService, mock: MockImageAdapter): readonly ImageAdapter[] =>
-        config.get<boolean>('MOCK_PROVIDER_ENABLED') ? [mock] : [],
+      useFactory: (config: ConfigService, mock: MockImageAdapter): readonly ImageAdapter[] => {
+        const adapters: ImageAdapter[] = []
+        if (config.get<boolean>('MOCK_PROVIDER_ENABLED')) adapters.push(mock)
+        if (config.get<boolean>('WANXIANG_ENABLED')) {
+          adapters.push(
+            new WanxiangImageAdapter({
+              apiKey: config.getOrThrow<string>('WANXIANG_API_KEY'),
+              baseUrl: config.getOrThrow<string>('WANXIANG_BASE_URL'),
+              modelId: config.getOrThrow<string>('WANXIANG_MODEL_ID'),
+            }),
+          )
+        }
+        return adapters
+      },
     },
     ImageAdapterRegistry,
     ImageService,

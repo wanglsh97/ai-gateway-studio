@@ -62,6 +62,7 @@ const environmentSchema = z
     KIMI_API_KEY: optionalSecret,
     KIMI_BASE_URL: z.string().url().default('https://api.moonshot.cn/v1'),
     WANXIANG_API_KEY: optionalSecret,
+    WANXIANG_BASE_URL: z.string().url().default('https://dashscope.aliyuncs.com/api/v1'),
     COGVIEW_API_KEY: optionalSecret,
     QWEN_MODEL_ID: optionalModelId,
     GLM_MODEL_ID: optionalModelId,

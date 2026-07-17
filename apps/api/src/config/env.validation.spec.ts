@@ -16,6 +16,7 @@ describe('validateEnvironment', () => {
     expect(environment.DEEPSEEK_BASE_URL).toBe('https://api.deepseek.com')
     expect(environment.KIMI_ENABLED).toBe(false)
     expect(environment.KIMI_BASE_URL).toBe('https://api.moonshot.cn/v1')
+    expect(environment.WANXIANG_BASE_URL).toBe('https://dashscope.aliyuncs.com/api/v1')
     expect(environment.API_PORT).toBe(3001)
     expect(environment.TRUSTED_PROXY_HOPS).toBe(1)
     expect(environment.CHAT_RATE_LIMIT_PER_MINUTE).toBe(10)
