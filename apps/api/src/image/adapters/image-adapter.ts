@@ -36,11 +36,22 @@ export interface ImageAdapterStatus {
   errorMessage?: string
 }
 
+export interface ImageAdapterDownloadRequest {
+  url: string
+  signal: AbortSignal
+}
+
+export interface ImageAdapterDownload {
+  body: Uint8Array
+  contentType: string
+}
+
 export interface ImageAdapter {
   readonly id: ImageAdapterId
   readonly resolvedModel: string
   submit(request: ImageAdapterSubmitRequest): Promise<ImageAdapterSubmission>
   getStatus(request: ImageAdapterStatusRequest): Promise<ImageAdapterStatus>
+  download(request: ImageAdapterDownloadRequest): Promise<ImageAdapterDownload>
 }
 
 export class ImageAdapterError extends Error {

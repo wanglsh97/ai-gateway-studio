@@ -2,7 +2,13 @@ import type { ImageAdapter } from './image-adapter'
 import { ImageAdapterRegistry } from './image-adapter.registry'
 
 function adapter(id: ImageAdapter['id']): ImageAdapter {
-  return { id, resolvedModel: `${id}-v1`, submit: jest.fn(), getStatus: jest.fn() }
+  return {
+    id,
+    resolvedModel: `${id}-v1`,
+    submit: jest.fn(),
+    getStatus: jest.fn(),
+    download: jest.fn(),
+  }
 }
 
 describe('ImageAdapterRegistry', () => {
