@@ -25,6 +25,7 @@
     "test:mock-chat": "sh infra/scripts/run-mock-chat-regression.sh",
     "test:user-regression": "sh infra/scripts/run-user-regression.sh",
     "test:web-same-origin": "sh infra/scripts/verify-web-same-origin.sh",
+    "test:nginx-sse": "sh infra/scripts/verify-nginx-sse.sh",
     "check": "corepack pnpm format:check && corepack pnpm lint && corepack pnpm db:validate && corepack pnpm typecheck && corepack pnpm test && corepack pnpm build",
     "db:generate": "prisma generate",
     "db:validate": "prisma validate",
