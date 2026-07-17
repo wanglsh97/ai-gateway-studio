@@ -7,6 +7,7 @@ import { RedisService } from '../redis/redis.service'
 
 const CHAT_WINDOW_SECONDS = 60
 const IMAGE_WINDOW_SECONDS = 60
+const ADMIN_LOGIN_WINDOW_SECONDS = 60
 
 export class RateLimitExceededException extends HttpException {
   constructor(readonly retryAfterSeconds: number) {
@@ -25,6 +26,7 @@ export class RateLimitService {
   private readonly logger = new Logger(RateLimitService.name)
   private readonly chatLimit: number
   private readonly imageLimit: number
+  private readonly adminLoginLimit: number
 
   constructor(
     @Inject(RedisService) private readonly redis: RedisService,
@@ -32,6 +34,7 @@ export class RateLimitService {
   ) {
     this.chatLimit = config.getOrThrow<number>('CHAT_RATE_LIMIT_PER_MINUTE')
     this.imageLimit = config.get<number>('IMAGE_RATE_LIMIT_PER_MINUTE', 5)
+    this.adminLoginLimit = config.get<number>('ADMIN_LOGIN_RATE_LIMIT_PER_MINUTE', 5)
   }
 
   async consumeChat(clientIp: string | undefined): Promise<void> {
@@ -57,8 +60,12 @@ export class RateLimitService {
     await this.consume('image', clientIp, this.imageLimit, IMAGE_WINDOW_SECONDS)
   }
 
+  async consumeAdminLogin(clientIp: string | undefined): Promise<void> {
+    await this.consume('admin-login', clientIp, this.adminLoginLimit, ADMIN_LOGIN_WINDOW_SECONDS)
+  }
+
   private async consume(
-    capability: 'image',
+    capability: 'image' | 'admin-login',
     clientIp: string | undefined,
     limit: number,
     windowSeconds: number,

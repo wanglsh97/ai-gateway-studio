@@ -36,6 +36,14 @@ describe('RateLimitService', () => {
     expect(incrementFixedWindow).toHaveBeenCalledWith('rate:image:MTI3LjAuMC4x', 60)
   })
 
+  it('uses a separate administrator login counter with a five-per-minute default', async () => {
+    const { incrementFixedWindow, service } = createService()
+    incrementFixedWindow.mockResolvedValue({ count: 5, retryAfterSeconds: 12 })
+
+    await expect(service.consumeAdminLogin('127.0.0.1')).resolves.toBeUndefined()
+    expect(incrementFixedWindow).toHaveBeenCalledWith('rate:admin-login:MTI3LjAuMC4x', 60)
+  })
+
   it('returns 429 with retry information after the configured limit', async () => {
     const { incrementFixedWindow, service } = createService(1)
     incrementFixedWindow.mockResolvedValue({ count: 2, retryAfterSeconds: 37 })

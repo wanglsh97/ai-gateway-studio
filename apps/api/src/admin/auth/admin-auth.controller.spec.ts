@@ -4,6 +4,7 @@ import type { Request, Response } from 'express'
 import { AdminAuthController } from './admin-auth.controller'
 import { ADMIN_SESSION_COOKIE } from './admin-auth.service'
 import type { AdminAuthService } from './admin-auth.service'
+import type { RateLimitService } from '../../rate-limit/rate-limit.service'
 
 function setup() {
   const verifyCredentials = jest.fn()
@@ -27,19 +28,38 @@ function setup() {
     readSession,
     cookieOptions,
   } as unknown as AdminAuthService
-  const controller = new AdminAuthController(auth, new ConfigService({ NODE_ENV: 'test' }))
+  const consumeAdminLogin = jest.fn().mockResolvedValue(undefined)
+  const rateLimit = { consumeAdminLogin } as unknown as RateLimitService
+  const controller = new AdminAuthController(
+    auth,
+    rateLimit,
+    new ConfigService({ NODE_ENV: 'test' }),
+  )
   const response = { cookie: jest.fn(), clearCookie: jest.fn() } as unknown as Response
-  return { controller, createSession, readSession, response, verifyCredentials }
+  const request = { ip: '203.0.113.10' } as unknown as Request
+  return {
+    consumeAdminLogin,
+    controller,
+    createSession,
+    readSession,
+    request,
+    response,
+    verifyCredentials,
+  }
 }
 
 describe('AdminAuthController', () => {
   it('sets the signed session cookie after successful login', async () => {
-    const { controller, response, verifyCredentials } = setup()
+    const { consumeAdminLogin, controller, request, response, verifyCredentials } = setup()
 
     await expect(
-      controller.login({ username: 'root', password: '123456' }, response),
+      controller.login({ username: 'root', password: '123456' }, request, response),
     ).resolves.toEqual({ username: 'root', expiresAt: '2026-07-17T12:00:00.000Z' })
     expect(verifyCredentials).toHaveBeenCalledWith('root', '123456')
+    expect(consumeAdminLogin).toHaveBeenCalledWith('203.0.113.10')
+    expect(consumeAdminLogin.mock.invocationCallOrder[0]).toBeLessThan(
+      verifyCredentials.mock.invocationCallOrder[0] ?? 0,
+    )
     expect(response.cookie).toHaveBeenCalledWith(
       ADMIN_SESSION_COOKIE,
       'signed-token',
@@ -60,5 +80,16 @@ describe('AdminAuthController', () => {
       ADMIN_SESSION_COOKIE,
       expect.not.objectContaining({ maxAge: expect.anything() }),
     )
+  })
+
+  it('does not verify credentials or set a cookie when the login limit rejects', async () => {
+    const { consumeAdminLogin, controller, request, response, verifyCredentials } = setup()
+    consumeAdminLogin.mockRejectedValue(new Error('rate limited'))
+
+    await expect(
+      controller.login({ username: 'root', password: '123456' }, request, response),
+    ).rejects.toThrow('rate limited')
+    expect(verifyCredentials).not.toHaveBeenCalled()
+    expect(response.cookie).not.toHaveBeenCalled()
   })
 })

@@ -2,6 +2,7 @@ import { Body, Controller, Get, Post, Req, Res } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import type { Request, Response } from 'express'
 
+import { RateLimitService } from '../../rate-limit/rate-limit.service'
 import { ADMIN_SESSION_COOKIE, AdminAuthService } from './admin-auth.service'
 import { AdminLoginDto } from './dto/admin-login.dto'
 
@@ -11,13 +12,19 @@ export class AdminAuthController {
 
   constructor(
     private readonly auth: AdminAuthService,
+    private readonly rateLimit: RateLimitService,
     config: ConfigService,
   ) {
     this.production = config.get<string>('NODE_ENV') === 'production'
   }
 
   @Post('login')
-  async login(@Body() input: AdminLoginDto, @Res({ passthrough: true }) response: Response) {
+  async login(
+    @Body() input: AdminLoginDto,
+    @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    await this.rateLimit.consumeAdminLogin(request.ip)
     this.auth.verifyCredentials(input.username, input.password)
     const { token, session } = await this.auth.createSession()
     response.cookie(ADMIN_SESSION_COOKIE, token, this.auth.cookieOptions(this.production))
