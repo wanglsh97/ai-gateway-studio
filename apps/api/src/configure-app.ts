@@ -2,6 +2,7 @@ import { RequestMethod, ValidationPipe } from '@nestjs/common'
 import type { INestApplication } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { Logger } from 'nestjs-pino'
+import cookieParser from 'cookie-parser'
 import pinoHttp from 'pino-http'
 
 import { HttpExceptionFilter } from './common/filters/http-exception.filter'
@@ -12,6 +13,7 @@ export function configureApplication(app: INestApplication): void {
 
   app.useLogger(app.get(Logger))
   app.use(pinoHttp(createPinoHttpOptions()))
+  app.use(cookieParser())
   app.getHttpAdapter().getInstance().disable('x-powered-by')
   app
     .getHttpAdapter()

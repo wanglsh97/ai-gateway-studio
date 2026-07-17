@@ -22,6 +22,7 @@ describe('validateEnvironment', () => {
     expect(environment.CHAT_MAX_TOKENS).toBe(4096)
     expect(environment.PROVIDER_TIMEOUT_MS).toBe(60_000)
     expect(environment.PROVIDER_MAX_CONNECTIONS).toBe(20)
+    expect(environment.ADMIN_SESSION_TTL_SECONDS).toBe(900)
   })
 
   it('rejects an unsafe trusted proxy hop count', () => {
@@ -37,6 +38,12 @@ describe('validateEnvironment', () => {
         QWEN_ENABLED: 'true',
       }),
     ).toThrow('QWEN_API_KEY')
+  })
+
+  it('requires an independent administrator session secret in production', () => {
+    expect(() => validateEnvironment({ ...requiredEnvironment, NODE_ENV: 'production' })).toThrow(
+      'ADMIN_SESSION_SECRET',
+    )
   })
 
   it('does not include configured secret values in validation errors', () => {

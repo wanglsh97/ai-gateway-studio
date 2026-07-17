@@ -12,6 +12,12 @@ const optionalSecret = z.preprocess(
   z.string().min(1).optional(),
 )
 
+const adminSessionSecret = z.preprocess(
+  (value) =>
+    value === undefined || value === '' ? 'development-only-admin-session-secret-change-me' : value,
+  z.string().min(32),
+)
+
 const optionalModelId = z.preprocess(
   (value) => (value === '' ? undefined : value),
   z.string().min(1).optional(),
@@ -77,6 +83,8 @@ const environmentSchema = z
       .max(50_000_000)
       .default(10_000_000),
     ADMIN_LOGIN_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(5),
+    ADMIN_SESSION_SECRET: adminSessionSecret,
+    ADMIN_SESSION_TTL_SECONDS: z.coerce.number().int().min(60).max(86_400).default(900),
     CHAT_MAX_TOKENS: z.coerce.number().int().min(1).max(4096).default(4096),
     PROVIDER_HEALTH_TTL_SECONDS: z.coerce.number().int().min(30).max(3600).default(300),
     PROVIDER_HEALTH_FAILURE_THRESHOLD: z.coerce.number().int().min(1).max(10).default(3),
@@ -93,6 +101,16 @@ const environmentSchema = z
     KIMI_OUTPUT_PRICE_CNY_PER_MILLION: optionalNonNegativeDecimal,
   })
   .superRefine((env, context) => {
+    if (
+      env.NODE_ENV === 'production' &&
+      env.ADMIN_SESSION_SECRET === 'development-only-admin-session-secret-change-me'
+    ) {
+      context.addIssue({
+        code: 'custom',
+        path: ['ADMIN_SESSION_SECRET'],
+        message: '生产环境必须配置独立的管理员会话密钥',
+      })
+    }
     const providers = [
       { name: 'QWEN', enabled: env.QWEN_ENABLED, key: env.QWEN_API_KEY, model: env.QWEN_MODEL_ID },
       { name: 'GLM', enabled: env.GLM_ENABLED, key: env.GLM_API_KEY, model: env.GLM_MODEL_ID },
