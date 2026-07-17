@@ -11,7 +11,13 @@ import type { RequestLifecycleService } from '../request-lifecycle/request-lifec
 import { PromptController } from './prompt.controller'
 import { PromptTemplateRegistry } from './prompt-template.registry'
 
-function setup(error?: Error) {
+function setup(
+  error?: Error,
+  configValues: Record<string, unknown> = {
+    PROMPT_OPTIMIZER_MODEL: 'qwen',
+    MOCK_PROVIDER_ENABLED: true,
+  },
+) {
   const stream = jest.fn(() =>
     (async function* () {
       yield { type: 'delta' as const, content: '优化后的' }
@@ -41,7 +47,7 @@ function setup(error?: Error) {
   }))
   const pricing = { calculate } as unknown as PricingService
   const controller = new PromptController(
-    new ConfigService({ PROMPT_OPTIMIZER_MODEL: 'qwen' }),
+    new ConfigService(configValues),
     new ChatAdapterRegistry([adapter]),
     new PromptTemplateRegistry(),
     lifecycle,
@@ -108,5 +114,21 @@ describe('PromptController', () => {
         error: expect.objectContaining({ code: 'PROMPT_OPTIMIZATION_FAILED' }),
       }),
     )
+  })
+
+  it('returns an explicit error and never switches to another real model when the configured alias is disabled', async () => {
+    const { controller, request, start, stream } = setup(undefined, {
+      PROMPT_OPTIMIZER_MODEL: 'qwen',
+      MOCK_PROVIDER_ENABLED: false,
+    })
+
+    await expect(
+      controller.optimize({ prompt: '原始 Prompt', mode: 'simplify' }, request),
+    ).rejects.toMatchObject({
+      model: 'qwen',
+      status: 503,
+    })
+    expect(start).not.toHaveBeenCalled()
+    expect(stream).not.toHaveBeenCalled()
   })
 })

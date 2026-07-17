@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 
 import type { OptimizePromptResult, TextModelAlias } from '@aigateway/sdk'
-import { Body, Controller, Post, Req, ServiceUnavailableException } from '@nestjs/common'
+import { Body, Controller, HttpException, HttpStatus, Post, Req } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import type { Request } from 'express'
 
@@ -115,8 +115,22 @@ export class PromptController {
 
   private resolveAdapter(model: TextModelAlias): ChatAdapter {
     if (this.adapters.has(model)) return this.adapters.get(model)
-    if (this.adapters.has('mock')) return this.adapters.get('mock')
-    throw new ServiceUnavailableException('Prompt 优化模型当前不可用')
+    if (this.config.get<boolean>('MOCK_PROVIDER_ENABLED') && this.adapters.has('mock')) {
+      return this.adapters.get('mock')
+    }
+    throw new PromptOptimizerModelUnavailableException(model)
+  }
+}
+
+export class PromptOptimizerModelUnavailableException extends HttpException {
+  constructor(readonly model: TextModelAlias) {
+    super(
+      {
+        message: `Prompt 优化模型 alias "${model}" 未启用`,
+        details: { model },
+      },
+      HttpStatus.SERVICE_UNAVAILABLE,
+    )
   }
 }
 
