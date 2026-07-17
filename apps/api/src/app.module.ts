@@ -6,6 +6,7 @@ import { AppController } from './app.controller'
 import { AdminAuthModule } from './admin/auth/admin-auth.module'
 import { AdminDashboardModule } from './admin/dashboard/admin-dashboard.module'
 import { AdminRequestLogsModule } from './admin/logs/admin-request-logs.module'
+import { AdminTablesModule } from './admin/tables/admin-tables.module'
 import { ChatModule } from './chat/chat.module'
 import { validateEnvironment } from './config/env.validation'
 import { createPinoHttpOptions } from './config/logger.config'
@@ -36,6 +37,7 @@ import { RedisModule } from './redis/redis.module'
     AdminAuthModule,
     AdminDashboardModule,
     AdminRequestLogsModule,
+    AdminTablesModule,
   ],
   controllers: [AppController],
 })
