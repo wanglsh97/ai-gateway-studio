@@ -43,6 +43,30 @@ describe('validateEnvironment', () => {
     ).toThrow('QWEN_API_KEY')
   })
 
+  it.each(['QWEN', 'GLM', 'DEEPSEEK', 'KIMI', 'WANXIANG', 'COGVIEW'] as const)(
+    'allows the %s alias to be enabled independently',
+    (alias) => {
+      const environment = validateEnvironment({
+        ...requiredEnvironment,
+        [`${alias}_ENABLED`]: 'true',
+        [`${alias}_API_KEY`]: `${alias.toLowerCase()}-test-key`,
+        [`${alias}_MODEL_ID`]: `${alias.toLowerCase()}-test-model`,
+      })
+
+      expect(environment[`${alias}_ENABLED`]).toBe(true)
+      for (const otherAlias of [
+        'QWEN',
+        'GLM',
+        'DEEPSEEK',
+        'KIMI',
+        'WANXIANG',
+        'COGVIEW',
+      ] as const) {
+        if (otherAlias !== alias) expect(environment[`${otherAlias}_ENABLED`]).toBe(false)
+      }
+    },
+  )
+
   it('requires an independent administrator session secret in production', () => {
     expect(() => validateEnvironment({ ...requiredEnvironment, NODE_ENV: 'production' })).toThrow(
       'ADMIN_SESSION_SECRET',
