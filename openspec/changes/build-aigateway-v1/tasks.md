@@ -56,7 +56,7 @@
 - [x] 1.39 在 SDK 实现 image create/get/wait/downloadUrl，轮询支持退避、超时、终态停止和取消
 - [ ] 1.40 实现 Wanxiang Adapter，以 fixture 和低额度真实任务分别验收
 - [ ] 1.41 实现 CogView Adapter，以 fixture 和低额度真实任务分别验收
-- [ ] 1.42 添加 Image 集成测试，覆盖提交、API 重启后轮询、成功下载、失败和客户端超时
+- [x] 1.42 添加 Image 集成测试，覆盖提交、API 重启后轮询、成功下载、失败和客户端超时
 
 ### Prompt 优化网关能力
 
