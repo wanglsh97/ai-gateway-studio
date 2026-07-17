@@ -20,6 +20,8 @@ describe('validateEnvironment', () => {
     expect(environment.TRUSTED_PROXY_HOPS).toBe(1)
     expect(environment.CHAT_RATE_LIMIT_PER_MINUTE).toBe(10)
     expect(environment.CHAT_MAX_TOKENS).toBe(4096)
+    expect(environment.PROVIDER_TIMEOUT_MS).toBe(60_000)
+    expect(environment.PROVIDER_MAX_CONNECTIONS).toBe(20)
   })
 
   it('rejects an unsafe trusted proxy hop count', () => {

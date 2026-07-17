@@ -196,6 +196,10 @@ export class RequestLifecycleService {
           requestId: input.requestId,
           status: input.status,
           durationMs,
+          ttfbMs:
+            input.firstTokenAt === undefined
+              ? null
+              : Math.max(0, input.firstTokenAt.getTime() - input.startedAt.getTime()),
           provider: input.provider ?? null,
           resolvedModel: input.resolvedModel ?? null,
           usage: {

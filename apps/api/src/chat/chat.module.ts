@@ -29,7 +29,15 @@ import { OpenAICompatibleChatTransport } from './transports/openai-compatible-ch
       useValue: DEFAULT_MOCK_CHAT_ADAPTER_OPTIONS,
     },
     MockChatAdapter,
-    OpenAICompatibleChatTransport,
+    {
+      provide: OpenAICompatibleChatTransport,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) =>
+        new OpenAICompatibleChatTransport({
+          timeoutMs: config.get<number>('PROVIDER_TIMEOUT_MS', 60_000),
+          connections: config.get<number>('PROVIDER_MAX_CONNECTIONS', 20),
+        }),
+    },
     {
       provide: CHAT_ADAPTERS,
       inject: [ConfigService, MockChatAdapter, OpenAICompatibleChatTransport],

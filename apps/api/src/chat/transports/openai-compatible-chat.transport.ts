@@ -1,3 +1,6 @@
+import type { OnModuleDestroy } from '@nestjs/common'
+import { Agent, fetch as undiciFetch } from 'undici'
+
 export type OpenAICompatibleFetch = (
   input: string | URL | Request,
   init?: RequestInit,
@@ -6,6 +9,7 @@ export type OpenAICompatibleFetch = (
 export interface OpenAICompatibleChatTransportOptions {
   fetch?: OpenAICompatibleFetch
   timeoutMs?: number
+  connections?: number
 }
 
 export interface OpenAICompatibleChatTransportRequest {
@@ -58,17 +62,31 @@ export class OpenAICompatibleTimeoutError extends Error {
 }
 
 const DEFAULT_TIMEOUT_MS = 60_000
+const DEFAULT_CONNECTIONS = 20
 
-export class OpenAICompatibleChatTransport {
+export class OpenAICompatibleChatTransport implements OnModuleDestroy {
   private readonly fetchImplementation: OpenAICompatibleFetch
   private readonly timeoutMs: number
+  private readonly agent: Agent | undefined
 
   constructor(options: OpenAICompatibleChatTransportOptions = {}) {
-    const fetchImplementation = options.fetch ?? globalThis.fetch
+    const connections = validateConnections(options.connections ?? DEFAULT_CONNECTIONS)
+    const timeoutMs = validateTimeout(options.timeoutMs ?? DEFAULT_TIMEOUT_MS)
+    this.agent = options.fetch === undefined ? new Agent({ connections }) : undefined
+    const fetchImplementation =
+      options.fetch ??
+      ((input, init) =>
+        undiciFetch(String(input), { ...init, dispatcher: this.agent } as unknown as Parameters<
+          typeof undiciFetch
+        >[1]) as unknown as Promise<Response>)
     if (!fetchImplementation) throw new TypeError('A Fetch API implementation is required')
 
     this.fetchImplementation = fetchImplementation
-    this.timeoutMs = validateTimeout(options.timeoutMs ?? DEFAULT_TIMEOUT_MS)
+    this.timeoutMs = timeoutMs
+  }
+
+  async onModuleDestroy(): Promise<void> {
+    await this.agent?.close()
   }
 
   async *stream(
@@ -157,6 +175,13 @@ function validateTimeout(timeoutMs: number): number {
     throw new TypeError('OpenAI-compatible timeoutMs must be a positive integer')
   }
   return timeoutMs
+}
+
+function validateConnections(connections: number): number {
+  if (!Number.isInteger(connections) || connections <= 0) {
+    throw new TypeError('OpenAI-compatible connections must be a positive integer')
+  }
+  return connections
 }
 
 function readProviderRequestId(headers: Headers): string | undefined {

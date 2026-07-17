@@ -58,6 +58,17 @@ export class ProviderHealthService {
       ...(previous?.lastFailureAt === undefined ? {} : { lastFailureAt: previous.lastFailureAt }),
       updatedAt: now,
     }))
+    this.logger.log(
+      {
+        event: 'provider.request.completed',
+        provider,
+        outcome: 'success',
+        providerLatencyMs: latencyMs,
+        success: 1,
+        error: 0,
+      },
+      'Provider request completed',
+    )
   }
 
   async recordFailure(
@@ -86,6 +97,19 @@ export class ProviderHealthService {
         updatedAt: now,
       }
     })
+    this.logger.log(
+      {
+        event: 'provider.request.completed',
+        provider,
+        outcome: 'error',
+        providerLatencyMs: latencyMs,
+        success: 0,
+        error: 1,
+        errorCode: failure.code,
+        affectsHealth: failure.affectsHealth,
+      },
+      'Provider request completed',
+    )
   }
 
   private async update(

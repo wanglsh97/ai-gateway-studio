@@ -67,6 +67,15 @@ async function collect(
 }
 
 describe('OpenAICompatibleChatTransport', () => {
+  it('rejects invalid timeout and connection limits', () => {
+    expect(() => new OpenAICompatibleChatTransport({ timeoutMs: 0 })).toThrow(
+      'timeoutMs must be a positive integer',
+    )
+    expect(() => new OpenAICompatibleChatTransport({ connections: 0 })).toThrow(
+      'connections must be a positive integer',
+    )
+  })
+
   it('posts JSON and parses fragmented SSE through an injected Fetch client', async () => {
     const calls: Array<{ input: string; init?: RequestInit }> = []
     const fetchImplementation: OpenAICompatibleFetch = async (input, init) => {

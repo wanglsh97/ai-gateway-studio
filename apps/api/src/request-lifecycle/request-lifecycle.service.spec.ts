@@ -189,6 +189,7 @@ describe('RequestLifecycleService.finish', () => {
         requestId,
         status: 'succeeded',
         durationMs: 1250,
+        ttfbMs: 100,
         provider: null,
         resolvedModel: null,
         usage: {

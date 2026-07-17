@@ -80,6 +80,8 @@ const environmentSchema = z
     CHAT_MAX_TOKENS: z.coerce.number().int().min(1).max(4096).default(4096),
     PROVIDER_HEALTH_TTL_SECONDS: z.coerce.number().int().min(30).max(3600).default(300),
     PROVIDER_HEALTH_FAILURE_THRESHOLD: z.coerce.number().int().min(1).max(10).default(3),
+    PROVIDER_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(300_000).default(60_000),
+    PROVIDER_MAX_CONNECTIONS: z.coerce.number().int().min(1).max(200).default(20),
     PRICING_VERSION: z.string().min(1).default('dev-v1'),
     QWEN_INPUT_PRICE_CNY_PER_MILLION: optionalNonNegativeDecimal,
     QWEN_OUTPUT_PRICE_CNY_PER_MILLION: optionalNonNegativeDecimal,
