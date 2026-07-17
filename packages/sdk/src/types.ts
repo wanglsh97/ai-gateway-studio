@@ -117,7 +117,8 @@ export interface ImageTask {
   updatedAt?: string
 }
 
-export type PromptOptimizationMode = 'expand' | 'simplify' | 'structure'
+export const PROMPT_OPTIMIZATION_MODES = ['expand', 'simplify', 'structure'] as const
+export type PromptOptimizationMode = (typeof PROMPT_OPTIMIZATION_MODES)[number]
 
 export interface OptimizePromptRequest {
   prompt: string
@@ -129,6 +130,7 @@ export interface OptimizePromptResult {
   model: TextModelAlias
   optimizedPrompt: string
   usage: Usage
+  templateVersion: string
 }
 
 export interface ModelSummary {

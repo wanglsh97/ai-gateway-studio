@@ -11,7 +11,12 @@ export {
   AIGatewayProtocolError,
   AIGatewayTimeoutError,
 } from './errors.js'
-export { CHAT_SSE_DONE, IMAGE_MODEL_ALIASES, TEXT_MODEL_ALIASES } from './types.js'
+export {
+  CHAT_SSE_DONE,
+  IMAGE_MODEL_ALIASES,
+  PROMPT_OPTIMIZATION_MODES,
+  TEXT_MODEL_ALIASES,
+} from './types.js'
 export type {
   Capability,
   ChatEvent,
