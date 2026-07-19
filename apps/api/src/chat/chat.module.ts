@@ -5,6 +5,7 @@ import { RequestLifecycleModule } from '../request-lifecycle/request-lifecycle.m
 import { PricingService } from '../billing/pricing.service'
 import { ImageModule } from '../image/image.module'
 import { RateLimitModule } from '../rate-limit/rate-limit.module'
+import { UserAuthModule } from '../user-auth/user-auth.module'
 import type { ChatAdapter } from './adapters/chat-adapter'
 import { CHAT_ADAPTERS, ChatAdapterRegistry } from './adapters/chat-adapter.registry'
 import { DeepSeekChatAdapter } from './adapters/deepseek-chat-adapter'
@@ -23,7 +24,7 @@ import { ProviderHealthService } from './provider-health.service'
 import { OpenAICompatibleChatTransport } from './transports/openai-compatible-chat.transport'
 
 @Module({
-  imports: [ConfigModule, RequestLifecycleModule, RateLimitModule, ImageModule],
+  imports: [ConfigModule, RequestLifecycleModule, RateLimitModule, ImageModule, UserAuthModule],
   providers: [
     {
       provide: MOCK_CHAT_ADAPTER_OPTIONS,

@@ -20,6 +20,7 @@ const messages = [
 ]
 
 const input: StartRequestLifecycleInput = {
+  userId: '00000000-0000-4000-8000-000000000101',
   requestId,
   capability: 'chat',
   prompt: { messages },
@@ -106,6 +107,7 @@ describe('RequestLifecycleService.start', () => {
     })
     expect(create).toHaveBeenCalledWith({
       data: {
+        userId: '00000000-0000-4000-8000-000000000101',
         requestId,
         capability: 'CHAT',
         prompt: { messages },
@@ -123,6 +125,7 @@ describe('RequestLifecycleService.start', () => {
       {
         event: 'request.lifecycle.started',
         requestLogId: 'log-1',
+        userId: '00000000-0000-4000-8000-000000000101',
         requestId,
         capability: 'chat',
         model: 'qwen',

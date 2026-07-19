@@ -11,6 +11,15 @@ import type { RequestLifecycleService } from '../request-lifecycle/request-lifec
 import { PromptController } from './prompt.controller'
 import { PromptTemplateRegistry } from './prompt-template.registry'
 
+const authenticatedUser = {
+  id: '00000000-0000-4000-8000-000000000101',
+  githubId: '12345678',
+  githubUsername: 'octocat',
+  displayName: null,
+  avatarUrl: null,
+  email: null,
+}
+
 function setup(
   error?: Error,
   configValues: Record<string, unknown> = {
@@ -71,7 +80,9 @@ describe('PromptController', () => {
     async (mode, instruction) => {
       const { calculate, consumeChat, controller, finish, request, start, stream } = setup()
 
-      await expect(controller.optimize({ prompt: '帮我写代码', mode }, request)).resolves.toEqual({
+      await expect(
+        controller.optimize({ prompt: '帮我写代码', mode }, request, authenticatedUser),
+      ).resolves.toEqual({
         requestId: request.id,
         model: 'qwen',
         optimizedPrompt: '优化后的 Prompt',
@@ -89,6 +100,7 @@ describe('PromptController', () => {
         stream.mock.invocationCallOrder[0] ?? 0,
       )
       expect(start).toHaveBeenCalledWith({
+        userId: authenticatedUser.id,
         requestId: request.id,
         capability: 'prompt',
         prompt: {
@@ -143,7 +155,7 @@ describe('PromptController', () => {
     const { controller, finish, request } = setup(new Error('upstream failed'))
 
     await expect(
-      controller.optimize({ prompt: '原始 Prompt', mode: 'expand' }, request),
+      controller.optimize({ prompt: '原始 Prompt', mode: 'expand' }, request, authenticatedUser),
     ).rejects.toThrow('upstream failed')
     expect(finish).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -160,7 +172,7 @@ describe('PromptController', () => {
     })
 
     await expect(
-      controller.optimize({ prompt: '原始 Prompt', mode: 'simplify' }, request),
+      controller.optimize({ prompt: '原始 Prompt', mode: 'simplify' }, request, authenticatedUser),
     ).rejects.toMatchObject({
       model: 'qwen',
       status: 503,

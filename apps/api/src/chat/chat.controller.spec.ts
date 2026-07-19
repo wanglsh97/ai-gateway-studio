@@ -16,6 +16,14 @@ import { ChatController } from './chat.controller'
 import type { ChatCompletionRequestDto } from './dto/chat-completion-request.dto'
 
 const requestId = '00000000-0000-4000-8000-000000000003'
+const authenticatedUser = {
+  id: '00000000-0000-4000-8000-000000000101',
+  githubId: '12345678',
+  githubUsername: 'octocat',
+  displayName: null,
+  avatarUrl: null,
+  email: null,
+}
 const input: ChatCompletionRequestDto = {
   model: 'qwen',
   messages: [{ role: 'user', content: '完整消息' }],
@@ -135,6 +143,7 @@ describe('ChatController', () => {
       { ...input, temperature: 0.7, topP: 0.9, maxTokens: 512 },
       request,
       response,
+      authenticatedUser,
     )
 
     expect(consumeChat).toHaveBeenCalledWith('127.0.0.1')
@@ -147,6 +156,7 @@ describe('ChatController', () => {
     )
     expect(start).toHaveBeenCalledWith(
       expect.objectContaining({
+        userId: authenticatedUser.id,
         requestId,
         prompt: { messages: [{ role: 'user', content: '完整消息' }] },
         provider: 'mock',
@@ -199,7 +209,9 @@ describe('ChatController', () => {
     consumeChat.mockRejectedValue(new Error('rate limited'))
     const { request, response, rawResponse } = httpDoubles()
 
-    await expect(controller.create(input, request, response)).rejects.toThrow('rate limited')
+    await expect(controller.create(input, request, response, authenticatedUser)).rejects.toThrow(
+      'rate limited',
+    )
 
     expect(start).not.toHaveBeenCalled()
     expect(stream).not.toHaveBeenCalled()
@@ -230,7 +242,7 @@ describe('ChatController', () => {
       const { controller, providerHealth, start } = controllerFor(mock, [realAdapter])
       const { request, response } = httpDoubles()
 
-      await controller.create({ ...input, model: adapterId }, request, response)
+      await controller.create({ ...input, model: adapterId }, request, response, authenticatedUser)
 
       expect(providerStream).toHaveBeenCalledWith(
         expect.objectContaining({ modelAlias: adapterId, resolvedModel }),
@@ -267,7 +279,7 @@ describe('ChatController', () => {
       const { controller, providerHealth } = controllerFor(mock, [realAdapter])
       const { request, response } = httpDoubles()
 
-      await controller.create(input, request, response)
+      await controller.create(input, request, response, authenticatedUser)
 
       expect(providerHealth.recordFailure).toHaveBeenCalledWith('qwen', expect.any(Number), {
         code: `UPSTREAM_${statusCode}`,
@@ -306,7 +318,7 @@ describe('ChatController', () => {
     ;(failover.resolve as jest.Mock).mockReturnValue(fallback)
     const { request, response, writes } = httpDoubles()
 
-    await controller.create(input, request, response)
+    await controller.create(input, request, response, authenticatedUser)
 
     expect(frameData(writes).join('\n')).toContain('fallback 内容')
     expect(failover.resolve).toHaveBeenCalledTimes(1)
@@ -345,7 +357,7 @@ describe('ChatController', () => {
     ;(failover.resolve as jest.Mock).mockReturnValue(fallback)
     const { request, response } = httpDoubles()
 
-    await controller.create(input, request, response)
+    await controller.create(input, request, response, authenticatedUser)
 
     expect(failover.resolve).toHaveBeenCalledWith('qwen', expect.any(ChatAdapterError), false)
     expect(finish).toHaveBeenCalledWith(
@@ -367,7 +379,7 @@ describe('ChatController', () => {
     ;(failover.resolve as jest.Mock).mockReturnValue(fallback)
     const { request, response } = httpDoubles()
 
-    await controller.create(input, request, response)
+    await controller.create(input, request, response, authenticatedUser)
 
     expect(failover.resolve).toHaveBeenCalledTimes(1)
     expect(finish).toHaveBeenCalledWith(expect.objectContaining({ status: 'failed' }))
@@ -385,7 +397,7 @@ describe('ChatController', () => {
     ;(failover.resolve as jest.Mock).mockReturnValue(adapterWith([]).adapter)
     const { request, response, writes } = httpDoubles()
 
-    await controller.create(input, request, response)
+    await controller.create(input, request, response, authenticatedUser)
 
     const data = frameData(writes)
     expect(data).not.toContain('[DONE]')
@@ -418,9 +430,9 @@ describe('ChatController', () => {
     start.mockRejectedValue(new RequestLifecycleStartError(new Error('database unavailable')))
     const { request, response, rawResponse } = httpDoubles()
 
-    await expect(controller.create(input, request, response)).rejects.toBeInstanceOf(
-      RequestLifecycleStartError,
-    )
+    await expect(
+      controller.create(input, request, response, authenticatedUser),
+    ).rejects.toBeInstanceOf(RequestLifecycleStartError)
     expect(rawResponse.flushHeaders).not.toHaveBeenCalled()
     expect(stream).not.toHaveBeenCalled()
   })
@@ -434,7 +446,7 @@ describe('ChatController', () => {
     const { controller } = controllerFor(adapter)
     const { request, response, writes } = httpDoubles()
 
-    await controller.create(input, request, response)
+    await controller.create(input, request, response, authenticatedUser)
 
     const error = JSON.parse(frameData(writes).at(-1) ?? '{}') as Record<string, unknown>
     expect(error).toMatchObject({
@@ -467,7 +479,7 @@ describe('ChatController', () => {
     const { controller, failover, finish } = controllerFor(adapter)
     const { request, response, rawResponse } = httpDoubles()
 
-    const operation = controller.create(input, request, response)
+    const operation = controller.create(input, request, response, authenticatedUser)
     await streamStarted
     rawResponse.destroyed = true
     rawResponse.emit('close')

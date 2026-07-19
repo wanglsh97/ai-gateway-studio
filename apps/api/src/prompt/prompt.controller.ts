@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 
 import type { OptimizePromptResult, TextModelAlias } from '@aigateway/sdk'
-import { Body, Controller, HttpException, HttpStatus, Post, Req } from '@nestjs/common'
+import { Body, Controller, HttpException, HttpStatus, Post, Req, UseGuards } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import type { Request } from 'express'
 
@@ -11,6 +11,9 @@ import { ChatAdapterError } from '../chat/adapters/chat-adapter'
 import { ChatAdapterRegistry } from '../chat/adapters/chat-adapter.registry'
 import { RateLimitService } from '../rate-limit/rate-limit.service'
 import { RequestLifecycleService } from '../request-lifecycle/request-lifecycle.service'
+import { CurrentUser } from '../user-auth/current-user.decorator'
+import type { AuthenticatedUser } from '../user-auth/user-session.service'
+import { UserSessionGuard } from '../user-auth/user-session.guard'
 import { OptimizePromptDto } from './dto/optimize-prompt.dto'
 import { PromptTemplateRegistry } from './prompt-template.registry'
 
@@ -28,9 +31,11 @@ export class PromptController {
   ) {}
 
   @Post('optimize')
+  @UseGuards(UserSessionGuard)
   async optimize(
     @Body() input: OptimizePromptDto,
     @Req() request: RequestWithId,
+    @CurrentUser() user: AuthenticatedUser,
   ): Promise<OptimizePromptResult> {
     await this.rateLimit.consumeChat(request.ip)
     const requestId = request.id ?? randomUUID()
@@ -42,6 +47,7 @@ export class PromptController {
       { role: 'user' as const, content: input.prompt },
     ]
     const started = await this.lifecycle.start({
+      userId: user.id,
       requestId,
       capability: 'prompt',
       prompt: { mode: input.mode, templateVersion: template.version, messages },

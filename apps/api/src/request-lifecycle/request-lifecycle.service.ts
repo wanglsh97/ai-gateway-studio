@@ -12,6 +12,7 @@ const REQUEST_CAPABILITY_MAP = {
 } as const satisfies Record<Capability, RequestCapability>
 
 export interface StartRequestLifecycleInput {
+  userId: string
   requestId: string
   capability: Capability
   prompt: Prisma.InputJsonValue
@@ -124,6 +125,7 @@ export class RequestLifecycleService {
     try {
       const started = await this.prisma.requestLog.create({
         data: {
+          userId: input.userId,
           requestId: input.requestId,
           capability: REQUEST_CAPABILITY_MAP[input.capability],
           prompt: input.prompt,
@@ -146,6 +148,7 @@ export class RequestLifecycleService {
         {
           event: 'request.lifecycle.started',
           requestLogId: started.id,
+          userId: input.userId,
           requestId: input.requestId,
           capability: input.capability,
           model: input.modelAlias,

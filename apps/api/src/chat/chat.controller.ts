@@ -15,6 +15,7 @@ import {
   Req,
   Res,
   ServiceUnavailableException,
+  UseGuards,
 } from '@nestjs/common'
 import type { Request, Response } from 'express'
 
@@ -26,6 +27,9 @@ import {
 import type { RequestLifecycleUsage } from '../request-lifecycle/request-lifecycle.service'
 import { PricingService } from '../billing/pricing.service'
 import { RateLimitService } from '../rate-limit/rate-limit.service'
+import { CurrentUser } from '../user-auth/current-user.decorator'
+import { type AuthenticatedUser } from '../user-auth/user-session.service'
+import { UserSessionGuard } from '../user-auth/user-session.guard'
 import { ChatAdapterError } from './adapters/chat-adapter'
 import type { ChatAdapter, ChatAdapterUsage } from './adapters/chat-adapter'
 import { ChatAdapterRegistry } from './adapters/chat-adapter.registry'
@@ -65,16 +69,19 @@ export class ChatController {
   ) {}
 
   @Post('completions')
+  @UseGuards(UserSessionGuard)
   async create(
     @Body() input: ChatCompletionRequestDto,
     @Req() request: RequestWithId,
     @Res() response: Response,
+    @CurrentUser() user: AuthenticatedUser,
   ): Promise<void> {
     const requestId = request.id ?? randomUUID()
     await this.rateLimit.consumeChat(request.ip)
     const adapter = this.resolveAdapter(input.model)
 
     const started = await this.lifecycle.start({
+      userId: user.id,
       requestId,
       capability: 'chat',
       prompt: {
