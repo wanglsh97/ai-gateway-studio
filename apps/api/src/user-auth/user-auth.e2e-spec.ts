@@ -7,6 +7,8 @@ import { AppModule } from '../app.module'
 import { configureApplication } from '../configure-app'
 import { PrismaService } from '../database/prisma.service'
 import { GITHUB_OAUTH_CLIENT } from './user-auth.constants'
+import { createAuthenticatedFetch } from './user-auth.e2e-helpers'
+import { UserSessionService } from './user-session.service'
 
 describe('GitHub user authentication E2E', () => {
   let app: INestApplication
@@ -67,7 +69,9 @@ describe('GitHub user authentication E2E', () => {
     const sessionCookie = cookiePair(callback.headers.get('set-cookie'), 'aigateway_user_session')
     expect(sessionCookie).toContain('aigateway_user_session=')
 
-    await expect(prisma.user.findUnique({ where: { githubId: '12345678' } })).resolves.toMatchObject({
+    await expect(
+      prisma.user.findUnique({ where: { githubId: '12345678' } }),
+    ).resolves.toMatchObject({
       githubUsername: 'octocat',
       email: null,
     })
@@ -87,6 +91,53 @@ describe('GitHub user authentication E2E', () => {
     })
     expect(logout.status).toBe(201)
     await expect(prisma.userSession.count()).resolves.toBe(0)
+  })
+
+  it('keeps a second device active when the current device logs out', async () => {
+    const sessions = app.get(UserSessionService)
+    const identity = {
+      githubId: '12345678',
+      githubUsername: 'octocat',
+      displayName: 'The Octocat',
+      avatarUrl: null,
+      email: null,
+    }
+    const first = await sessions.create(identity)
+    const second = await sessions.create(identity)
+
+    const logout = await createAuthenticatedFetch(first.token)(`${baseUrl}/api/v1/auth/logout`, {
+      method: 'POST',
+    })
+    expect(logout.status).toBe(201)
+    expect(await prisma.userSession.count()).toBe(1)
+
+    const remaining = await createAuthenticatedFetch(second.token)(`${baseUrl}/api/v1/auth/session`)
+    expect(remaining.status).toBe(200)
+    await expect(remaining.json()).resolves.toMatchObject({
+      user: { githubUsername: 'octocat' },
+    })
+  })
+
+  it('rejects a fixed-expiry session without extending it', async () => {
+    const created = await app.get(UserSessionService).create({
+      githubId: '12345678',
+      githubUsername: 'octocat',
+      displayName: null,
+      avatarUrl: null,
+      email: null,
+    })
+    const persisted = await prisma.userSession.findFirstOrThrow({
+      where: { user: { githubId: '12345678' } },
+      orderBy: { createdAt: 'desc' },
+    })
+    await prisma.userSession.update({
+      where: { id: persisted.id },
+      data: { expiresAt: new Date(Date.now() - 1_000) },
+    })
+
+    const response = await createAuthenticatedFetch(created.token)(`${baseUrl}/api/v1/auth/session`)
+    expect(response.status).toBe(401)
+    await expect(prisma.userSession.findUnique({ where: { id: persisted.id } })).resolves.toBeNull()
   })
 })
 
