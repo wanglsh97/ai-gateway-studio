@@ -9,6 +9,14 @@ import { ImageController } from './image.controller'
 import type { ImageService } from './image.service'
 
 const input = { model: 'wanxiang' as const, prompt: '山水画', size: '1024x1024', count: 1 }
+const authenticatedUser = {
+  id: '00000000-0000-4000-8000-000000000101',
+  githubId: '12345678',
+  githubUsername: 'octocat',
+  displayName: null,
+  avatarUrl: null,
+  email: null,
+}
 
 function setup() {
   const submit = jest.fn().mockResolvedValue({ providerTaskId: 'provider-1', status: 'pending' })
@@ -59,7 +67,9 @@ describe('ImageController', () => {
   it('rate limits and persists the platform task before submitting upstream', async () => {
     const { consumeImage, controller, createPending, recordSubmission, request, submit } = setup()
 
-    await expect(controller.create(input, request)).resolves.toMatchObject({ status: 'pending' })
+    await expect(controller.create(input, request, authenticatedUser)).resolves.toMatchObject({
+      status: 'pending',
+    })
 
     expect(consumeImage.mock.invocationCallOrder[0]).toBeLessThan(
       createPending.mock.invocationCallOrder[0] ?? 0,
@@ -67,17 +77,30 @@ describe('ImageController', () => {
     expect(createPending.mock.invocationCallOrder[0]).toBeLessThan(
       submit.mock.invocationCallOrder[0] ?? 0,
     )
-    expect(recordSubmission).toHaveBeenCalledWith('00000000-0000-4000-8000-000000000111', {
-      providerTaskId: 'provider-1',
-      status: 'pending',
-    })
+    expect(createPending).toHaveBeenCalledWith(
+      authenticatedUser.id,
+      request.id,
+      input,
+      expect.objectContaining({ id: 'mock' }),
+      '127.0.0.1',
+    )
+    expect(recordSubmission).toHaveBeenCalledWith(
+      '00000000-0000-4000-8000-000000000111',
+      authenticatedUser.id,
+      {
+        providerTaskId: 'provider-1',
+        status: 'pending',
+      },
+    )
   })
 
   it('does not persist or invoke an adapter when image rate limiting rejects', async () => {
     const { consumeImage, controller, createPending, request, submit } = setup()
     consumeImage.mockRejectedValue(new Error('rate limited'))
 
-    await expect(controller.create(input, request)).rejects.toThrow('rate limited')
+    await expect(controller.create(input, request, authenticatedUser)).rejects.toThrow(
+      'rate limited',
+    )
     expect(createPending).not.toHaveBeenCalled()
     expect(submit).not.toHaveBeenCalled()
   })
@@ -86,7 +109,9 @@ describe('ImageController', () => {
     const { controller, createPending, request, submit } = setup()
     createPending.mockRejectedValue(new Error('database unavailable'))
 
-    await expect(controller.create(input, request)).rejects.toThrow('database unavailable')
+    await expect(controller.create(input, request, authenticatedUser)).rejects.toThrow(
+      'database unavailable',
+    )
     expect(submit).not.toHaveBeenCalled()
   })
 
@@ -94,10 +119,17 @@ describe('ImageController', () => {
     const { controller, download, request } = setup()
     const response = { set: jest.fn(), send: jest.fn() }
 
-    await controller.download('00000000-0000-4000-8000-000000000111', 0, request, response as never)
+    await controller.download(
+      '00000000-0000-4000-8000-000000000111',
+      0,
+      request,
+      response as never,
+      authenticatedUser,
+    )
 
     expect(download).toHaveBeenCalledWith(
       '00000000-0000-4000-8000-000000000111',
+      authenticatedUser.id,
       0,
       expect.any(AbortSignal),
     )

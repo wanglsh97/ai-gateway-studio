@@ -11,10 +11,14 @@ import {
   Req,
   Res,
   ServiceUnavailableException,
+  UseGuards,
 } from '@nestjs/common'
 import type { Request, Response } from 'express'
 
 import { RateLimitService } from '../rate-limit/rate-limit.service'
+import { CurrentUser } from '../user-auth/current-user.decorator'
+import type { AuthenticatedUser } from '../user-auth/user-session.service'
+import { UserSessionGuard } from '../user-auth/user-session.guard'
 import type { ImageAdapter } from './adapters/image-adapter'
 import { ImageAdapterRegistry } from './adapters/image-adapter.registry'
 import { CreateImageGenerationDto } from './dto/create-image-generation.dto'
@@ -31,14 +35,16 @@ export class ImageController {
   ) {}
 
   @Post()
+  @UseGuards(UserSessionGuard)
   async create(
     @Body() input: CreateImageGenerationDto,
     @Req() request: RequestWithId,
+    @CurrentUser() user: AuthenticatedUser,
   ): Promise<ImageTask> {
     await this.rateLimit.consumeImage(request.ip)
     const requestId = request.id ?? randomUUID()
     const adapter = this.resolveAdapter(input.model)
-    const task = await this.images.createPending(requestId, input, adapter, request.ip)
+    const task = await this.images.createPending(user.id, requestId, input, adapter, request.ip)
     const abortController = new AbortController()
     const abort = () => abortController.abort()
     request.once('aborted', abort)
@@ -53,32 +59,39 @@ export class ImageController {
         ...(input.count === undefined ? {} : { count: input.count }),
       })
       .finally(() => request.removeListener('aborted', abort))
-    const updated = await this.images.recordSubmission(task.taskId, submission)
+    const updated = await this.images.recordSubmission(task.taskId, user.id, submission)
     return this.images.toPublicTask(updated)
   }
 
   @Get(':taskId')
-  async get(@Param('taskId') taskId: string, @Req() request: RequestWithId): Promise<ImageTask> {
+  @UseGuards(UserSessionGuard)
+  async get(
+    @Param('taskId') taskId: string,
+    @Req() request: RequestWithId,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<ImageTask> {
     const abortController = new AbortController()
     const abort = () => abortController.abort()
     request.once('aborted', abort)
     return this.images
-      .get(taskId, abortController.signal)
+      .get(taskId, user.id, abortController.signal)
       .finally(() => request.removeListener('aborted', abort))
   }
 
   @Get(':taskId/images/:index/download')
+  @UseGuards(UserSessionGuard)
   async download(
     @Param('taskId') taskId: string,
     @Param('index', ParseIntPipe) index: number,
     @Req() request: RequestWithId,
     @Res() response: Response,
+    @CurrentUser() user: AuthenticatedUser,
   ): Promise<void> {
     const abortController = new AbortController()
     const abort = () => abortController.abort()
     request.once('aborted', abort)
     const image = await this.images
-      .download(taskId, index, abortController.signal)
+      .download(taskId, user.id, index, abortController.signal)
       .finally(() => request.removeListener('aborted', abort))
     const extension = image.contentType === 'image/jpeg' ? 'jpg' : image.contentType.split('/')[1]
     response.set({

@@ -30,6 +30,7 @@ export class ImageService {
   ) {}
 
   async createPending(
+    userId: string,
     requestId: string,
     input: CreateImageGenerationDto,
     adapter: ImageAdapter,
@@ -39,6 +40,7 @@ export class ImageService {
       return await this.prisma.$transaction(async (transaction) => {
         const log = await transaction.requestLog.create({
           data: {
+            userId,
             requestId,
             capability: RequestCapability.IMAGE,
             prompt: { prompt: input.prompt },
@@ -52,6 +54,7 @@ export class ImageService {
         })
         return transaction.imageGenerationTask.create({
           data: {
+            userId,
             requestLogId: log.id,
             prompt: input.prompt,
             modelAlias: input.model,
@@ -72,11 +75,12 @@ export class ImageService {
     }
   }
 
-  async recordSubmission(taskId: string, submission: ImageAdapterSubmission) {
+  async recordSubmission(taskId: string, userId: string, submission: ImageAdapterSubmission) {
     const startedAt = new Date()
     if (submission.status !== 'succeeded') {
+      const task = await this.findTask(taskId, userId)
       return this.prisma.imageGenerationTask.update({
-        where: { taskId },
+        where: { id: task.id },
         data: {
           providerTaskId: submission.providerTaskId,
           status:
@@ -87,11 +91,11 @@ export class ImageService {
     }
 
     return this.prisma.$transaction(async (transaction) => {
-      const task = await transaction.imageGenerationTask.findUnique({ where: { taskId } })
+      const task = await transaction.imageGenerationTask.findFirst({ where: { taskId, userId } })
       if (!task) throw new NotFoundException('图片任务不存在')
       const completedAt = new Date()
       const updated = await transaction.imageGenerationTask.update({
-        where: { taskId },
+        where: { id: task.id },
         data: {
           providerTaskId: submission.providerTaskId,
           status: ImageTaskStatus.SUCCEEDED,
@@ -117,8 +121,8 @@ export class ImageService {
     })
   }
 
-  async get(taskId: string, signal: AbortSignal): Promise<ImageTask> {
-    let task = await this.findTask(taskId)
+  async get(taskId: string, userId: string, signal: AbortSignal): Promise<ImageTask> {
+    let task = await this.findTask(taskId, userId)
     const currentStatus = toPublicStatus(task.status)
     if (isTerminalImageTaskStatus(currentStatus)) return this.toPublicTask(task)
     if (!task.provider || !task.providerTaskId) return this.toPublicTask(task)
@@ -171,13 +175,13 @@ export class ImageService {
       })
     })
 
-    task = await this.findTask(taskId)
+    task = await this.findTask(taskId, userId)
     return this.toPublicTask(task)
   }
 
-  async download(taskId: string, index: number, signal: AbortSignal) {
+  async download(taskId: string, userId: string, index: number, signal: AbortSignal) {
     if (!Number.isInteger(index) || index < 0) throw new BadRequestException('图片 index 无效')
-    const task = await this.findTask(taskId)
+    const task = await this.findTask(taskId, userId)
     if (task.status !== ImageTaskStatus.SUCCEEDED) {
       throw new BadRequestException('只有成功任务可以下载图片')
     }
@@ -198,9 +202,9 @@ export class ImageService {
     return download
   }
 
-  private async findTask(taskId: string) {
-    const task = await this.prisma.imageGenerationTask.findUnique({
-      where: { taskId },
+  private async findTask(taskId: string, userId: string) {
+    const task = await this.prisma.imageGenerationTask.findFirst({
+      where: { taskId, userId },
       include: { requestLog: { select: { requestId: true } } },
     })
     if (!task) throw new NotFoundException('图片任务不存在')

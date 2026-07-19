@@ -5,10 +5,13 @@ import type { ImageAdapter, ImageAdapterStatus } from './adapters/image-adapter'
 import { ImageAdapterRegistry } from './adapters/image-adapter.registry'
 import { ImageService } from './image.service'
 
+const userId = '00000000-0000-4000-8000-000000000101'
+
 const baseTask = {
   id: 'db-task-1',
   taskId: '00000000-0000-4000-8000-000000000120',
   requestLogId: 'log-1',
+  userId,
   modelAlias: 'wanxiang',
   provider: 'mock',
   providerTaskId: 'provider-task-1',
@@ -22,8 +25,8 @@ const baseTask = {
 }
 
 function setup(tasks: unknown[], status: ImageAdapterStatus = { status: 'running' }) {
-  const findUnique = jest.fn()
-  for (const task of tasks) findUnique.mockResolvedValueOnce(task)
+  const findFirst = jest.fn()
+  for (const task of tasks) findFirst.mockResolvedValueOnce(task)
   const updateManyTask = jest.fn().mockResolvedValue({ count: 1 })
   const updateManyLog = jest.fn().mockResolvedValue({ count: 1 })
   const upsert = jest.fn().mockResolvedValue({})
@@ -36,7 +39,7 @@ function setup(tasks: unknown[], status: ImageAdapterStatus = { status: 'running
     operation(transactionClient),
   )
   const prisma = {
-    imageGenerationTask: { findUnique },
+    imageGenerationTask: { findFirst },
     $transaction: transaction,
   } as unknown as PrismaService
   const getStatus = jest.fn().mockResolvedValue(status)
@@ -56,6 +59,19 @@ function setup(tasks: unknown[], status: ImageAdapterStatus = { status: 'running
 }
 
 describe('ImageService.get', () => {
+  it('returns the same 404 when a task is absent or belongs to another user', async () => {
+    const { getStatus, service } = setup([null])
+
+    await expect(
+      service.get(
+        baseTask.taskId,
+        '00000000-0000-4000-8000-000000000999',
+        new AbortController().signal,
+      ),
+    ).rejects.toMatchObject({ status: 404 })
+    expect(getStatus).not.toHaveBeenCalled()
+  })
+
   it('returns a persisted terminal task without calling its adapter', async () => {
     const terminal = {
       ...baseTask,
@@ -64,12 +80,12 @@ describe('ImageService.get', () => {
     }
     const { getStatus, service, transaction } = setup([terminal])
 
-    await expect(service.get(terminal.taskId, new AbortController().signal)).resolves.toMatchObject(
-      {
-        status: 'succeeded',
-        results: [{ index: 0, width: 1, height: 1, contentType: 'image/png' }],
-      },
-    )
+    await expect(
+      service.get(terminal.taskId, userId, new AbortController().signal),
+    ).resolves.toMatchObject({
+      status: 'succeeded',
+      results: [{ index: 0, width: 1, height: 1, contentType: 'image/png' }],
+    })
     expect(getStatus).not.toHaveBeenCalled()
     expect(transaction).not.toHaveBeenCalled()
   })
@@ -88,11 +104,11 @@ describe('ImageService.get', () => {
       },
     )
 
-    await expect(service.get(baseTask.taskId, new AbortController().signal)).resolves.toMatchObject(
-      {
-        status: 'succeeded',
-      },
-    )
+    await expect(
+      service.get(baseTask.taskId, userId, new AbortController().signal),
+    ).resolves.toMatchObject({
+      status: 'succeeded',
+    })
     expect(getStatus).toHaveBeenCalledWith({
       providerTaskId: 'provider-task-1',
       signal: expect.any(AbortSignal),
@@ -112,9 +128,9 @@ describe('ImageService.get', () => {
     const pending = { ...baseTask, status: ImageTaskStatus.PENDING, providerTaskId: null }
     const { getStatus, service } = setup([pending])
 
-    await expect(service.get(pending.taskId, new AbortController().signal)).resolves.toMatchObject({
-      status: 'pending',
-    })
+    await expect(
+      service.get(pending.taskId, userId, new AbortController().signal),
+    ).resolves.toMatchObject({ status: 'pending' })
     expect(getStatus).not.toHaveBeenCalled()
   })
 })
@@ -128,12 +144,12 @@ describe('ImageService.recordSubmission', () => {
       status: ImageTaskStatus.SUCCEEDED,
       results: [{ url: 'https://cdn.bigmodel.cn/generated/image.png' }],
     }
-    const imageFindUnique = jest.fn().mockResolvedValue(task)
+    const imageFindFirst = jest.fn().mockResolvedValue(task)
     const imageUpdate = jest.fn().mockResolvedValue(updated)
     const requestUpdate = jest.fn().mockResolvedValue({})
     const billingUpsert = jest.fn().mockResolvedValue({})
     const transactionClient = {
-      imageGenerationTask: { findUnique: imageFindUnique, update: imageUpdate },
+      imageGenerationTask: { findFirst: imageFindFirst, update: imageUpdate },
       requestLog: { update: requestUpdate },
       billingRecord: { upsert: billingUpsert },
     }
@@ -148,7 +164,7 @@ describe('ImageService.recordSubmission', () => {
     )
 
     await expect(
-      service.recordSubmission(task.taskId, {
+      service.recordSubmission(task.taskId, userId, {
         providerTaskId: 'cogview-request-1',
         status: 'succeeded',
         results: [{ url: 'https://cdn.bigmodel.cn/generated/image.png' }],
@@ -188,7 +204,7 @@ describe('ImageService.download', () => {
     })
 
     await expect(
-      service.download(terminal.taskId, 0, new AbortController().signal),
+      service.download(terminal.taskId, userId, 0, new AbortController().signal),
     ).resolves.toEqual({
       body: Uint8Array.from([1, 2, 3]),
       contentType: 'image/png',
@@ -202,11 +218,11 @@ describe('ImageService.download', () => {
   it('rejects non-terminal tasks and invalid result indexes', async () => {
     const { service: pending } = setup([baseTask])
     await expect(
-      pending.download(baseTask.taskId, 0, new AbortController().signal),
+      pending.download(baseTask.taskId, userId, 0, new AbortController().signal),
     ).rejects.toThrow('只有成功任务')
     const { service } = setup([terminal])
     await expect(
-      service.download(terminal.taskId, 2, new AbortController().signal),
+      service.download(terminal.taskId, userId, 2, new AbortController().signal),
     ).rejects.toThrow('index 不存在')
   })
 
@@ -217,7 +233,7 @@ describe('ImageService.download', () => {
       contentType: 'text/html',
     })
     await expect(
-      spoofed.service.download(terminal.taskId, 0, new AbortController().signal),
+      spoofed.service.download(terminal.taskId, userId, 0, new AbortController().signal),
     ).rejects.toThrow('不支持的图片类型')
 
     const oversized = setup([terminal])
@@ -226,7 +242,7 @@ describe('ImageService.download', () => {
       contentType: 'image/png',
     })
     await expect(
-      oversized.service.download(terminal.taskId, 0, new AbortController().signal),
+      oversized.service.download(terminal.taskId, userId, 0, new AbortController().signal),
     ).rejects.toThrow('超过下载大小限制')
   })
 })

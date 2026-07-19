@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common'
 import { ConfigModule, ConfigService } from '@nestjs/config'
 
 import { RateLimitModule } from '../rate-limit/rate-limit.module'
+import { UserAuthModule } from '../user-auth/user-auth.module'
 import { CogViewImageAdapter } from './adapters/cogview-image-adapter'
 import type { ImageAdapter } from './adapters/image-adapter'
 import { IMAGE_ADAPTERS, ImageAdapterRegistry } from './adapters/image-adapter.registry'
@@ -15,7 +16,7 @@ import { ImageService } from './image.service'
 import { WanxiangImageAdapter } from './adapters/wanxiang-image-adapter'
 
 @Module({
-  imports: [ConfigModule, RateLimitModule],
+  imports: [ConfigModule, RateLimitModule, UserAuthModule],
   providers: [
     { provide: MOCK_IMAGE_ADAPTER_OPTIONS, useValue: DEFAULT_MOCK_IMAGE_ADAPTER_OPTIONS },
     MockImageAdapter,
