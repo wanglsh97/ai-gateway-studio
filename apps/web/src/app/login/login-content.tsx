@@ -31,7 +31,7 @@ export function LoginContent() {
         </p>
         <h1 className="mt-4 text-4xl font-semibold tracking-tight">使用 GitHub 登录</h1>
         <p className="mt-4 leading-7 text-slate-600 dark:text-slate-300">
-          登录后即可使用 Chat、文生图和 Prompt 优化。本站不保存 GitHub 密码。
+          登录后即可免费使用
         </p>
 
         {errorMessage && (
@@ -59,10 +59,6 @@ export function LoginContent() {
               : '使用 GitHub 登录'}
         </a>
 
-        <p className="mt-5 text-xs leading-6 text-slate-500 dark:text-slate-400">
-          GitHub
-          将提示授权读取公开资料和邮箱列表。邮箱不存在或未公开时仍可登录；本站只保存已验证的主邮箱。
-        </p>
         <div className="mt-7 border-t border-slate-200 pt-5 text-center text-sm dark:border-white/10">
           <Link
             className="text-slate-600 underline-offset-4 hover:underline dark:text-slate-300"
