@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto'
 import type { OptimizePromptResult, TextModelAlias } from '@aigateway/sdk'
 import { Body, Controller, HttpException, HttpStatus, Post, Req, UseGuards } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
+import { ApiCookieAuth, ApiTags } from '@nestjs/swagger'
 import type { Request } from 'express'
 
 import { PricingService } from '../billing/pricing.service'
@@ -12,6 +13,7 @@ import { ChatAdapterRegistry } from '../chat/adapters/chat-adapter.registry'
 import { RateLimitService } from '../rate-limit/rate-limit.service'
 import { RequestLifecycleService } from '../request-lifecycle/request-lifecycle.service'
 import { CurrentUser } from '../user-auth/current-user.decorator'
+import { USER_SESSION_COOKIE } from '../user-auth/user-auth.constants'
 import type { AuthenticatedUser } from '../user-auth/user-session.service'
 import { UserSessionGuard } from '../user-auth/user-session.guard'
 import { OptimizePromptDto } from './dto/optimize-prompt.dto'
@@ -19,6 +21,7 @@ import { PromptTemplateRegistry } from './prompt-template.registry'
 
 type RequestWithId = Request & { id?: string }
 
+@ApiTags('Prompts')
 @Controller('prompts')
 export class PromptController {
   constructor(
@@ -31,6 +34,7 @@ export class PromptController {
   ) {}
 
   @Post('optimize')
+  @ApiCookieAuth(USER_SESSION_COOKIE)
   @UseGuards(UserSessionGuard)
   async optimize(
     @Body() input: OptimizePromptDto,

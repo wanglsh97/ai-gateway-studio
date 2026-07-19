@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Post, Req, Res } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
+import { ApiCookieAuth, ApiTags } from '@nestjs/swagger'
 import type { Request, Response } from 'express'
 
 import { RateLimitService } from '../../rate-limit/rate-limit.service'
@@ -8,6 +9,7 @@ import type { AdminRequest } from './admin.guard'
 import { ADMIN_SESSION_COOKIE, AdminAuthService } from './admin-auth.service'
 import { AdminLoginDto } from './dto/admin-login.dto'
 
+@ApiTags('Admin')
 @Controller('admin/auth')
 export class AdminAuthController {
   private readonly production: boolean
@@ -35,11 +37,13 @@ export class AdminAuthController {
   }
 
   @Get('session')
+  @ApiCookieAuth(ADMIN_SESSION_COOKIE)
   session(@Req() request: AdminRequest) {
     return request.adminSession
   }
 
   @Post('logout')
+  @ApiCookieAuth(ADMIN_SESSION_COOKIE)
   logout(@Res({ passthrough: true }) response: Response) {
     response.clearCookie(ADMIN_SESSION_COOKIE, this.auth.cookieOptions(this.production, false))
     return { success: true }

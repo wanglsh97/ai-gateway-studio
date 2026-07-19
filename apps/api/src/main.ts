@@ -7,6 +7,7 @@ import { ConfigService } from '@nestjs/config'
 import { NestFactory } from '@nestjs/core'
 
 import { AppModule } from './app.module'
+import { configureApiDocumentation } from './api-documentation'
 import { configureApplication } from './configure-app'
 
 async function bootstrap() {
@@ -20,6 +21,7 @@ async function bootstrap() {
   }
 
   configureApplication(app)
+  configureApiDocumentation(app)
 
   const port = config.getOrThrow<number>('API_PORT')
   await app.listen(port)

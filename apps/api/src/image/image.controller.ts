@@ -13,10 +13,12 @@ import {
   ServiceUnavailableException,
   UseGuards,
 } from '@nestjs/common'
+import { ApiCookieAuth, ApiTags } from '@nestjs/swagger'
 import type { Request, Response } from 'express'
 
 import { RateLimitService } from '../rate-limit/rate-limit.service'
 import { CurrentUser } from '../user-auth/current-user.decorator'
+import { USER_SESSION_COOKIE } from '../user-auth/user-auth.constants'
 import type { AuthenticatedUser } from '../user-auth/user-session.service'
 import { UserSessionGuard } from '../user-auth/user-session.guard'
 import type { ImageAdapter } from './adapters/image-adapter'
@@ -26,6 +28,8 @@ import { ImageService } from './image.service'
 
 type RequestWithId = Request & { id?: string }
 
+@ApiTags('Images')
+@ApiCookieAuth(USER_SESSION_COOKIE)
 @Controller('images/generations')
 export class ImageController {
   constructor(

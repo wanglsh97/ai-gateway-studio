@@ -9,6 +9,17 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
+import {
+  ApiCookieAuth,
+  ApiCreatedResponse,
+  ApiFoundResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiQuery,
+  ApiServiceUnavailableResponse,
+  ApiTags,
+  ApiUnauthorizedResponse,
+} from '@nestjs/swagger'
 import type { CookieOptions, Request, Response } from 'express'
 
 import { GitHubOAuthClient } from './github-oauth.client'
@@ -16,6 +27,7 @@ import { OAuthStateService } from './oauth-state.service'
 import { GITHUB_OAUTH_CLIENT, OAUTH_STATE_COOKIE, USER_SESSION_COOKIE } from './user-auth.constants'
 import { UserSessionService } from './user-session.service'
 
+@ApiTags('User authentication')
 @Controller('auth')
 export class UserAuthController {
   private readonly enabled: boolean
@@ -40,6 +52,14 @@ export class UserAuthController {
   }
 
   @Get('github')
+  @ApiOperation({ summary: '发起 GitHub OAuth 登录' })
+  @ApiQuery({
+    name: 'returnTo',
+    required: false,
+    enum: ['/chat', '/chat/compare', '/image', '/prompt'],
+  })
+  @ApiFoundResponse({ description: '跳转到 GitHub authorize URL，并写入一次性 state Cookie' })
+  @ApiServiceUnavailableResponse({ description: 'GitHub OAuth 尚未配置' })
   beginGitHubLogin(
     @Query('returnTo') returnTo: string | undefined,
     @Res() response: Response,
@@ -59,6 +79,8 @@ export class UserAuthController {
   }
 
   @Get('github/callback')
+  @ApiOperation({ summary: '接收 GitHub OAuth callback' })
+  @ApiFoundResponse({ description: '创建本地 Session 后跳回白名单页面，失败时跳回登录页' })
   async completeGitHubLogin(
     @Query('code') code: string | undefined,
     @Query('state') state: string | undefined,
@@ -85,12 +107,38 @@ export class UserAuthController {
   }
 
   @Get('session')
+  @ApiOperation({ summary: '恢复当前用户 Session' })
+  @ApiCookieAuth(USER_SESSION_COOKIE)
+  @ApiOkResponse({
+    description: '仅返回安全用户摘要，不返回邮箱、OAuth token 或 Session token',
+    schema: {
+      type: 'object',
+      required: ['user'],
+      properties: {
+        user: {
+          type: 'object',
+          required: ['id', 'githubId', 'githubUsername', 'displayName', 'avatarUrl'],
+          properties: {
+            id: { type: 'string', format: 'uuid' },
+            githubId: { type: 'string' },
+            githubUsername: { type: 'string' },
+            displayName: { type: 'string', nullable: true },
+            avatarUrl: { type: 'string', format: 'uri', nullable: true },
+          },
+        },
+      },
+    },
+  })
+  @ApiUnauthorizedResponse({ description: '用户 Session 缺失、失效或已过期' })
   async readSession(@Req() request: Request) {
     const user = await this.sessions.read(readCookie(request, USER_SESSION_COOKIE))
     return { user }
   }
 
   @Post('logout')
+  @ApiOperation({ summary: '退出当前设备' })
+  @ApiCookieAuth(USER_SESSION_COOKIE)
+  @ApiCreatedResponse({ description: '仅撤销当前 UserSession' })
   async logout(@Req() request: Request, @Res({ passthrough: true }) response: Response) {
     await this.sessions.revoke(readCookie(request, USER_SESSION_COOKIE))
     response.clearCookie(USER_SESSION_COOKIE, this.sessionCookieOptions(false))

@@ -1,10 +1,10 @@
 ## ADDED Requirements
 
-### Requirement: Anonymous users can submit image generation jobs
-The public Image page SHALL allow an anonymous visitor to enter a Chinese or English Prompt, select an enabled image alias (`wanxiang` or `cogview`), configure only supported generation options, and submit a job through `@aigateway/sdk`.
+### Requirement: Authenticated users can submit image generation jobs
+The Image page SHALL require a valid GitHub UserSession, then allow the user to enter a Chinese or English Prompt, select an enabled image alias (`wanxiang` or `cogview`), configure only supported generation options, and submit a job through `@aigateway/sdk`.
 
 #### Scenario: Image job is accepted
-- **GIVEN** a valid Prompt, an enabled image model, and an IP below its rate limit
+- **GIVEN** a valid UserSession, a valid Prompt, an enabled image model, and an IP below its rate limit
 - **WHEN** the visitor submits the form
 - **THEN** `POST /api/v1/images/generations` returns a platform task ID and normalized initial status
 - **AND** an `ImageGenerationTask` record exists before upstream status polling begins
@@ -61,4 +61,4 @@ The Image page SHALL keep at most the five most recent task summaries, thumbnail
 #### Scenario: Visitor returns to the page
 - **GIVEN** valid local history entries exist
 - **WHEN** the Image page loads
-- **THEN** up to five recent entries are displayed without requiring a user account
+- **THEN** up to five recent entries are displayed after Session restoration without creating server-side history records

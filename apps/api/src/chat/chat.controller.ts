@@ -17,6 +17,7 @@ import {
   ServiceUnavailableException,
   UseGuards,
 } from '@nestjs/common'
+import { ApiCookieAuth, ApiTags } from '@nestjs/swagger'
 import type { Request, Response } from 'express'
 
 import {
@@ -28,6 +29,7 @@ import type { RequestLifecycleUsage } from '../request-lifecycle/request-lifecyc
 import { PricingService } from '../billing/pricing.service'
 import { RateLimitService } from '../rate-limit/rate-limit.service'
 import { CurrentUser } from '../user-auth/current-user.decorator'
+import { USER_SESSION_COOKIE } from '../user-auth/user-auth.constants'
 import { type AuthenticatedUser } from '../user-auth/user-session.service'
 import { UserSessionGuard } from '../user-auth/user-session.guard'
 import { ChatAdapterError } from './adapters/chat-adapter'
@@ -57,6 +59,7 @@ interface ChatExecutionResult {
   failover?: { from: string; to: string; reason: string }
 }
 
+@ApiTags('Chat')
 @Controller('chat')
 export class ChatController {
   constructor(
@@ -69,6 +72,7 @@ export class ChatController {
   ) {}
 
   @Post('completions')
+  @ApiCookieAuth(USER_SESSION_COOKIE)
   @UseGuards(UserSessionGuard)
   async create(
     @Body() input: ChatCompletionRequestDto,

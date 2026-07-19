@@ -9,7 +9,9 @@ import {
   Query,
   Req,
 } from '@nestjs/common'
+import { ApiCookieAuth, ApiTags } from '@nestjs/swagger'
 
+import { ADMIN_SESSION_COOKIE } from '../auth/admin-auth.service'
 import type { AdminRequest } from '../auth/admin.guard'
 import { AdminTableAllowlist } from './admin-table-allowlist'
 import { AdminTableRowsService } from './admin-table-rows.service'
@@ -17,6 +19,8 @@ import { AdminTableRowsQueryDto } from './dto/admin-table-rows-query.dto'
 
 type AdminMutationRequest = AdminRequest & { id?: string }
 
+@ApiTags('Admin')
+@ApiCookieAuth(ADMIN_SESSION_COOKIE)
 @Controller('admin/tables')
 export class AdminTablesController {
   constructor(

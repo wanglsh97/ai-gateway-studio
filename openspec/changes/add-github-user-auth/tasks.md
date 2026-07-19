@@ -32,7 +32,7 @@
 
 - [x] 4.1 扩展管理员请求日志 API，返回最小用户摘要并支持 GitHub username/ID 筛选；详情返回昵称和可选邮箱
 - [x] 4.2 更新请求日志页面的用户列、筛选和详情展示，确认 Dashboard、公开 API 和 Pino 不泄露邮箱或认证凭证
-- [ ] 4.3 更新 Swagger/README、部署环境说明和 PostgreSQL 备份/回滚步骤，移除实现文档中的“公开匿名调用”陈述
+- [x] 4.3 更新 Swagger/README、部署环境说明和 PostgreSQL 备份/回滚步骤，移除实现文档中的“公开匿名调用”陈述
 - [ ] 4.4 运行 format、lint、typecheck、unit、PostgreSQL/Redis + Mock OAuth E2E、build、Prisma migration validate 和 OpenSpec strict validate
 - [ ] 4.5 使用开发 GitHub OAuth App 完成本地域名回调冒烟，记录 callback 与 GitHub ID 映射但不记录 code/token
 - [ ] 4.6 在生产发布前备份 PostgreSQL，配置独立生产 OAuth App 和 HTTPS 域名 callback，验收登录、三能力、日志用户筛选和 Image 越权保护

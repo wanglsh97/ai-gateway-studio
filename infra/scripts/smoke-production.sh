@@ -4,6 +4,7 @@ set -eu
 BASE_URL="${1:-${BASE_URL:-http://127.0.0.1}}"
 BASE_URL="${BASE_URL%/}"
 SMOKE_MODEL_ALIAS="${SMOKE_MODEL_ALIAS:-qwen}"
+SMOKE_USER_SESSION_TOKEN="${SMOKE_USER_SESSION_TOKEN:-}"
 
 case "$SMOKE_MODEL_ALIAS" in
   qwen | glm | deepseek | kimi) ;;
@@ -16,6 +17,8 @@ esac
 temp_dir="$(mktemp -d)"
 fifo="$temp_dir/chat-stream"
 transcript="$temp_dir/chat-transcript.log"
+anonymous_response="$temp_dir/anonymous-response.json"
+curl_config="$temp_dir/curl-config"
 curl_pid=''
 
 cleanup() {
@@ -30,9 +33,29 @@ curl --noproxy '*' --fail --silent --show-error --max-time 10 "$BASE_URL/health/
 curl --noproxy '*' --fail --silent --show-error --max-time 10 "$BASE_URL/health/ready" >/dev/null
 curl --noproxy '*' --fail --silent --show-error --max-time 10 "$BASE_URL/" >/dev/null
 
+anonymous_status="$(curl --noproxy '*' --silent --show-error --max-time 10 \
+  --output "$anonymous_response" \
+  --write-out '%{http_code}' \
+  --request POST "$BASE_URL/api/v1/chat/completions" \
+  --header 'Content-Type: application/json' \
+  --data "{\"model\":\"$SMOKE_MODEL_ALIAS\",\"messages\":[{\"role\":\"user\",\"content\":\"认证门禁冒烟\"}],\"stream\":true,\"maxTokens\":64}")"
+if [ "$anonymous_status" != '401' ]; then
+  echo "未登录 Chat 门禁应返回 401，实际为 $anonymous_status。" >&2
+  exit 1
+fi
+
+if [ -z "$SMOKE_USER_SESSION_TOKEN" ]; then
+  echo 'production_smoke=ok health=ok auth_gate=401 authenticated_sse=skipped'
+  exit 0
+fi
+
+umask 077
+printf 'cookie = "aigateway_user_session=%s"\n' "$SMOKE_USER_SESSION_TOKEN" >"$curl_config"
+
 mkfifo "$fifo"
 
 curl --noproxy '*' --fail --no-buffer --silent --show-error --max-time 30 \
+  --config "$curl_config" \
   --request POST "$BASE_URL/api/v1/chat/completions" \
   --header 'Content-Type: application/json' \
   --data "{\"model\":\"$SMOKE_MODEL_ALIAS\",\"messages\":[{\"role\":\"user\",\"content\":\"生产部署流式冒烟\"}],\"stream\":true,\"maxTokens\":64}" \
@@ -81,4 +104,5 @@ if [ "$spread_ms" -lt 20 ]; then
   exit 1
 fi
 
-printf 'production_smoke=ok deltas=%s spread_ms=%s\n' "$delta_count" "$spread_ms"
+printf 'production_smoke=ok health=ok auth_gate=401 authenticated_sse=ok deltas=%s spread_ms=%s\n' \
+  "$delta_count" "$spread_ms"
