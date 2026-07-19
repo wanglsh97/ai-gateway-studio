@@ -13,7 +13,7 @@
 
 ## 2. 付费能力认证与数据归属
 
-- [ ] 2.1 实现统一 `UserSessionGuard` 和 current-user 注入，所有业务 Service 只接受服务端解析的用户身份
+- [x] 2.1 实现统一 `UserSessionGuard` 和 current-user 注入，所有业务 Service 只接受服务端解析的用户身份
 - [ ] 2.2 保护 Chat 和 Prompt 优化 API，在 Adapter 调用前创建带必填 `userId` 的 RequestLog，并保持原有 IP 限流
 - [ ] 2.3 保护 Image 创建、状态和下载 API，为任务写入必填 `userId`，使用 `taskId + userId` 校验所有权并对越权统一返回 404
 - [ ] 2.4 更新 `@aigateway/sdk` 的 401/session 相关 typed error 行为，不增加或透传客户端 `userId`
