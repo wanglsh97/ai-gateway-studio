@@ -1,5 +1,7 @@
 import Link from 'next/link'
 
+import { IntegrationGuide } from '../components/integration-guide'
+
 const capabilities = [
   {
     name: 'Chat',
@@ -160,6 +162,8 @@ export default function HomePage() {
           ))}
         </div>
       </section>
+
+      <IntegrationGuide />
 
       <section className="home-manifesto">
         <p>不必理解每一家模型。</p>
