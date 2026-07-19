@@ -13,49 +13,49 @@
     BlinkMacSystemFont,
     'Segoe UI',
     sans-serif;
-  background: #f5f7fb;
-  color: #10182a;
+  background: #f4f2f8;
+  color: #211b32;
   scroll-behavior: smooth;
 }
 
 body {
   margin: 0;
   min-height: 100vh;
-  background: #f5f7fb;
+  background: #f4f2f8;
   text-rendering: optimizeLegibility;
 }
 
 .dark {
   color-scheme: dark;
-  background: #080d19;
+  background: #110e1a;
   color: #f8fafc;
 }
 
 .dark body {
-  background: #080d19;
+  background: #110e1a;
 }
 
 ::selection {
-  background: rgb(75 111 255 / 0.24);
+  background: rgb(112 87 232 / 0.24);
 }
 
 /* Homepage — a routing desk, built from the visual language of gateway traffic. */
 .home-shell {
-  --ink: #10182a;
-  --muted: #657087;
-  --line: #dbe1ec;
-  --paper: #f5f7fb;
-  --blue: #335dff;
-  --orange: #ff6b35;
+  --ink: #211b32;
+  --muted: #70677f;
+  --line: #ded9e8;
+  --paper: #f4f2f8;
+  --blue: #7057e8;
+  --orange: #f06a50;
   overflow: hidden;
 }
 .dark .home-shell {
-  --ink: #f3f6ff;
-  --muted: #9ca8bf;
-  --line: #263149;
-  --paper: #080d19;
-  --blue: #6f8cff;
-  --orange: #ff855c;
+  --ink: #f7f3ff;
+  --muted: #aaa0bd;
+  --line: #302943;
+  --paper: #110e1a;
+  --blue: #9a86ff;
+  --orange: #ff896f;
 }
 .home-hero {
   position: relative;
@@ -198,9 +198,9 @@ body {
   position: relative;
   min-height: 33rem;
   overflow: hidden;
-  border: 1px solid #25314b;
+  border: 1px solid #352c4d;
   border-radius: 0.8rem;
-  background: #0d1424;
+  background: #171225;
   color: #eaf0ff;
   box-shadow: 0 38px 90px rgb(26 39 73 / 0.22);
 }
@@ -223,8 +223,8 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 1rem 1.15rem;
-  border-bottom: 1px solid #25314b;
-  color: #7f8da9;
+  border-bottom: 1px solid #352c4d;
+  color: #9186a6;
   font-family: ui-monospace, 'SFMono-Regular', Consolas, monospace;
   font-size: 0.58rem;
   font-weight: 700;
@@ -234,14 +234,14 @@ body {
   display: flex;
   align-items: center;
   gap: 0.55rem;
-  color: #b7c3da;
+  color: #c3b9d3;
 }
 .status-pulse {
   width: 0.4rem;
   height: 0.4rem;
   border-radius: 50%;
-  background: #66e3ac;
-  box-shadow: 0 0 0 4px rgb(102 227 172 / 0.1);
+  background: #53d6bd;
+  box-shadow: 0 0 0 4px rgb(83 214 189 / 0.1);
   animation: status-breathe 2s ease-in-out infinite;
 }
 .route-stage {
@@ -255,14 +255,14 @@ body {
   left: 2rem;
   width: 13rem;
   padding: 1rem;
-  border: 1px solid #354260;
+  border: 1px solid #44395f;
   border-radius: 0.4rem;
-  background: #121b2e;
+  background: #201a31;
 }
 .route-node-label {
   display: block;
   margin-bottom: 0.65rem;
-  color: #71809f;
+  color: #9387aa;
   font-family: ui-monospace, monospace;
   font-size: 0.56rem;
   letter-spacing: 0.11em;
@@ -277,7 +277,7 @@ body {
   height: 0.9rem;
   margin-left: 0.35rem;
   vertical-align: -0.18rem;
-  background: #6f8cff;
+  background: #9a86ff;
   animation: caret-blink 1s step-end infinite;
 }
 .route-gateway {
@@ -296,15 +296,15 @@ body {
   width: 4.2rem;
   height: 4.2rem;
   place-items: center;
-  border: 1px solid #6481ff;
+  border: 1px solid #ad9cff;
   border-radius: 1.25rem;
-  background: #335dff;
+  background: #7057e8;
   color: white;
   font-family: 'Arial Black', sans-serif;
   font-size: 1.15rem;
   box-shadow:
-    0 0 0 8px rgb(51 93 255 / 0.08),
-    0 0 34px rgb(51 93 255 / 0.3);
+    0 0 0 8px rgb(112 87 232 / 0.1),
+    0 0 34px rgb(112 87 232 / 0.34);
   transform: rotate(45deg);
 }
 .gateway-mark {
@@ -328,35 +328,35 @@ body {
   align-items: center;
   gap: 0.65rem;
   padding: 0.75rem 0.8rem;
-  border: 1px solid #303d59;
+  border: 1px solid #403654;
   border-radius: 0.35rem;
-  background: rgb(18 27 46 / 0.92);
+  background: rgb(32 26 49 / 0.92);
   color: #dce4f5;
   font-family: ui-monospace, monospace;
   font-size: 0.65rem;
 }
 .provider-chip small {
-  color: #6f7f9d;
+  color: #9286a6;
   font-size: 0.54rem;
 }
 .provider-dot {
   width: 0.4rem;
   height: 0.4rem;
   border-radius: 50%;
-  background: #66e3ac;
+  background: #53d6bd;
 }
 .provider-dot-2 {
-  background: #ff855c;
+  background: #ff896f;
 }
 .provider-dot-3 {
-  background: #6f8cff;
+  background: #9a86ff;
 }
 .route-lines span {
   position: absolute;
   display: block;
 }
 .route-line {
-  border-color: #33405c;
+  border-color: #493e61;
   border-style: solid;
 }
 .route-line-one {
@@ -384,8 +384,8 @@ body {
   width: 0.42rem;
   height: 0.42rem;
   border-radius: 50%;
-  background: #6f8cff;
-  box-shadow: 0 0 10px #6f8cff;
+  background: #9a86ff;
+  box-shadow: 0 0 10px #9a86ff;
 }
 .route-packet-one {
   top: 7.12rem;
@@ -395,8 +395,8 @@ body {
 .route-packet-two {
   bottom: 4.85rem;
   right: 12.8rem;
-  background: #ff855c;
-  box-shadow: 0 0 10px #ff855c;
+  background: #ff896f;
+  box-shadow: 0 0 10px #ff896f;
   animation: packet-two 3s linear infinite 0.4s;
 }
 .route-packet-three {
@@ -405,12 +405,12 @@ body {
   animation: packet-three 3.2s linear infinite 1s;
 }
 .route-console-foot {
-  border-top: 1px solid #25314b;
+  border-top: 1px solid #352c4d;
   border-bottom: 0;
 }
 .route-console-foot span::before {
   content: '/ ';
-  color: #4f6fdc;
+  color: #8c75ef;
 }
 .route-caption {
   margin: 1rem 0.2rem 0;
@@ -475,7 +475,7 @@ body {
   box-shadow: 0 22px 45px rgb(35 48 78 / 0.12);
 }
 .dark .home-capability:hover {
-  background: #111a2c;
+  background: #211a31;
 }
 .capability-card-top {
   display: flex;
@@ -488,29 +488,29 @@ body {
   height: 3.1rem;
   place-items: center;
   border-radius: 0.3rem;
-  background: #e9edff;
-  color: #335dff;
+  background: #ebe7fb;
+  color: #7057e8;
   font-size: 1.5rem;
 }
 .home-capability-orange .capability-icon {
-  background: #fff0e9;
-  color: #ed5a24;
+  background: #fceae5;
+  color: #d6523b;
 }
 .home-capability-cyan .capability-icon {
-  background: #e2f5f8;
-  color: #167d8e;
+  background: #e1f3ef;
+  color: #168673;
 }
 .dark .capability-icon {
-  background: #1c294e;
-  color: #8da2ff;
+  background: #30264f;
+  color: #ad9cff;
 }
 .dark .home-capability-orange .capability-icon {
-  background: #42251e;
-  color: #ff9a75;
+  background: #492820;
+  color: #ff9d87;
 }
 .dark .home-capability-cyan .capability-icon {
-  background: #15333a;
-  color: #67c8d8;
+  background: #173a34;
+  color: #62d3bd;
 }
 .capability-link-arrow {
   color: var(--muted);
@@ -536,10 +536,10 @@ body {
   color: var(--orange);
 }
 .home-capability-cyan .capability-name {
-  color: #16879a;
+  color: #168673;
 }
 .dark .home-capability-cyan .capability-name {
-  color: #67c8d8;
+  color: #62d3bd;
 }
 .home-capability h3 {
   margin: 0;
@@ -559,7 +559,7 @@ body {
   display: grid;
   place-items: center;
   padding: 7.5rem 2rem;
-  background: #335dff;
+  background: #7057e8;
   color: white;
   text-align: center;
 }
@@ -572,7 +572,7 @@ body {
   letter-spacing: -0.065em;
 }
 .home-manifesto p:nth-child(2) {
-  color: #bfcaff;
+  color: #d4ccff;
 }
 .home-manifesto a {
   display: inline-flex;
