@@ -61,7 +61,6 @@ export function SiteHeader() {
               <span className="grid h-8 w-8 shrink-0 place-items-center overflow-hidden rounded-full bg-slate-200 text-[0.65rem] font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-100">
                 {session.user.avatarUrl && !avatarFailed ? (
                   // GitHub controls this HTTPS avatar URL; failure falls back to local initials.
-                  // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={session.user.avatarUrl}
                     alt=""

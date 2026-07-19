@@ -68,7 +68,11 @@ export class GitHubOAuthClient {
     if (isRecord(body) && typeof body.error === 'string') {
       throw new GitHubOAuthError('GITHUB_AUTHORIZATION_REJECTED', false)
     }
-    if (!isRecord(body) || typeof body.access_token !== 'string' || body.access_token.length === 0) {
+    if (
+      !isRecord(body) ||
+      typeof body.access_token !== 'string' ||
+      body.access_token.length === 0
+    ) {
       throw new GitHubOAuthError('GITHUB_RESPONSE_INVALID', false)
     }
 
@@ -185,5 +189,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function isAbortError(error: unknown): boolean {
-  return error instanceof DOMException && (error.name === 'AbortError' || error.name === 'TimeoutError')
+  return (
+    error instanceof DOMException && (error.name === 'AbortError' || error.name === 'TimeoutError')
+  )
 }

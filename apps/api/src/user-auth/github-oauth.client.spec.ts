@@ -1,8 +1,4 @@
-import {
-  GitHubOAuthClient,
-  GitHubOAuthError,
-  type GitHubHttpClient,
-} from './github-oauth.client'
+import { GitHubOAuthClient, GitHubOAuthError, type GitHubHttpClient } from './github-oauth.client'
 
 const options = {
   clientId: 'fixture-client-id',
@@ -27,7 +23,9 @@ describe('GitHubOAuthClient', () => {
       ]),
     ])
 
-    await expect(new GitHubOAuthClient(options, http).authenticate('fixture-code')).resolves.toEqual({
+    await expect(
+      new GitHubOAuthClient(options, http).authenticate('fixture-code'),
+    ).resolves.toEqual({
       githubId: '12345678',
       githubUsername: 'octocat',
       displayName: 'The Octocat',
@@ -70,9 +68,9 @@ describe('GitHubOAuthClient', () => {
   })
 
   it('normalizes timeouts without returning the underlying error', async () => {
-    const http = jest.fn<ReturnType<GitHubHttpClient>, Parameters<GitHubHttpClient>>().mockRejectedValue(
-      new DOMException('fixture secret', 'TimeoutError'),
-    )
+    const http = jest
+      .fn<ReturnType<GitHubHttpClient>, Parameters<GitHubHttpClient>>()
+      .mockRejectedValue(new DOMException('fixture secret', 'TimeoutError'))
 
     await expect(new GitHubOAuthClient(options, http).authenticate('code')).rejects.toEqual(
       expect.objectContaining({ code: 'GITHUB_TIMEOUT', retryable: true }),
@@ -81,7 +79,8 @@ describe('GitHubOAuthClient', () => {
 })
 
 function sequenceHttp(responses: Response[]): jest.MockedFunction<GitHubHttpClient> {
-  return jest.fn<ReturnType<GitHubHttpClient>, Parameters<GitHubHttpClient>>()
+  return jest
+    .fn<ReturnType<GitHubHttpClient>, Parameters<GitHubHttpClient>>()
     .mockImplementation(async () => {
       const response = responses.shift()
       if (!response) throw new Error('Unexpected HTTP request')

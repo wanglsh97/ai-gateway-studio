@@ -2,11 +2,7 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 
 import { createAIGatewayClient } from './client.js'
-import {
-  AIGatewayAuthenticationError,
-  AIGatewayError,
-  AIGatewayProtocolError,
-} from './errors.js'
+import { AIGatewayAuthenticationError, AIGatewayError, AIGatewayProtocolError } from './errors.js'
 import type { ChatEvent, ChatRequest } from './types.js'
 
 const requestId = '00000000-0000-4000-8000-000000000005'

@@ -55,7 +55,10 @@ const environmentSchema = z
     GITHUB_OAUTH_ENABLED: booleanFromEnv.default(false),
     GITHUB_CLIENT_ID: optionalSecret,
     GITHUB_CLIENT_SECRET: optionalSecret,
-    GITHUB_CALLBACK_URL: z.string().url().default('http://localhost:3001/api/v1/auth/github/callback'),
+    GITHUB_CALLBACK_URL: z
+      .string()
+      .url()
+      .default('http://localhost:3001/api/v1/auth/github/callback'),
     GITHUB_OAUTH_HTTP_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(30_000).default(10_000),
     USER_SESSION_SECRET: userSessionSecret,
     USER_SESSION_TTL_SECONDS: z.coerce.number().int().default(2_592_000),

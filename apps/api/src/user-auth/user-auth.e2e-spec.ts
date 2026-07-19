@@ -7,8 +7,10 @@ import { AppModule } from '../app.module'
 import { configureApplication } from '../configure-app'
 import { PrismaService } from '../database/prisma.service'
 import { GITHUB_OAUTH_CLIENT } from './user-auth.constants'
-import { createAuthenticatedFetch } from './user-auth.e2e-helpers'
+import { cleanupUserTestData, createAuthenticatedFetch } from './user-auth.e2e-helpers'
 import { UserSessionService } from './user-session.service'
+
+const redisIt = process.env.TEST_REDIS_URL ? it : it.skip
 
 describe('GitHub user authentication E2E', () => {
   let app: INestApplication
@@ -37,15 +39,11 @@ describe('GitHub user authentication E2E', () => {
 
   beforeEach(async () => {
     authenticate.mockClear()
-    await prisma.userSession.deleteMany()
-    await prisma.user.deleteMany()
+    await cleanupUserTestData(prisma)
   })
 
   afterAll(async () => {
-    if (prisma) {
-      await prisma.userSession.deleteMany()
-      await prisma.user.deleteMany()
-    }
+    if (prisma) await cleanupUserTestData(prisma)
     if (app) await app.close()
   })
 
@@ -140,6 +138,37 @@ describe('GitHub user authentication E2E', () => {
     const response = await createAuthenticatedFetch(created.token)(`${baseUrl}/api/v1/auth/session`)
     expect(response.status).toBe(401)
     await expect(prisma.userSession.findUnique({ where: { id: persisted.id } })).resolves.toBeNull()
+  })
+
+  redisIt('uses the real Redis limiter after fixture OAuth login', async () => {
+    const begin = await fetch(`${baseUrl}/api/v1/auth/github?returnTo=%2Fchat`, {
+      redirect: 'manual',
+    })
+    const stateCookie = cookiePair(begin.headers.get('set-cookie'))
+    const state = new URL(begin.headers.get('location') ?? '').searchParams.get('state')
+    const callback = await fetch(
+      `${baseUrl}/api/v1/auth/github/callback?code=fixture-code&state=${encodeURIComponent(state ?? '')}`,
+      { headers: { cookie: stateCookie }, redirect: 'manual' },
+    )
+    const sessionCookie = cookiePair(callback.headers.get('set-cookie'), 'aigateway_user_session')
+
+    const response = await fetch(`${baseUrl}/api/v1/chat/completions`, {
+      method: 'POST',
+      headers: {
+        cookie: sessionCookie,
+        'content-type': 'application/json',
+        'x-forwarded-for': `198.51.100.${(process.pid % 250) + 1}`,
+      },
+      body: JSON.stringify({
+        model: 'qwen',
+        messages: [{ role: 'user', content: '真实 Redis 限流验收' }],
+        stream: true,
+      }),
+    })
+
+    expect(response.status).toBe(200)
+    expect(await response.text()).toContain('data: [DONE]')
+    expect(authenticate).toHaveBeenCalledWith('fixture-code')
   })
 })
 

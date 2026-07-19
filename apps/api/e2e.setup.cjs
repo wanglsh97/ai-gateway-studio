@@ -19,7 +19,7 @@ Object.assign(process.env, {
   NODE_ENV: 'test',
   LOG_LEVEL: 'fatal',
   DATABASE_URL: databaseUrl,
-  REDIS_URL: 'redis://127.0.0.1:6399',
+  REDIS_URL: process.env.TEST_REDIS_URL ?? 'redis://127.0.0.1:6399',
   WEB_ORIGIN: 'http://127.0.0.1:3000',
   GITHUB_OAUTH_ENABLED: 'true',
   GITHUB_CLIENT_ID: 'fixture-github-client-id',
