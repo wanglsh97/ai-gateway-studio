@@ -1082,9 +1082,10 @@ body {
   display: flex;
   min-height: 3.6rem;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
+  gap: 0.7rem;
   margin-top: 2rem;
-  padding: 0 0.65rem 0 1.2rem;
+  padding: 0 1.2rem;
   border-radius: 0.4rem;
   background: #211b32;
   color: white;
@@ -1094,14 +1095,10 @@ body {
     transform 0.2s ease,
     background 0.2s ease;
 }
-.login-github-action span:last-child {
-  display: grid;
-  width: 2.45rem;
-  height: 2.45rem;
-  place-items: center;
-  border-radius: 0.25rem;
-  background: #7057e8;
-  font-size: 1rem;
+.login-github-action svg {
+  width: 1.15rem;
+  height: 1.15rem;
+  flex: 0 0 auto;
 }
 .login-github-action:hover {
   transform: translateY(-2px);
