@@ -1,0 +1,3 @@
+schema: spec-driven
+created: 2026-07-19
+goal: 使用 GitHub OAuth 为用户端增加强制登录、服务端会话和请求日志用户归属，不扩展为独立账号或用户中心。

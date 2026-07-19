@@ -1,0 +1,29 @@
+schema: spec-driven
+
+context: |
+  项目：AI Gateway Studio，一个公开访问的 AI 能力演示站及其管理后台。
+  需求基线：spec/需求文档.md。
+  技术基线：spec/技术选型方案.md。
+  V1 技术栈：pnpm monorepo、TypeScript、Next.js、NestJS、@aigateway/sdk、
+  PostgreSQL、Prisma、Redis、Pino、Nginx、Docker Compose。
+  部署目标：阿里云 ECS（Ubuntu，4 核 8G）单机一体化部署，同时支持域名和公网 IP。
+  V1 模型范围：国内通义千问、智谱 GLM、DeepSeek；文生图为通义万相和 CogView。
+  产品原则：先用 Mock Adapter 串通端到端主链路，再逐个接入真实厂商，最后完善后台和运维。
+  已确认约束：V1 不使用 BullMQ；完整 Prompt 全量保存；用户端通过 GitHub OAuth 强制登录；
+  管理员认证暂时保持独立固定账号；内容安全和全站每日硬顶列为后续版本。
+
+rules:
+  proposal:
+    - 明确说明 V1 范围、非目标、验收结果和回滚边界。
+    - 以可运行的纵向切片为优先，不把所有功能同时铺开。
+  specs:
+    - 按独立业务能力拆分规格，不按前端、后端、数据库等技术层拆分。
+    - 每条 Requirement 至少包含一个 Given/When/Then 场景。
+    - 将 V1 已确认的简化约束与后续版本待办明确区分。
+  design:
+    - 保持单机模块化单体架构，并明确模块依赖、数据流、失败处理和部署拓扑。
+    - 说明关键技术决策、取舍、风险和渐进式实施顺序。
+  tasks:
+    - 使用 `- [ ]` 清单并按可验收的纵向切片排序。
+    - 第一里程碑必须串通 Web → SDK → API → Mock Adapter → SSE → 数据库日志。
+    - 每个里程碑都必须包含自动化测试或可重复的验收步骤。
