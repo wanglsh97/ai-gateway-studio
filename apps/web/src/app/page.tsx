@@ -182,21 +182,6 @@ export default function HomePage() {
         </Link>
       </section>
 
-      <aside className="open-source-notice" aria-labelledby="open-source-title">
-        <div className="open-source-label">
-          <span className="open-source-mark" aria-hidden="true">
-            OS
-          </span>
-          <p>Open source notice</p>
-        </div>
-        <div className="open-source-copy">
-          <h2 id="open-source-title">开源项目说明</h2>
-          <p>
-            本项目以开源形式提供，主要用于学习、演示与二次开发。项目不承诺持续维护、长期可用或服务稳定性；用于生产环境前，请自行完成安全、合规、容量与可用性评估，并承担相关风险。
-          </p>
-        </div>
-      </aside>
-
       <footer className="home-footer">
         <span>AI Gateway Studio</span>
         <span>One interface. Many intelligences.</span>
