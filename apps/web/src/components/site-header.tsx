@@ -55,7 +55,6 @@ export function SiteHeader() {
         </Link>
 
         <div className="order-2 flex items-center gap-2 sm:order-3 sm:ml-3">
-          <ThemeToggle />
           {session.status === 'authenticated' && session.user ? (
             <div className="flex items-center gap-2 rounded-full border border-slate-200 bg-white/75 p-1 pr-2 shadow-sm dark:border-white/10 dark:bg-white/5">
               <span className="grid h-8 w-8 shrink-0 place-items-center overflow-hidden rounded-full bg-slate-200 text-[0.65rem] font-bold text-slate-700 dark:bg-slate-800 dark:text-slate-100">
@@ -92,6 +91,7 @@ export function SiteHeader() {
               GitHub 登录
             </Link>
           ) : null}
+          <ThemeToggle />
         </div>
 
         <nav
