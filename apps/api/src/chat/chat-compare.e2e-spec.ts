@@ -1,6 +1,5 @@
 import type { AddressInfo } from 'node:net'
 
-import { createAIGatewayClient } from '@aigateway/sdk'
 import type { AIGatewayClient, ChatCompareRun, ChatEvent } from '@aigateway/sdk'
 import type { INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
@@ -9,6 +8,11 @@ import { AppModule } from '../app.module'
 import { configureApplication } from '../configure-app'
 import { PrismaService } from '../database/prisma.service'
 import { RateLimitService } from '../rate-limit/rate-limit.service'
+import {
+  cleanupUserTestData,
+  createAuthenticatedClient,
+  provisionFixtureUserSession,
+} from '../user-auth/user-auth.e2e-helpers'
 import { ChatAdapterError } from './adapters/chat-adapter'
 import type { ChatAdapter, ChatAdapterEvent, ChatAdapterRequest } from './adapters/chat-adapter'
 import { CHAT_ADAPTERS } from './adapters/chat-adapter.registry'
@@ -60,6 +64,7 @@ class ControllableChatAdapter implements ChatAdapter {
 describe('Chat comparison API/SDK E2E', () => {
   let app: INestApplication
   let client: AIGatewayClient
+  let baseUrl: string
   let prisma: PrismaService
   const qwen = new ControllableChatAdapter('qwen')
   const glm = new ControllableChatAdapter('glm')
@@ -84,20 +89,19 @@ describe('Chat comparison API/SDK E2E', () => {
     await app.listen(0, '127.0.0.1')
 
     const address = app.getHttpServer().address() as AddressInfo
-    client = createAIGatewayClient({ baseUrl: `http://127.0.0.1:${address.port}` })
+    baseUrl = `http://127.0.0.1:${address.port}`
     prisma = app.get(PrismaService)
   })
 
   beforeEach(async () => {
     for (const adapter of adapters) adapter.reset()
-    await prisma.imageGenerationTask.deleteMany()
-    await prisma.requestLog.deleteMany()
+    await cleanupUserTestData(prisma)
+    client = createAuthenticatedClient(baseUrl, await provisionFixtureUserSession(app))
   })
 
   afterAll(async () => {
     if (prisma) {
-      await prisma.imageGenerationTask.deleteMany()
-      await prisma.requestLog.deleteMany()
+      await cleanupUserTestData(prisma)
     }
     if (app) await app.close()
   })

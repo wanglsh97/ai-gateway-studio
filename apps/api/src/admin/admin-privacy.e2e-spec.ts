@@ -1,6 +1,5 @@
 import type { AddressInfo } from 'node:net'
 
-import { createAIGatewayClient } from '@aigateway/sdk'
 import type { INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
 
@@ -8,6 +7,12 @@ import { AppModule } from '../app.module'
 import { configureApplication } from '../configure-app'
 import { PrismaService } from '../database/prisma.service'
 import { RateLimitService } from '../rate-limit/rate-limit.service'
+import {
+  cleanupUserTestData,
+  createAuthenticatedClient,
+  provisionFixtureUserSession,
+} from '../user-auth/user-auth.e2e-helpers'
+import type { AIGatewayClient } from '@aigateway/sdk'
 
 const databaseUrl = process.env.TEST_DATABASE_URL
 
@@ -15,6 +20,7 @@ describe('Public/admin Prompt privacy E2E', () => {
   let app: INestApplication
   let baseUrl: string
   let prisma: PrismaService
+  let client: AIGatewayClient
 
   beforeAll(async () => {
     if (!databaseUrl || (!databaseUrl.includes('_test') && !databaseUrl.includes('test_'))) {
@@ -37,22 +43,21 @@ describe('Public/admin Prompt privacy E2E', () => {
 
   beforeEach(async () => {
     await prisma.adminAuditLog.deleteMany()
-    await prisma.imageGenerationTask.deleteMany()
-    await prisma.requestLog.deleteMany()
+    await cleanupUserTestData(prisma)
+    client = createAuthenticatedClient(baseUrl, await provisionFixtureUserSession(app))
   })
 
   afterAll(async () => {
     if (prisma) {
       await prisma.adminAuditLog.deleteMany()
-      await prisma.imageGenerationTask.deleteMany()
-      await prisma.requestLog.deleteMany()
+      await cleanupUserTestData(prisma)
     }
     if (app) await app.close()
   })
 
   it('keeps full Prompt out of aggregates and blocks every public admin data endpoint', async () => {
     const secretPrompt = 'PRIVATE_PROMPT_BOUNDARY_7f46d67d'
-    await createAIGatewayClient({ baseUrl }).prompts.optimize({
+    await client.prompts.optimize({
       prompt: secretPrompt,
       mode: 'expand',
     })

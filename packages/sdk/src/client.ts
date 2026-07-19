@@ -31,7 +31,7 @@ export interface ImageWaitOptions extends RequestOptions {
 export interface CreateAIGatewayClientOptions {
   baseUrl?: string
   fetch?: typeof globalThis.fetch
-  credentials?: RequestCredentials
+  credentials?: 'omit' | 'same-origin' | 'include'
 }
 
 export interface ChatCompareRequest {

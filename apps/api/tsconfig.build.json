@@ -14,6 +14,7 @@
     "dist",
     "src/**/*.spec.ts",
     "src/**/*.test.ts",
-    "src/**/*.contract.ts"
+    "src/**/*.contract.ts",
+    "src/**/*.e2e-helpers.ts"
   ]
 }

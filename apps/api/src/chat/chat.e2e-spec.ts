@@ -1,6 +1,5 @@
 import type { AddressInfo } from 'node:net'
 
-import { createAIGatewayClient } from '@aigateway/sdk'
 import type { AIGatewayClient, ChatEvent, ChatMessage } from '@aigateway/sdk'
 import type { INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
@@ -9,6 +8,12 @@ import { AppModule } from '../app.module'
 import { configureApplication } from '../configure-app'
 import { PrismaService } from '../database/prisma.service'
 import { RateLimitExceededException, RateLimitService } from '../rate-limit/rate-limit.service'
+import {
+  cleanupUserTestData,
+  createAuthenticatedClient,
+  createAuthenticatedFetch,
+  provisionFixtureUserSession,
+} from '../user-auth/user-auth.e2e-helpers'
 
 const databaseUrl = process.env.TEST_DATABASE_URL
 
@@ -18,6 +23,7 @@ describe('Mock Chat API/SDK E2E', () => {
   let client: AIGatewayClient
   let consumeChat: jest.Mock
   let prisma: PrismaService
+  let authenticatedFetch: typeof fetch
 
   beforeAll(async () => {
     if (!databaseUrl || (!databaseUrl.includes('_test') && !databaseUrl.includes('test_'))) {
@@ -35,20 +41,20 @@ describe('Mock Chat API/SDK E2E', () => {
 
     const address = app.getHttpServer().address() as AddressInfo
     baseUrl = `http://127.0.0.1:${address.port}`
-    client = createAIGatewayClient({ baseUrl })
     prisma = app.get(PrismaService)
   })
 
   beforeEach(async () => {
     consumeChat.mockReset().mockResolvedValue(undefined)
-    await prisma.imageGenerationTask.deleteMany()
-    await prisma.requestLog.deleteMany()
+    await cleanupUserTestData(prisma)
+    const sessionToken = await provisionFixtureUserSession(app)
+    client = createAuthenticatedClient(baseUrl, sessionToken)
+    authenticatedFetch = createAuthenticatedFetch(sessionToken)
   })
 
   afterAll(async () => {
     if (prisma) {
-      await prisma.imageGenerationTask.deleteMany()
-      await prisma.requestLog.deleteMany()
+      await cleanupUserTestData(prisma)
     }
     if (app) await app.close()
   })
@@ -130,7 +136,7 @@ describe('Mock Chat API/SDK E2E', () => {
   })
 
   it('trusts only the configured nearest proxy hop when resolving the client IP', async () => {
-    const response = await fetch(`${baseUrl}/api/v1/chat/completions`, {
+    const response = await authenticatedFetch(`${baseUrl}/api/v1/chat/completions`, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
@@ -155,7 +161,7 @@ describe('Mock Chat API/SDK E2E', () => {
   it('returns retry details and creates no request record when rate limited', async () => {
     consumeChat.mockRejectedValueOnce(new RateLimitExceededException(42))
 
-    const response = await fetch(`${baseUrl}/api/v1/chat/completions`, {
+    const response = await authenticatedFetch(`${baseUrl}/api/v1/chat/completions`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
@@ -176,7 +182,7 @@ describe('Mock Chat API/SDK E2E', () => {
   })
 
   it('rejects invalid DTO parameters before rate limiting, persistence and adapters', async () => {
-    const response = await fetch(`${baseUrl}/api/v1/chat/completions`, {
+    const response = await authenticatedFetch(`${baseUrl}/api/v1/chat/completions`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({

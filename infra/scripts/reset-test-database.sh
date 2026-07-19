@@ -15,3 +15,5 @@ case "$DATABASE_URL" in
 esac
 
 corepack pnpm exec prisma migrate reset --force
+
+echo "测试数据库已重建；User、UserSession、RequestLog 和 ImageGenerationTask 均为空。"

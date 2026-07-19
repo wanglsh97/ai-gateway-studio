@@ -1,6 +1,5 @@
 import type { AddressInfo } from 'node:net'
 
-import { createAIGatewayClient } from '@aigateway/sdk'
 import { AIGatewayTimeoutError } from '@aigateway/sdk'
 import type { AIGatewayClient } from '@aigateway/sdk'
 import type { INestApplication } from '@nestjs/common'
@@ -10,6 +9,12 @@ import { AppModule } from '../app.module'
 import { configureApplication } from '../configure-app'
 import { PrismaService } from '../database/prisma.service'
 import { RateLimitService } from '../rate-limit/rate-limit.service'
+import {
+  cleanupUserTestData,
+  createAuthenticatedClient,
+  createAuthenticatedFetch,
+  provisionFixtureUserSession,
+} from '../user-auth/user-auth.e2e-helpers'
 import type {
   ImageAdapter,
   ImageAdapterDownloadRequest,
@@ -62,6 +67,8 @@ describe('Mock Image API/SDK/PostgreSQL E2E', () => {
   let app: INestApplication | undefined
   let client: AIGatewayClient
   let prisma: PrismaService
+  let sessionToken = ''
+  let authenticatedFetch: typeof fetch
 
   beforeAll(() => {
     if (!databaseUrl || (!databaseUrl.includes('_test') && !databaseUrl.includes('test_'))) {
@@ -70,18 +77,20 @@ describe('Mock Image API/SDK/PostgreSQL E2E', () => {
   })
 
   beforeEach(async () => {
+    sessionToken = ''
     await start(new RestartSafeImageAdapter())
-    await prisma.imageGenerationTask.deleteMany()
-    await prisma.requestLog.deleteMany()
+    await cleanupUserTestData(prisma)
+    sessionToken = await provisionFixtureUserSession(app!)
+    configureAuthenticatedClients()
   })
 
   afterEach(async () => {
     if (prisma) {
-      await prisma.imageGenerationTask.deleteMany()
-      await prisma.requestLog.deleteMany()
+      await cleanupUserTestData(prisma)
     }
     await app?.close()
     app = undefined
+    sessionToken = ''
   })
 
   it('submits, survives an API restart, polls to success and proxies the persisted result', async () => {
@@ -97,7 +106,7 @@ describe('Mock Image API/SDK/PostgreSQL E2E', () => {
 
     const completed = await client.images.get(submitted.taskId)
     expect(completed).toMatchObject({ status: 'succeeded', results: [{ index: 0 }] })
-    const response = await fetch(client.images.downloadUrl(submitted.taskId, 0))
+    const response = await authenticatedFetch(client.images.downloadUrl(submitted.taskId, 0))
     expect(response.status).toBe(200)
     expect(response.headers.get('content-type')).toBe('image/png')
     expect(new Uint8Array(await response.arrayBuffer())).toEqual(Uint8Array.from([137, 80, 78, 71]))
@@ -156,7 +165,18 @@ describe('Mock Image API/SDK/PostgreSQL E2E', () => {
     configureApplication(app)
     await app.listen(0, '127.0.0.1')
     const address = app.getHttpServer().address() as AddressInfo
-    client = createAIGatewayClient({ baseUrl: `http://127.0.0.1:${address.port}` })
+    const baseUrl = `http://127.0.0.1:${address.port}`
     prisma = app.get(PrismaService)
+    if (sessionToken) {
+      client = createAuthenticatedClient(baseUrl, sessionToken)
+      authenticatedFetch = createAuthenticatedFetch(sessionToken)
+    }
+  }
+
+  function configureAuthenticatedClients(): void {
+    const address = app!.getHttpServer().address() as AddressInfo
+    const baseUrl = `http://127.0.0.1:${address.port}`
+    client = createAuthenticatedClient(baseUrl, sessionToken)
+    authenticatedFetch = createAuthenticatedFetch(sessionToken)
   }
 })

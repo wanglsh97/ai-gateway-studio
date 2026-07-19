@@ -1,6 +1,5 @@
 import type { AddressInfo } from 'node:net'
 
-import { createAIGatewayClient } from '@aigateway/sdk'
 import type { AIGatewayClient, PromptOptimizationMode } from '@aigateway/sdk'
 import type { INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
@@ -9,6 +8,12 @@ import { AppModule } from '../app.module'
 import { configureApplication } from '../configure-app'
 import { PrismaService } from '../database/prisma.service'
 import { RateLimitService } from '../rate-limit/rate-limit.service'
+import {
+  cleanupUserTestData,
+  createAuthenticatedClient,
+  createAuthenticatedFetch,
+  provisionFixtureUserSession,
+} from '../user-auth/user-auth.e2e-helpers'
 
 const databaseUrl = process.env.TEST_DATABASE_URL
 
@@ -17,6 +22,7 @@ describe('Prompt optimizer API/SDK E2E', () => {
   let baseUrl: string
   let client: AIGatewayClient
   let prisma: PrismaService
+  let authenticatedFetch: typeof fetch
 
   beforeAll(async () => {
     if (!databaseUrl || (!databaseUrl.includes('_test') && !databaseUrl.includes('test_'))) {
@@ -31,19 +37,19 @@ describe('Prompt optimizer API/SDK E2E', () => {
     await app.listen(0, '127.0.0.1')
     const address = app.getHttpServer().address() as AddressInfo
     baseUrl = `http://127.0.0.1:${address.port}`
-    client = createAIGatewayClient({ baseUrl })
     prisma = app.get(PrismaService)
   })
 
   beforeEach(async () => {
-    await prisma.imageGenerationTask.deleteMany()
-    await prisma.requestLog.deleteMany()
+    await cleanupUserTestData(prisma)
+    const sessionToken = await provisionFixtureUserSession(app)
+    client = createAuthenticatedClient(baseUrl, sessionToken)
+    authenticatedFetch = createAuthenticatedFetch(sessionToken)
   })
 
   afterAll(async () => {
     if (prisma) {
-      await prisma.imageGenerationTask.deleteMany()
-      await prisma.requestLog.deleteMany()
+      await cleanupUserTestData(prisma)
     }
     if (app) await app.close()
   })
@@ -73,7 +79,7 @@ describe('Prompt optimizer API/SDK E2E', () => {
 
   it('rejects client-owned systemPrompt before creating a request record', async () => {
     const before = await prisma.requestLog.count()
-    const response = await fetch(`${baseUrl}/api/v1/prompts/optimize`, {
+    const response = await authenticatedFetch(`${baseUrl}/api/v1/prompts/optimize`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
