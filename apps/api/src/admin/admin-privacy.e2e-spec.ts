@@ -10,6 +10,8 @@ import { RateLimitService } from '../rate-limit/rate-limit.service'
 import {
   cleanupUserTestData,
   createAuthenticatedClient,
+  FIXTURE_GITHUB_ID,
+  FIXTURE_USER_IDENTITY,
   provisionFixtureUserSession,
 } from '../user-auth/user-auth.e2e-helpers'
 import type { AIGatewayClient } from '@aigateway/sdk'
@@ -57,10 +59,11 @@ describe('Public/admin Prompt privacy E2E', () => {
 
   it('keeps full Prompt out of aggregates and blocks every public admin data endpoint', async () => {
     const secretPrompt = 'PRIVATE_PROMPT_BOUNDARY_7f46d67d'
-    await client.prompts.optimize({
+    const publicResult = await client.prompts.optimize({
       prompt: secretPrompt,
       mode: 'expand',
     })
+    expect(JSON.stringify(publicResult)).not.toContain(FIXTURE_USER_IDENTITY.email)
 
     for (const path of [
       '/api/v1/admin/auth/session',
@@ -84,12 +87,62 @@ describe('Public/admin Prompt privacy E2E', () => {
     const cookie = login.headers.get('set-cookie')?.split(';')[0]
     expect(cookie).toBeTruthy()
 
+    const usernameLogsResponse = await fetch(
+      `${baseUrl}/api/v1/admin/logs?githubUsername=FIXTURE-OCTOCAT`,
+      { headers: { cookie: cookie ?? '' } },
+    )
+    expect(usernameLogsResponse.status).toBe(200)
+    const usernameLogs = (await usernameLogsResponse.json()) as {
+      total: number
+      items: Array<{
+        requestId: string
+        user: {
+          id: string
+          githubId: string
+          githubUsername: string
+          avatarUrl: string | null
+        }
+      }>
+    }
+    expect(usernameLogs.total).toBe(1)
+    expect(usernameLogs.items[0]?.user).toMatchObject({
+      id: expect.any(String),
+      githubId: FIXTURE_GITHUB_ID,
+      githubUsername: FIXTURE_USER_IDENTITY.githubUsername,
+      avatarUrl: FIXTURE_USER_IDENTITY.avatarUrl,
+    })
+    expect(JSON.stringify(usernameLogs)).not.toContain(FIXTURE_USER_IDENTITY.email)
+    expect(JSON.stringify(usernameLogs)).not.toContain(secretPrompt)
+
+    const githubIdLogsResponse = await fetch(
+      `${baseUrl}/api/v1/admin/logs?githubId=${FIXTURE_GITHUB_ID}`,
+      { headers: { cookie: cookie ?? '' } },
+    )
+    expect(githubIdLogsResponse.status).toBe(200)
+    await expect(githubIdLogsResponse.json()).resolves.toMatchObject({ total: 1 })
+
+    const detailResponse = await fetch(
+      `${baseUrl}/api/v1/admin/logs/${usernameLogs.items[0]?.requestId}`,
+      { headers: { cookie: cookie ?? '' } },
+    )
+    expect(detailResponse.status).toBe(200)
+    await expect(detailResponse.json()).resolves.toMatchObject({
+      user: {
+        githubId: FIXTURE_GITHUB_ID,
+        githubUsername: FIXTURE_USER_IDENTITY.githubUsername,
+        displayName: FIXTURE_USER_IDENTITY.displayName,
+        email: FIXTURE_USER_IDENTITY.email,
+      },
+    })
+
     for (const path of ['overview', 'trends', 'latencies', 'errors']) {
       const response = await fetch(`${baseUrl}/api/v1/admin/dashboard/${path}`, {
         headers: { cookie: cookie ?? '' },
       })
       expect(response.status).toBe(200)
-      expect(await response.text()).not.toContain(secretPrompt)
+      const responseBody = await response.text()
+      expect(responseBody).not.toContain(secretPrompt)
+      expect(responseBody).not.toContain(FIXTURE_USER_IDENTITY.email)
     }
   })
 })

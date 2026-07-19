@@ -27,6 +27,8 @@ describe('AdminRequestLogsService', () => {
         model: 'qwen',
         status: 'failed',
         requestId: '00000000-0000-4000-8000-000000000208',
+        githubUsername: 'Fixture-Octocat',
+        githubId: '90000001',
       }),
     ).resolves.toEqual({
       items: [{ requestId: 'request-1' }],
@@ -45,10 +47,31 @@ describe('AdminRequestLogsService', () => {
       modelAlias: 'qwen',
       status: 'FAILED',
       requestId: '00000000-0000-4000-8000-000000000208',
+      user: {
+        is: {
+          githubUsername: { equals: 'Fixture-Octocat', mode: 'insensitive' },
+          githubId: '90000001',
+        },
+      },
     }
     expect(count).toHaveBeenCalledWith({ where })
     expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ where, skip: 25, take: 25 }))
     expect(JSON.stringify(findMany.mock.calls)).not.toContain('prompt')
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        select: expect.objectContaining({
+          user: {
+            select: {
+              id: true,
+              githubId: true,
+              githubUsername: true,
+              avatarUrl: true,
+            },
+          },
+        }),
+      }),
+    )
+    expect(JSON.stringify(findMany.mock.calls)).not.toContain('email')
     expect(transaction).toHaveBeenCalledWith(['count-query', 'items-query'])
   })
 
@@ -82,11 +105,37 @@ describe('AdminRequestLogsService', () => {
           providerRequestId: true,
           failoverReason: true,
           errorDetails: true,
+          user: {
+            select: {
+              id: true,
+              githubId: true,
+              githubUsername: true,
+              displayName: true,
+              avatarUrl: true,
+              email: true,
+            },
+          },
           billing: true,
           imageTask: expect.any(Object),
         }),
       }),
     )
+  })
+
+  it('filters usernames case-insensitively when no GitHub ID is supplied', async () => {
+    const { count, service } = setup()
+
+    await service.list({ githubUsername: 'Fixture-Octocat' })
+
+    expect(count).toHaveBeenCalledWith({
+      where: {
+        user: {
+          is: {
+            githubUsername: { equals: 'Fixture-Octocat', mode: 'insensitive' },
+          },
+        },
+      },
+    })
   })
 
   it('returns 404 for an unknown request ID', async () => {

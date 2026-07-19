@@ -1,5 +1,15 @@
 import { Type } from 'class-transformer'
-import { IsIn, IsInt, IsISO8601, IsOptional, IsUUID, Max, Min } from 'class-validator'
+import {
+  IsIn,
+  IsInt,
+  IsISO8601,
+  IsOptional,
+  IsUUID,
+  Matches,
+  Max,
+  MaxLength,
+  Min,
+} from 'class-validator'
 
 export const REQUEST_LOG_CAPABILITIES = ['chat', 'image', 'prompt'] as const
 export const REQUEST_LOG_STATUSES = ['pending', 'succeeded', 'failed', 'cancelled'] as const
@@ -49,4 +59,14 @@ export class RequestLogQueryDto {
   @IsOptional()
   @IsUUID()
   declare requestId?: string
+
+  @IsOptional()
+  @MaxLength(39)
+  @Matches(/^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?$/)
+  declare githubUsername?: string
+
+  @IsOptional()
+  @MaxLength(32)
+  @Matches(/^\d+$/)
+  declare githubId?: string
 }

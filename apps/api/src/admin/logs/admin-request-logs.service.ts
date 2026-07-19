@@ -42,6 +42,23 @@ export class AdminRequestLogsService {
       ...(query.model === undefined ? {} : { modelAlias: query.model }),
       ...(query.status === undefined ? {} : { status: STATUS[query.status] }),
       ...(query.requestId === undefined ? {} : { requestId: query.requestId }),
+      ...(query.githubUsername === undefined && query.githubId === undefined
+        ? {}
+        : {
+            user: {
+              is: {
+                ...(query.githubUsername === undefined
+                  ? {}
+                  : {
+                      githubUsername: {
+                        equals: query.githubUsername,
+                        mode: 'insensitive' as const,
+                      },
+                    }),
+                ...(query.githubId === undefined ? {} : { githubId: query.githubId }),
+              },
+            },
+          }),
     }
     const [total, items] = await this.prisma.$transaction([
       this.prisma.requestLog.count({ where }),
@@ -62,6 +79,14 @@ export class AdminRequestLogsService {
           durationMs: true,
           errorCode: true,
           createdAt: true,
+          user: {
+            select: {
+              id: true,
+              githubId: true,
+              githubUsername: true,
+              avatarUrl: true,
+            },
+          },
           billing: {
             select: {
               inputTokens: true,
@@ -104,6 +129,16 @@ export class AdminRequestLogsService {
         metadata: true,
         createdAt: true,
         updatedAt: true,
+        user: {
+          select: {
+            id: true,
+            githubId: true,
+            githubUsername: true,
+            displayName: true,
+            avatarUrl: true,
+            email: true,
+          },
+        },
         billing: true,
         imageTask: {
           select: {
