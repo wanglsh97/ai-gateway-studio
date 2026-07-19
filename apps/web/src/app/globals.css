@@ -764,6 +764,60 @@ body {
   font-size: 0.62rem;
   letter-spacing: 0.04em;
 }
+.open-source-notice {
+  display: grid;
+  grid-template-columns: 0.7fr 2.3fr;
+  gap: 3rem;
+  max-width: 80rem;
+  margin: 0 auto;
+  padding: 3.25rem 2.5rem;
+  border-bottom: 1px solid var(--line);
+}
+.open-source-label {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  align-self: start;
+}
+.open-source-mark {
+  display: grid;
+  width: 2.2rem;
+  height: 2.2rem;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  color: var(--orange);
+  font-family: ui-monospace, monospace;
+  font-size: 0.58rem;
+  font-weight: 800;
+}
+.open-source-label p {
+  margin: 0;
+  color: var(--muted);
+  font-family: ui-monospace, monospace;
+  font-size: 0.58rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.open-source-copy {
+  display: grid;
+  grid-template-columns: minmax(9rem, 0.65fr) 1.35fr;
+  gap: 2rem;
+}
+.open-source-copy h2 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 1rem;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+}
+.open-source-copy p {
+  max-width: 42rem;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.85;
+}
 @keyframes status-breathe {
   50% {
     opacity: 0.45;
@@ -826,6 +880,13 @@ body {
   }
   .integration-footnote a {
     width: max-content;
+  }
+  .open-source-notice {
+    grid-template-columns: 1fr 2fr;
+  }
+  .open-source-copy {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
   }
 }
 @media (max-width: 640px) {
@@ -912,6 +973,11 @@ body {
   }
   .home-manifesto {
     padding: 5.5rem 1.25rem;
+  }
+  .open-source-notice {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+    padding: 2.5rem 1.25rem;
   }
   .home-footer {
     flex-direction: column;
