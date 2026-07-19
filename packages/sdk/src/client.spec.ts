@@ -2,7 +2,11 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 
 import { createAIGatewayClient } from './client.js'
-import { AIGatewayError, AIGatewayProtocolError } from './errors.js'
+import {
+  AIGatewayAuthenticationError,
+  AIGatewayError,
+  AIGatewayProtocolError,
+} from './errors.js'
 import type { ChatEvent, ChatRequest } from './types.js'
 
 const requestId = '00000000-0000-4000-8000-000000000005'
@@ -110,7 +114,32 @@ describe('createAIGatewayClient chat.stream', () => {
     ])
     assert.equal(fetchCalls[0]?.input, 'http://localhost:3001/api/v1/chat/completions')
     assert.equal(fetchCalls[0]?.init?.method, 'POST')
+    assert.equal(fetchCalls[0]?.init?.credentials, 'same-origin')
     assert.equal(fetchCalls[0]?.init?.body, JSON.stringify(input))
+  })
+
+  it('throws a non-retryable typed authentication error for 401 responses', async () => {
+    const client = createAIGatewayClient({
+      fetch: async () =>
+        Response.json(
+          {
+            requestId,
+            code: 'UNAUTHORIZED',
+            message: '用户会话无效或已过期',
+            retryable: false,
+          },
+          { status: 401 },
+        ),
+    })
+
+    await assert.rejects(
+      () => client.chat.stream(input)[Symbol.asyncIterator]().next(),
+      (error: unknown) =>
+        error instanceof AIGatewayAuthenticationError &&
+        error.status === 401 &&
+        error.code === 'UNAUTHORIZED' &&
+        error.retryable === false,
+    )
   })
 
   it('throws a typed HTTP error envelope before opening a stream', async () => {

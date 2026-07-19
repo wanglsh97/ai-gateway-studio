@@ -10,7 +10,12 @@ import type {
   OptimizePromptResult,
   TextModelAlias,
 } from './types.js'
-import { AIGatewayError, AIGatewayProtocolError, AIGatewayTimeoutError } from './errors.js'
+import {
+  AIGatewayAuthenticationError,
+  AIGatewayError,
+  AIGatewayProtocolError,
+  AIGatewayTimeoutError,
+} from './errors.js'
 import { readSseData } from './sse.js'
 
 export interface RequestOptions {
@@ -26,6 +31,7 @@ export interface ImageWaitOptions extends RequestOptions {
 export interface CreateAIGatewayClientOptions {
   baseUrl?: string
   fetch?: typeof globalThis.fetch
+  credentials?: RequestCredentials
 }
 
 export interface ChatCompareRequest {
@@ -70,29 +76,34 @@ export function createAIGatewayClient(options: CreateAIGatewayClientOptions = {}
   const fetchImplementation = options.fetch ?? globalThis.fetch
   if (!fetchImplementation) throw new TypeError('A Fetch API implementation is required')
   const baseUrl = (options.baseUrl ?? '').replace(/\/$/, '')
+  const fetchWithCredentials: typeof globalThis.fetch = (input, init) =>
+    fetchImplementation(input, {
+      credentials: options.credentials ?? 'same-origin',
+      ...init,
+    })
 
   return {
     chat: {
       stream: (input, requestOptions) =>
-        streamChat(fetchImplementation, baseUrl, input, requestOptions),
+        streamChat(fetchWithCredentials, baseUrl, input, requestOptions),
       compare: (input, requestOptions) =>
-        compareChat(fetchImplementation, baseUrl, input, requestOptions),
+        compareChat(fetchWithCredentials, baseUrl, input, requestOptions),
     },
     images: {
       create: (input, requestOptions) =>
-        createImage(fetchImplementation, baseUrl, input, requestOptions),
+        createImage(fetchWithCredentials, baseUrl, input, requestOptions),
       get: (taskId, requestOptions) =>
-        getImage(fetchImplementation, baseUrl, taskId, requestOptions),
+        getImage(fetchWithCredentials, baseUrl, taskId, requestOptions),
       wait: (taskId, waitOptions) =>
-        waitForImage(fetchImplementation, baseUrl, taskId, waitOptions),
+        waitForImage(fetchWithCredentials, baseUrl, taskId, waitOptions),
       downloadUrl: (taskId, index) => imageDownloadUrl(baseUrl, taskId, index),
     },
     prompts: {
       optimize: (input, requestOptions) =>
-        optimizePrompt(fetchImplementation, baseUrl, input, requestOptions),
+        optimizePrompt(fetchWithCredentials, baseUrl, input, requestOptions),
     },
     models: {
-      list: (requestOptions) => listModels(fetchImplementation, baseUrl, requestOptions),
+      list: (requestOptions) => listModels(fetchWithCredentials, baseUrl, requestOptions),
     },
   }
 }
@@ -494,7 +505,9 @@ async function responseError(response: Response, headerRequestId: string | null)
       booleanValue(record?.retryable) ?? (response.status === 429 || response.status >= 500),
     ...(details === undefined ? {} : { details }),
   }
-  return new AIGatewayError(error, { status: response.status })
+  return response.status === 401
+    ? new AIGatewayAuthenticationError(error)
+    : new AIGatewayError(error, { status: response.status })
 }
 
 function parseJsonRecord(data: string, requestId: string): Record<string, unknown> {

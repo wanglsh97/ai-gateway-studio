@@ -33,6 +33,20 @@ export class AIGatewayProtocolError extends AIGatewayError {
   }
 }
 
+export class AIGatewayAuthenticationError extends AIGatewayError {
+  constructor(error: GatewayError, options: { cause?: unknown } = {}) {
+    super(
+      {
+        ...error,
+        code: error.code || 'UNAUTHORIZED',
+        retryable: false,
+      },
+      { status: 401, ...options },
+    )
+    this.name = 'AIGatewayAuthenticationError'
+  }
+}
+
 export class AIGatewayFeatureUnavailableError extends AIGatewayError {
   constructor(feature: string) {
     super({

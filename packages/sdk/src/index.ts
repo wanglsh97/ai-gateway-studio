@@ -10,6 +10,7 @@ export type {
 } from './client.js'
 export {
   AIGatewayError,
+  AIGatewayAuthenticationError,
   AIGatewayFeatureUnavailableError,
   AIGatewayProtocolError,
   AIGatewayTimeoutError,

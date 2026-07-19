@@ -21,6 +21,7 @@ describe('AIGatewayClient images', () => {
     await client.images.get('task/1')
     assert.equal(calls[0]?.url, 'http://gateway/api/v1/images/generations')
     assert.equal(calls[0]?.init?.method, 'POST')
+    assert.equal(calls[0]?.init?.credentials, 'same-origin')
     assert.equal(calls[1]?.url, 'http://gateway/api/v1/images/generations/task%2F1')
   })
 
