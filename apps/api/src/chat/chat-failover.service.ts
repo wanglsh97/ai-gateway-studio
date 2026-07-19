@@ -1,5 +1,5 @@
 import type { TextModelAlias } from '@aigateway/sdk'
-import { Injectable } from '@nestjs/common'
+import { Inject, Injectable } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 
 import type { ChatAdapter } from './adapters/chat-adapter'
@@ -16,8 +16,8 @@ const FALLBACK_ENV = {
 @Injectable()
 export class ChatFailoverService {
   constructor(
-    private readonly config: ConfigService,
-    private readonly adapters: ChatAdapterRegistry,
+    @Inject(ConfigService) private readonly config: ConfigService,
+    @Inject(ChatAdapterRegistry) private readonly adapters: ChatAdapterRegistry,
   ) {}
 
   resolve(primary: TextModelAlias, error: unknown, comparison: boolean): ChatAdapter | undefined {

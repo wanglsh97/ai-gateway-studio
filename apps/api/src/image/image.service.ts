@@ -2,6 +2,7 @@ import type { ImageTask } from '@aigateway/sdk'
 import {
   BadGatewayException,
   BadRequestException,
+  Inject,
   Injectable,
   NotFoundException,
   ServiceUnavailableException,
@@ -24,9 +25,9 @@ import { assertImageTaskTransition, isTerminalImageTaskStatus } from './image-ta
 @Injectable()
 export class ImageService {
   constructor(
-    private readonly prisma: PrismaService,
-    private readonly adapters: ImageAdapterRegistry,
-    private readonly config: ConfigService,
+    @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(ImageAdapterRegistry) private readonly adapters: ImageAdapterRegistry,
+    @Inject(ConfigService) private readonly config: ConfigService,
   ) {}
 
   async createPending(

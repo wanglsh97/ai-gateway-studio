@@ -1,4 +1,4 @@
-import { Controller, Get, Param, ParseUUIDPipe, Query } from '@nestjs/common'
+import { Controller, Get, Inject, Param, ParseUUIDPipe, Query } from '@nestjs/common'
 import { ApiCookieAuth, ApiQuery, ApiTags } from '@nestjs/swagger'
 
 import { ADMIN_SESSION_COOKIE } from '../auth/admin-auth.service'
@@ -9,7 +9,7 @@ import { RequestLogQueryDto } from './dto/request-log-query.dto'
 @ApiCookieAuth(ADMIN_SESSION_COOKIE)
 @Controller('admin/logs')
 export class AdminRequestLogsController {
-  constructor(private readonly logs: AdminRequestLogsService) {}
+  constructor(@Inject(AdminRequestLogsService) private readonly logs: AdminRequestLogsService) {}
 
   @Get()
   @ApiQuery({

@@ -5,6 +5,7 @@ import {
   Body,
   Controller,
   Get,
+  Inject,
   Param,
   ParseIntPipe,
   Post,
@@ -33,9 +34,9 @@ type RequestWithId = Request & { id?: string }
 @Controller('images/generations')
 export class ImageController {
   constructor(
-    private readonly adapters: ImageAdapterRegistry,
-    private readonly images: ImageService,
-    private readonly rateLimit: RateLimitService,
+    @Inject(ImageAdapterRegistry) private readonly adapters: ImageAdapterRegistry,
+    @Inject(ImageService) private readonly images: ImageService,
+    @Inject(RateLimitService) private readonly rateLimit: RateLimitService,
   ) {}
 
   @Post()

@@ -1,4 +1,4 @@
-import { Controller, Get } from '@nestjs/common'
+import { Controller, Get, Inject } from '@nestjs/common'
 import { ApiCookieAuth, ApiTags } from '@nestjs/swagger'
 
 import { ADMIN_SESSION_COOKIE } from '../auth/admin-auth.service'
@@ -8,7 +8,7 @@ import { AdminDashboardService } from './admin-dashboard.service'
 @ApiCookieAuth(ADMIN_SESSION_COOKIE)
 @Controller('admin/dashboard')
 export class AdminDashboardController {
-  constructor(private readonly dashboard: AdminDashboardService) {}
+  constructor(@Inject(AdminDashboardService) private readonly dashboard: AdminDashboardService) {}
 
   @Get('overview')
   overview() {

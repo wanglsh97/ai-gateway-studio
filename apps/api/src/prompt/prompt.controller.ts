@@ -1,7 +1,16 @@
 import { randomUUID } from 'node:crypto'
 
 import type { OptimizePromptResult, TextModelAlias } from '@aigateway/sdk'
-import { Body, Controller, HttpException, HttpStatus, Post, Req, UseGuards } from '@nestjs/common'
+import {
+  Body,
+  Controller,
+  HttpException,
+  HttpStatus,
+  Inject,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { ApiCookieAuth, ApiTags } from '@nestjs/swagger'
 import type { Request } from 'express'
@@ -25,12 +34,12 @@ type RequestWithId = Request & { id?: string }
 @Controller('prompts')
 export class PromptController {
   constructor(
-    private readonly config: ConfigService,
-    private readonly adapters: ChatAdapterRegistry,
-    private readonly templates: PromptTemplateRegistry,
-    private readonly lifecycle: RequestLifecycleService,
-    private readonly rateLimit: RateLimitService,
-    private readonly pricing: PricingService,
+    @Inject(ConfigService) private readonly config: ConfigService,
+    @Inject(ChatAdapterRegistry) private readonly adapters: ChatAdapterRegistry,
+    @Inject(PromptTemplateRegistry) private readonly templates: PromptTemplateRegistry,
+    @Inject(RequestLifecycleService) private readonly lifecycle: RequestLifecycleService,
+    @Inject(RateLimitService) private readonly rateLimit: RateLimitService,
+    @Inject(PricingService) private readonly pricing: PricingService,
   ) {}
 
   @Post('optimize')

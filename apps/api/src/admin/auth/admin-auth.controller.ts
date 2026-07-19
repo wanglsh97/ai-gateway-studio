@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Req, Res } from '@nestjs/common'
+import { Body, Controller, Get, Inject, Post, Req, Res } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { ApiCookieAuth, ApiTags } from '@nestjs/swagger'
 import type { Request, Response } from 'express'
@@ -15,9 +15,9 @@ export class AdminAuthController {
   private readonly production: boolean
 
   constructor(
-    private readonly auth: AdminAuthService,
-    private readonly rateLimit: RateLimitService,
-    config: ConfigService,
+    @Inject(AdminAuthService) private readonly auth: AdminAuthService,
+    @Inject(RateLimitService) private readonly rateLimit: RateLimitService,
+    @Inject(ConfigService) config: ConfigService,
   ) {
     this.production = config.get<string>('NODE_ENV') === 'production'
   }

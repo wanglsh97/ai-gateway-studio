@@ -1,5 +1,5 @@
 import type { CanActivate, ExecutionContext } from '@nestjs/common'
-import { Injectable } from '@nestjs/common'
+import { Inject, Injectable } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
 import type { Request } from 'express'
 
@@ -12,8 +12,8 @@ export type AdminRequest = Request & { adminSession?: AdminSession }
 @Injectable()
 export class AdminGuard implements CanActivate {
   constructor(
-    private readonly reflector: Reflector,
-    private readonly auth: AdminAuthService,
+    @Inject(Reflector) private readonly reflector: Reflector,
+    @Inject(AdminAuthService) private readonly auth: AdminAuthService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {

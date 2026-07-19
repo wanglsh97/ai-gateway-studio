@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common'
+import { Inject, Injectable } from '@nestjs/common'
 
 import { TEXT_MODEL_ALIASES } from '../../chat/chat.constants'
 import { ProviderHealthService } from '../../chat/provider-health.service'
@@ -10,8 +10,8 @@ const DAY_MS = 24 * 60 * 60 * 1_000
 @Injectable()
 export class AdminDashboardService {
   constructor(
-    private readonly prisma: PrismaService,
-    private readonly health: ProviderHealthService,
+    @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(ProviderHealthService) private readonly health: ProviderHealthService,
   ) {}
 
   async overview() {

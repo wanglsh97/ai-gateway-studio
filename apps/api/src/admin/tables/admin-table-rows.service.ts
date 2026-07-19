@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common'
 
 import { PrismaService } from '../../database/prisma.service'
 import { AdminAuditAction, Prisma } from '../../generated/prisma/client'
@@ -15,8 +15,8 @@ export interface AdminMutationContext {
 @Injectable()
 export class AdminTableRowsService {
   constructor(
-    private readonly prisma: PrismaService,
-    private readonly allowlist: AdminTableAllowlist,
+    @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(AdminTableAllowlist) private readonly allowlist: AdminTableAllowlist,
   ) {}
 
   async list(tableName: string, query: AdminTableRowsQueryDto) {

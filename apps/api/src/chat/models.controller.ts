@@ -1,5 +1,5 @@
 import type { ImageModelAlias, ModelSummary, TextModelAlias } from '@aigateway/sdk'
-import { Controller, Get } from '@nestjs/common'
+import { Controller, Get, Inject } from '@nestjs/common'
 
 import { ImageAdapterRegistry } from '../image/adapters/image-adapter.registry'
 import { ChatAdapterRegistry } from './adapters/chat-adapter.registry'
@@ -15,9 +15,9 @@ const MODEL_DISPLAY_NAMES: Readonly<Record<TextModelAlias, string>> = {
 @Controller('models')
 export class ModelsController {
   constructor(
-    private readonly adapters: ChatAdapterRegistry,
-    private readonly providerHealth: ProviderHealthService,
-    private readonly imageAdapters: ImageAdapterRegistry,
+    @Inject(ChatAdapterRegistry) private readonly adapters: ChatAdapterRegistry,
+    @Inject(ProviderHealthService) private readonly providerHealth: ProviderHealthService,
+    @Inject(ImageAdapterRegistry) private readonly imageAdapters: ImageAdapterRegistry,
   ) {}
 
   @Get()

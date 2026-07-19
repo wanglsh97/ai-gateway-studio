@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common'
 
 import { PrismaService } from '../../database/prisma.service'
 import { RequestCapability, RequestStatus } from '../../generated/prisma/client'
@@ -20,7 +20,7 @@ const STATUS = {
 
 @Injectable()
 export class AdminRequestLogsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
   async list(query: RequestLogQueryDto) {
     const page = query.page ?? 1

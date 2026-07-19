@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Inject,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -24,8 +25,8 @@ type AdminMutationRequest = AdminRequest & { id?: string }
 @Controller('admin/tables')
 export class AdminTablesController {
   constructor(
-    private readonly allowlist: AdminTableAllowlist,
-    private readonly rows: AdminTableRowsService,
+    @Inject(AdminTableAllowlist) private readonly allowlist: AdminTableAllowlist,
+    @Inject(AdminTableRowsService) private readonly rows: AdminTableRowsService,
   ) {}
 
   @Get()

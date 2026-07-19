@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common'
+import { Inject, Injectable } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 
 import { Prisma } from '../generated/prisma/client'
@@ -15,7 +15,7 @@ const PRICE_KEYS = {
 
 @Injectable()
 export class PricingService {
-  constructor(private readonly config: ConfigService) {}
+  constructor(@Inject(ConfigService) private readonly config: ConfigService) {}
 
   calculate(provider: ChatAdapterId, usage: ChatAdapterUsage): RequestLifecycleUsage {
     if (usage.usageUnknown || usage.inputTokens === null || usage.outputTokens === null) {

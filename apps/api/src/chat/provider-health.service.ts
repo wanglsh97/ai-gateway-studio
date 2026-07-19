@@ -1,6 +1,6 @@
 import type { ChatAdapterId } from './chat.constants'
 import type { ModelSummary } from '@aigateway/sdk'
-import { Injectable, Logger } from '@nestjs/common'
+import { Inject, Injectable, Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 
 import { RedisService } from '../redis/redis.service'
@@ -29,8 +29,8 @@ export class ProviderHealthService {
   private readonly failureThreshold: number
 
   constructor(
-    private readonly redis: RedisService,
-    config: ConfigService,
+    @Inject(RedisService) private readonly redis: RedisService,
+    @Inject(ConfigService) config: ConfigService,
   ) {
     this.ttlSeconds = config.get<number>('PROVIDER_HEALTH_TTL_SECONDS', 300)
     this.failureThreshold = config.get<number>('PROVIDER_HEALTH_FAILURE_THRESHOLD', 3)

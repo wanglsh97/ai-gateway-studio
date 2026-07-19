@@ -1,6 +1,11 @@
 import { timingSafeEqual } from 'node:crypto'
 
-import { Injectable, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common'
+import {
+  Inject,
+  Injectable,
+  ServiceUnavailableException,
+  UnauthorizedException,
+} from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { JwtService } from '@nestjs/jwt'
 import type { CookieOptions } from 'express'
@@ -26,8 +31,8 @@ export class AdminAuthService {
   private readonly fixedCredentialsEnabled: boolean
 
   constructor(
-    private readonly jwt: JwtService,
-    config: ConfigService,
+    @Inject(JwtService) private readonly jwt: JwtService,
+    @Inject(ConfigService) config: ConfigService,
   ) {
     this.secret = config.getOrThrow<string>('ADMIN_SESSION_SECRET')
     this.ttlSeconds = config.get<number>('ADMIN_SESSION_TTL_SECONDS', 900)
