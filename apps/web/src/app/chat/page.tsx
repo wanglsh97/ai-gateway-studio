@@ -10,6 +10,7 @@ import type { ChatViewMessage } from './chat-view-state'
 import { chatViewReducer, initialChatViewState, readableChatError } from './chat-view-state'
 import { AssistantMarkdown } from './assistant-markdown'
 import { ProtectedUserPage } from '../../components/protected-user-page'
+import { useAuthenticationFailure } from '../../components/use-authentication-failure'
 
 const client = createAIGatewayClient()
 const examples = ['解释什么是 API 网关', '为周末杭州之旅列一个计划', '用简单比喻介绍大语言模型']
@@ -29,6 +30,7 @@ export default function ChatPage() {
 }
 
 function ChatContent() {
+  const handleAuthenticationFailure = useAuthenticationFailure()
   const [input, setInput] = useState('')
   const [selectedModel, setSelectedModel] = useState<TextModelAlias>('kimi')
   const [modelOptions, setModelOptions] = useState(fallbackModelOptions)
@@ -108,7 +110,9 @@ function ChatContent() {
         }
       }
     } catch (error) {
-      if (!controller.signal.aborted) dispatch({ type: 'fail', message: readableChatError(error) })
+      if (!controller.signal.aborted && !handleAuthenticationFailure(error)) {
+        dispatch({ type: 'fail', message: readableChatError(error) })
+      }
     } finally {
       if (activeRequest.current === controller) activeRequest.current = null
     }

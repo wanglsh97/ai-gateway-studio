@@ -19,6 +19,7 @@ import {
   upsertImageHistory,
 } from './image-history'
 import { ProtectedUserPage } from '../../components/protected-user-page'
+import { useAuthenticationFailure } from '../../components/use-authentication-failure'
 
 const client = createAIGatewayClient()
 const examples = ['雨后江南古镇，水墨画风格', 'A tiny astronaut tending flowers on Mars']
@@ -33,6 +34,7 @@ export default function ImagePage() {
 }
 
 function ImageContent() {
+  const handleAuthenticationFailure = useAuthenticationFailure()
   const [models, setModels] = useState<ModelSummary[]>([])
   const [model, setModel] = useState<ImageModelAlias>('wanxiang')
   const [prompt, setPrompt] = useState('')
@@ -130,6 +132,8 @@ function ImageContent() {
     } catch (error) {
       if (controller.signal.aborted) {
         setPageStatus('cancelled')
+      } else if (handleAuthenticationFailure(error)) {
+        setPageStatus('idle')
       } else if (error instanceof AIGatewayTimeoutError) {
         setPageStatus('timeout')
       } else {

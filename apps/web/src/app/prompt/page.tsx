@@ -6,6 +6,7 @@ import { useState } from 'react'
 
 import { AssistantMarkdown } from '../chat/assistant-markdown'
 import { ProtectedUserPage } from '../../components/protected-user-page'
+import { useAuthenticationFailure } from '../../components/use-authentication-failure'
 
 const client = createAIGatewayClient()
 
@@ -30,6 +31,7 @@ export default function PromptPage() {
 }
 
 function PromptContent() {
+  const handleAuthenticationFailure = useAuthenticationFailure()
   const [prompt, setPrompt] = useState('')
   const [mode, setMode] = useState<PromptOptimizationMode>('expand')
   const [submittedPrompt, setSubmittedPrompt] = useState('')
@@ -52,7 +54,9 @@ function PromptContent() {
     try {
       setResult(await client.prompts.optimize({ prompt: original, mode: selectedMode }))
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Prompt 优化失败')
+      if (!handleAuthenticationFailure(cause)) {
+        setError(cause instanceof Error ? cause.message : 'Prompt 优化失败')
+      }
     } finally {
       setLoading(false)
     }

@@ -10,6 +10,7 @@ import { AssistantMarkdown } from '../assistant-markdown'
 import type { CompareColumn } from './compare-state'
 import { compareReducer, initialCompareState } from './compare-state'
 import { ProtectedUserPage } from '../../../components/protected-user-page'
+import { useAuthenticationFailure } from '../../../components/use-authentication-failure'
 
 const client = createAIGatewayClient()
 
@@ -22,6 +23,7 @@ export default function ChatComparePage() {
 }
 
 function ChatCompareContent() {
+  const handleAuthenticationFailure = useAuthenticationFailure()
   const [prompt, setPrompt] = useState('')
   const [models, setModels] = useState<ModelSummary[]>([])
   const [selected, setSelected] = useState<TextModelAlias[]>([])
@@ -86,6 +88,7 @@ function ChatCompareContent() {
       for await (const event of events) dispatch({ type: 'event', model, event })
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return
+      if (handleAuthenticationFailure(error)) return
       dispatch({
         type: 'fail',
         model,
