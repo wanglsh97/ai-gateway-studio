@@ -49,14 +49,23 @@ function RouteMap() {
           <span className="route-source-caret" aria-hidden="true" />
         </div>
 
-        <div className="route-lines" aria-hidden="true">
-          <span className="route-line route-line-one" />
-          <span className="route-line route-line-two" />
-          <span className="route-line route-line-three" />
-          <span className="route-packet route-packet-one" />
-          <span className="route-packet route-packet-two" />
-          <span className="route-packet route-packet-three" />
-        </div>
+        <svg
+          className="route-lines"
+          viewBox="0 0 100 100"
+          preserveAspectRatio="none"
+          aria-hidden="true"
+        >
+          <path className="route-path" d="M 41 20 H 50 V 32" />
+          <path className="route-path" d="M 50 50 V 74 H 60" />
+          <path className="route-path" d="M 60 62 V 86" />
+          <path className="route-path" d="M 60 62 H 64" />
+          <path className="route-path" d="M 60 74 H 64" />
+          <path className="route-path" d="M 60 86 H 64" />
+          <circle className="route-junction route-junction-violet" cx="41" cy="20" r="0.75" />
+          <circle className="route-junction route-junction-mint" cx="64" cy="62" r="0.75" />
+          <circle className="route-junction route-junction-coral" cx="64" cy="74" r="0.75" />
+          <circle className="route-junction route-junction-violet" cx="64" cy="86" r="0.75" />
+        </svg>
 
         <div className="route-gateway">
           <span className="gateway-mark">

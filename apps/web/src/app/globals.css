@@ -247,13 +247,20 @@ body {
 .route-stage {
   position: relative;
   z-index: 1;
+  display: grid;
+  grid-template-columns: 1fr 7rem 1fr;
+  grid-template-rows: auto 1fr auto;
   min-height: 27rem;
+  padding: 3rem 2rem 2.3rem;
 }
 .route-source {
-  position: absolute;
-  top: 3rem;
-  left: 2rem;
+  position: relative;
+  z-index: 2;
+  grid-column: 1;
+  grid-row: 1;
+  align-self: start;
   width: 13rem;
+  max-width: 100%;
   padding: 1rem;
   border: 1px solid #44395f;
   border-radius: 0.4rem;
@@ -281,10 +288,13 @@ body {
   animation: caret-blink 1s step-end infinite;
 }
 .route-gateway {
-  position: absolute;
-  top: 11.15rem;
-  left: calc(50% - 3.25rem);
+  position: relative;
+  z-index: 2;
   display: grid;
+  grid-column: 2;
+  grid-row: 2;
+  align-self: center;
+  justify-self: center;
   width: 6.5rem;
   place-items: center;
   gap: 0.5rem;
@@ -315,12 +325,16 @@ body {
   transform: rotate(-45deg);
 }
 .route-providers {
-  position: absolute;
-  right: 2rem;
-  bottom: 2.3rem;
+  position: relative;
+  z-index: 2;
   display: grid;
+  grid-column: 3;
+  grid-row: 3;
+  align-self: end;
+  justify-self: end;
   gap: 0.65rem;
   width: 11rem;
+  max-width: 100%;
 }
 .provider-chip {
   display: grid;
@@ -351,58 +365,35 @@ body {
 .provider-dot-3 {
   background: #9a86ff;
 }
-.route-lines span {
+.route-lines {
   position: absolute;
-  display: block;
+  z-index: 1;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
 }
-.route-line {
-  border-color: #493e61;
-  border-style: solid;
+.route-path {
+  fill: none;
+  stroke: #493e61;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
 }
-.route-line-one {
-  top: 7.3rem;
-  left: 15rem;
-  width: calc(50% - 15rem);
-  height: 6rem;
-  border-width: 1px 1px 0 0;
+.route-junction {
+  filter: drop-shadow(0 0 2px currentColor);
 }
-.route-line-two {
-  top: 15.2rem;
-  left: 50%;
-  right: 13rem;
-  height: 7.7rem;
-  border-width: 0 1px 1px 0;
+.route-junction-violet {
+  color: #9a86ff;
+  fill: #9a86ff;
 }
-.route-line-three {
-  top: 15.2rem;
-  left: 50%;
-  right: 13rem;
-  height: 4rem;
-  border-width: 0 1px 1px 0;
+.route-junction-mint {
+  color: #53d6bd;
+  fill: #53d6bd;
 }
-.route-packet {
-  width: 0.42rem;
-  height: 0.42rem;
-  border-radius: 50%;
-  background: #9a86ff;
-  box-shadow: 0 0 10px #9a86ff;
-}
-.route-packet-one {
-  top: 7.12rem;
-  left: 15rem;
-  animation: packet-one 3.5s linear infinite;
-}
-.route-packet-two {
-  bottom: 4.85rem;
-  right: 12.8rem;
-  background: #ff896f;
-  box-shadow: 0 0 10px #ff896f;
-  animation: packet-two 3s linear infinite 0.4s;
-}
-.route-packet-three {
-  bottom: 8.55rem;
-  right: 12.8rem;
-  animation: packet-three 3.2s linear infinite 1s;
+.route-junction-coral {
+  color: #ff896f;
+  fill: #ff896f;
 }
 .route-console-foot {
   border-top: 1px solid #352c4d;
@@ -788,48 +779,6 @@ body {
     transform: rotate(45deg) translate(-3px, -3px);
   }
 }
-@keyframes packet-one {
-  0% {
-    transform: translateX(0);
-    opacity: 0;
-  }
-  10%,
-  80% {
-    opacity: 1;
-  }
-  100% {
-    transform: translateX(9rem);
-    opacity: 0;
-  }
-}
-@keyframes packet-two {
-  0% {
-    transform: translateX(0);
-    opacity: 0;
-  }
-  15%,
-  80% {
-    opacity: 1;
-  }
-  100% {
-    transform: translateX(9rem);
-    opacity: 0;
-  }
-}
-@keyframes packet-three {
-  0% {
-    transform: translateX(0);
-    opacity: 0;
-  }
-  15%,
-  80% {
-    opacity: 1;
-  }
-  100% {
-    transform: translateX(9rem);
-    opacity: 0;
-  }
-}
 @media (max-width: 980px) {
   .home-hero {
     grid-template-columns: 1fr;
@@ -907,43 +856,14 @@ body {
   }
   .route-stage {
     min-height: 23rem;
+    grid-template-columns: 1fr 5rem 1fr;
+    padding: 2rem 1rem 1.2rem;
   }
   .route-source {
-    top: 2rem;
-    left: 1rem;
-    width: 11.5rem;
-  }
-  .route-gateway {
-    top: 9rem;
+    width: 8rem;
   }
   .route-providers {
-    right: 1rem;
-    bottom: 1.2rem;
-    width: 10rem;
-  }
-  .route-line-one {
-    top: 6.2rem;
-    left: 12.5rem;
-    width: calc(50% - 12.5rem);
-    height: 5rem;
-  }
-  .route-line-two {
-    top: 13rem;
-    right: 11rem;
-    height: 6.5rem;
-  }
-  .route-line-three {
-    top: 13rem;
-    right: 11rem;
-    height: 3rem;
-  }
-  .route-packet-one {
-    top: 6rem;
-    left: 12.5rem;
-  }
-  .route-packet-two,
-  .route-packet-three {
-    right: 10.8rem;
+    width: 8rem;
   }
   .route-console-foot {
     gap: 0.5rem;
