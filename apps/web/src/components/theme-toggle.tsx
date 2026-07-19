@@ -22,7 +22,7 @@ export function ThemeToggle() {
   return (
     <button
       type="button"
-      className="order-2 grid h-9 w-9 place-items-center rounded-lg border border-slate-200 bg-white/75 text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:text-slate-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-500 sm:order-3 dark:border-white/10 dark:bg-white/5 dark:text-slate-300 dark:hover:text-white"
+      className="order-2 grid h-9 w-9 place-items-center rounded-md border border-[#dbe1ec] bg-white/75 text-slate-600 shadow-sm transition hover:-translate-y-0.5 hover:border-[#335dff] hover:text-[#335dff] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#335dff] sm:order-3 dark:border-[#263149] dark:bg-white/5 dark:text-slate-300 dark:hover:text-white"
       aria-label={`切换到${nextTheme === 'dark' ? '暗色' : '亮色'}主题`}
       title={`切换到${nextTheme === 'dark' ? '暗色' : '亮色'}主题`}
       onClick={() => {

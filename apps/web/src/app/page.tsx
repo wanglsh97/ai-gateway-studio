@@ -3,143 +3,175 @@ import Link from 'next/link'
 const capabilities = [
   {
     name: 'Chat',
-    eyebrow: 'STREAM',
-    description: '与统一文本模型实时对话，后续可并排比较多个模型的回答。',
+    label: '实时对话',
+    description: '流式回答、模型切换与多路对比，在一次对话里看清差异。',
     href: '/chat',
-    accent: 'from-cyan-400 to-blue-500',
+    color: 'blue',
+    icon: '⌁',
   },
   {
-    name: '文生图',
-    eyebrow: 'IMAGINE',
-    description: '用自然语言提交图片任务，在一个页面追踪进度并获取结果。',
+    name: 'Image',
+    label: '文生图',
+    description: '写下画面，选择模型，持续追踪从生成到下载的完整过程。',
     href: '/image',
-    accent: 'from-violet-400 to-fuchsia-500',
+    color: 'orange',
+    icon: '◇',
   },
   {
-    name: 'Prompt 优化',
-    eyebrow: 'REFINE',
-    description: '围绕扩写、精简与结构化三种模式，快速打磨原始想法。',
+    name: 'Prompt',
+    label: '提示词优化',
+    description: '扩写、精简或结构化，让一个模糊念头变成可执行指令。',
     href: '/prompt',
-    accent: 'from-amber-300 to-orange-500',
+    color: 'cyan',
+    icon: '✦',
   },
 ]
 
+const providers = ['Qwen', 'GLM', 'DeepSeek']
+
+function RouteMap() {
+  return (
+    <div className="route-console" aria-label="请求经过统一网关分发至多个模型的示意图">
+      <div className="route-console-head">
+        <div className="route-console-status">
+          <span className="status-pulse" />
+          Gateway online
+        </div>
+        <span>CN / EAST-1</span>
+      </div>
+
+      <div className="route-stage">
+        <div className="route-source">
+          <span className="route-node-label">YOUR REQUEST</span>
+          <strong>说出你的想法</strong>
+          <span className="route-source-caret" aria-hidden="true" />
+        </div>
+
+        <div className="route-lines" aria-hidden="true">
+          <span className="route-line route-line-one" />
+          <span className="route-line route-line-two" />
+          <span className="route-line route-line-three" />
+          <span className="route-packet route-packet-one" />
+          <span className="route-packet route-packet-two" />
+          <span className="route-packet route-packet-three" />
+        </div>
+
+        <div className="route-gateway">
+          <span className="gateway-mark">
+            <b>AG</b>
+          </span>
+          <span>统一网关</span>
+        </div>
+
+        <div className="route-providers">
+          {providers.map((provider, index) => (
+            <div className="provider-chip" key={provider}>
+              <span className={`provider-dot provider-dot-${index + 1}`} />
+              <span>{provider}</span>
+              <small>{index === 0 ? '12ms' : index === 1 ? '18ms' : '24ms'}</small>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="route-console-foot">
+        <span>统一协议</span>
+        <span>流式响应</span>
+        <span>费用可见</span>
+      </div>
+    </div>
+  )
+}
+
 export default function HomePage() {
   return (
-    <main className="overflow-hidden">
-      <section className="relative px-5 pb-20 pt-20 sm:px-8 sm:pb-28 sm:pt-28 lg:px-10">
-        <div className="hero-orb hero-orb-primary" aria-hidden="true" />
-        <div className="hero-orb hero-orb-secondary" aria-hidden="true" />
+    <main className="home-shell">
+      <section className="home-hero">
+        <div className="home-hero-copy">
+          <p className="home-kicker">
+            <span>AI 能力入口</span>
+            <span className="home-kicker-line" />
+            <span>稳定运行中</span>
+          </p>
+          <h1>
+            一个入口，
+            <br />
+            <span>调动每一种</span> AI。
+          </h1>
+          <p className="home-intro">
+            对话、图像与 Prompt
+            优化都从这里开始。你只需要描述目标，底层模型、流式传输和费用记录交给网关处理。
+          </p>
 
-        <div className="relative mx-auto max-w-6xl">
-          <div className="max-w-4xl">
-            <p className="inline-flex items-center gap-2 rounded-full border border-slate-200/80 bg-white/70 px-3 py-1.5 text-xs font-semibold tracking-[0.16em] text-slate-600 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_10px_rgb(16_185_129_/_0.8)]" />
-              统一模型能力 · 一个入口
-            </p>
-            <h1 className="mt-7 text-balance text-5xl font-semibold leading-[1.03] tracking-[-0.045em] text-slate-950 sm:text-7xl lg:text-[5.5rem] dark:text-white">
-              把模型能力，变成
-              <span className="title-gradient block">稳定的产品接口。</span>
-            </h1>
-            <p className="mt-7 max-w-2xl text-pretty text-base leading-8 text-slate-600 sm:text-lg dark:text-slate-300">
-              在同一个站点体验对话、文生图与 Prompt
-              优化。页面只面对统一网关，模型差异、调用记录与费用估算都留在服务端处理。
-            </p>
-
-            <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-              <Link
-                href="/chat"
-                className="group inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-slate-950 px-5 text-sm font-semibold text-white shadow-lg shadow-slate-950/15 transition hover:-translate-y-0.5 hover:bg-slate-800 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-cyan-500 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-100"
-              >
-                开始体验 Chat
-                <span
-                  aria-hidden="true"
-                  className="transition-transform group-hover:translate-x-0.5"
-                >
-                  →
-                </span>
-              </Link>
-              <a
-                href="#capabilities"
-                className="inline-flex min-h-12 items-center justify-center rounded-xl border border-slate-200 bg-white/70 px-5 text-sm font-semibold text-slate-700 shadow-sm backdrop-blur transition hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-cyan-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-200 dark:hover:bg-white/10"
-              >
-                查看三项能力
-              </a>
-            </div>
+          <div className="home-actions">
+            <Link href="/chat" className="home-primary-action">
+              <span>开始对话</span>
+              <span className="action-arrow" aria-hidden="true">
+                ↗
+              </span>
+            </Link>
+            <a href="#capabilities" className="home-text-action">
+              浏览全部能力
+              <span aria-hidden="true">↓</span>
+            </a>
           </div>
 
-          <div className="mt-14 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs font-medium text-slate-500 sm:mt-20 dark:text-slate-400">
-            {['Web', '@aigateway/sdk', 'NestJS', 'Model Adapter'].map((item, index) => (
-              <div key={item} className="contents">
-                {index > 0 && (
-                  <span className="text-slate-300 dark:text-slate-700" aria-hidden="true">
-                    /
-                  </span>
-                )}
-                <span className="rounded-md border border-slate-200/80 bg-white/60 px-2.5 py-1.5 dark:border-white/10 dark:bg-white/5">
-                  {item}
+          <div className="home-proof" aria-label="平台特点">
+            <span>3 个文本模型</span>
+            <span>2 个图像模型</span>
+            <span>人民币费用估算</span>
+          </div>
+        </div>
+
+        <div className="home-hero-visual">
+          <RouteMap />
+          <p className="route-caption">一次请求，从统一入口抵达合适的模型。</p>
+        </div>
+      </section>
+
+      <section id="capabilities" className="capability-section">
+        <div className="capability-heading">
+          <p className="section-kicker">选择你的起点</p>
+          <h2>把想法交给合适的能力。</h2>
+          <p>三个入口共享同一套模型网关，每一个都为具体任务保留最顺手的交互。</p>
+        </div>
+
+        <div className="capability-grid">
+          {capabilities.map((capability) => (
+            <Link
+              key={capability.name}
+              href={capability.href}
+              className={`home-capability home-capability-${capability.color}`}
+            >
+              <div className="capability-card-top">
+                <span className="capability-icon" aria-hidden="true">
+                  {capability.icon}
+                </span>
+                <span className="capability-link-arrow" aria-hidden="true">
+                  ↗
                 </span>
               </div>
-            ))}
-          </div>
+              <div>
+                <p className="capability-name">{capability.name}</p>
+                <h3>{capability.label}</h3>
+                <p className="capability-description">{capability.description}</p>
+              </div>
+            </Link>
+          ))}
         </div>
       </section>
 
-      <section
-        id="capabilities"
-        className="border-y border-slate-200/70 bg-white/55 px-5 py-20 backdrop-blur-sm sm:px-8 lg:px-10 dark:border-white/10 dark:bg-white/[0.025]"
-      >
-        <div className="mx-auto max-w-6xl">
-          <div className="max-w-2xl">
-            <p className="text-xs font-bold tracking-[0.2em] text-cyan-700 dark:text-cyan-300">
-              EXPLORE
-            </p>
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl dark:text-white">
-              三种能力，一套清晰体验
-            </h2>
-            <p className="mt-4 leading-7 text-slate-600 dark:text-slate-400">
-              每项能力共享模型网关和可观测链路，但保留适合各自任务的交互方式。
-            </p>
-          </div>
-
-          <div className="mt-10 grid gap-4 md:grid-cols-3">
-            {capabilities.map((capability, index) => (
-              <Link
-                key={capability.name}
-                href={capability.href}
-                className="capability-card group relative min-h-64 overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm transition duration-300 hover:-translate-y-1 hover:border-slate-300 hover:shadow-xl hover:shadow-slate-900/5 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-cyan-500 dark:border-white/10 dark:bg-slate-900/70 dark:hover:border-white/20"
-              >
-                <div className={`h-1 w-12 rounded-full bg-gradient-to-r ${capability.accent}`} />
-                <div className="mt-8 flex items-start justify-between gap-4">
-                  <div>
-                    <p className="text-[0.68rem] font-bold tracking-[0.18em] text-slate-400 dark:text-slate-500">
-                      {capability.eyebrow}
-                    </p>
-                    <h3 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950 dark:text-white">
-                      {capability.name}
-                    </h3>
-                  </div>
-                  <span
-                    className="text-4xl font-light text-slate-200 transition group-hover:translate-x-1 group-hover:text-slate-400 dark:text-slate-700 dark:group-hover:text-slate-500"
-                    aria-hidden="true"
-                  >
-                    0{index + 1}
-                  </span>
-                </div>
-                <p className="mt-6 text-sm leading-7 text-slate-600 dark:text-slate-400">
-                  {capability.description}
-                </p>
-                <span className="absolute bottom-6 left-6 text-sm font-semibold text-slate-900 dark:text-slate-100">
-                  进入体验 <span aria-hidden="true">↗</span>
-                </span>
-              </Link>
-            ))}
-          </div>
-        </div>
+      <section className="home-manifesto">
+        <p>不必理解每一家模型。</p>
+        <p>只需选择你想完成的事。</p>
+        <Link href="/chat">
+          现在开始 <span aria-hidden="true">→</span>
+        </Link>
       </section>
 
-      <footer className="px-5 py-8 text-center text-xs text-slate-500 sm:px-8 dark:text-slate-500">
-        AI Gateway Studio · 统一协议，独立模型，自由演进
+      <footer className="home-footer">
+        <span>AI Gateway Studio</span>
+        <span>One interface. Many intelligences.</span>
       </footer>
     </main>
   )

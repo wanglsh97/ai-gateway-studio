@@ -40,15 +40,15 @@ export function SiteHeader() {
   }
 
   return (
-    <header className="sticky top-0 z-50 border-b border-slate-200/70 bg-slate-50/80 px-5 py-3 backdrop-blur-xl sm:px-8 lg:px-10 dark:border-white/10 dark:bg-[#060914]/80">
+    <header className="sticky top-0 z-50 border-b border-[#dbe1ec]/90 bg-[#f5f7fb]/85 px-5 py-3 backdrop-blur-xl sm:px-8 lg:px-10 dark:border-[#263149] dark:bg-[#080d19]/85">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-5">
         <Link
           href="/"
           className="inline-flex items-center gap-2.5 rounded-md font-semibold tracking-tight text-slate-950 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-cyan-500 dark:text-white"
           aria-label="AI Gateway Studio 首页"
         >
-          <span className="grid h-8 w-8 place-items-center rounded-lg bg-slate-950 text-xs font-bold text-white shadow-sm dark:bg-white dark:text-slate-950">
-            AG
+          <span className="grid h-8 w-8 rotate-45 place-items-center rounded-[0.55rem] bg-[#335dff] text-xs font-bold text-white shadow-sm">
+            <span className="-rotate-45">AG</span>
           </span>
           <span className="hidden min-[420px]:inline">AI Gateway Studio</span>
           <span className="min-[420px]:hidden">AI Gateway</span>
