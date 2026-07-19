@@ -1,20 +1,27 @@
 'use client'
 
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
-import { useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { useEffect, useState } from 'react'
 
 import {
   githubLoginUrl,
   sanitizeUserReturnTo,
   userLoginErrorMessage,
 } from '../../lib/user-auth-client'
+import { useUserSession } from '../../components/user-session-provider'
 
 export function LoginContent() {
   const searchParams = useSearchParams()
+  const router = useRouter()
+  const session = useUserSession()
   const [leaving, setLeaving] = useState(false)
   const returnTo = sanitizeUserReturnTo(searchParams.get('returnTo'))
   const errorMessage = userLoginErrorMessage(searchParams.get('error'))
+
+  useEffect(() => {
+    if (session.status === 'authenticated') router.replace(returnTo)
+  }, [returnTo, router, session.status])
 
   return (
     <main className="px-5 py-16 sm:px-8 sm:py-24 lg:px-10">
@@ -45,14 +52,22 @@ export function LoginContent() {
           <span aria-hidden="true" className="text-lg">
             ◉
           </span>
-          {leaving ? '正在前往 GitHub…' : errorMessage ? '重新使用 GitHub 登录' : '使用 GitHub 登录'}
+          {leaving
+            ? '正在前往 GitHub…'
+            : errorMessage
+              ? '重新使用 GitHub 登录'
+              : '使用 GitHub 登录'}
         </a>
 
         <p className="mt-5 text-xs leading-6 text-slate-500 dark:text-slate-400">
-          GitHub 将提示授权读取公开资料和邮箱列表。邮箱不存在或未公开时仍可登录；本站只保存已验证的主邮箱。
+          GitHub
+          将提示授权读取公开资料和邮箱列表。邮箱不存在或未公开时仍可登录；本站只保存已验证的主邮箱。
         </p>
         <div className="mt-7 border-t border-slate-200 pt-5 text-center text-sm dark:border-white/10">
-          <Link className="text-slate-600 underline-offset-4 hover:underline dark:text-slate-300" href="/">
+          <Link
+            className="text-slate-600 underline-offset-4 hover:underline dark:text-slate-300"
+            href="/"
+          >
             返回首页
           </Link>
         </div>

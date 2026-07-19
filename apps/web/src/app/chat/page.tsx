@@ -9,6 +9,7 @@ import { useEffect, useReducer, useRef, useState } from 'react'
 import type { ChatViewMessage } from './chat-view-state'
 import { chatViewReducer, initialChatViewState, readableChatError } from './chat-view-state'
 import { AssistantMarkdown } from './assistant-markdown'
+import { ProtectedUserPage } from '../../components/protected-user-page'
 
 const client = createAIGatewayClient()
 const examples = ['解释什么是 API 网关', '为周末杭州之旅列一个计划', '用简单比喻介绍大语言模型']
@@ -20,6 +21,14 @@ const fallbackModelOptions: ReadonlyArray<{ value: TextModelAlias; label: string
 ]
 
 export default function ChatPage() {
+  return (
+    <ProtectedUserPage>
+      <ChatContent />
+    </ProtectedUserPage>
+  )
+}
+
+function ChatContent() {
   const [input, setInput] = useState('')
   const [selectedModel, setSelectedModel] = useState<TextModelAlias>('kimi')
   const [modelOptions, setModelOptions] = useState(fallbackModelOptions)

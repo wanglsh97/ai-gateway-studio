@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
 
 import { SiteHeader } from '../components/site-header'
+import { UserSessionProvider } from '../components/user-session-provider'
 
 import './globals.css'
 
@@ -32,8 +33,10 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body suppressHydrationWarning>
-        <SiteHeader />
-        {children}
+        <UserSessionProvider>
+          <SiteHeader />
+          {children}
+        </UserSessionProvider>
       </body>
     </html>
   )

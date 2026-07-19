@@ -5,6 +5,7 @@ import type { OptimizePromptResult, PromptOptimizationMode } from '@aigateway/sd
 import { useState } from 'react'
 
 import { AssistantMarkdown } from '../chat/assistant-markdown'
+import { ProtectedUserPage } from '../../components/protected-user-page'
 
 const client = createAIGatewayClient()
 
@@ -21,6 +22,14 @@ const examples = [
 ]
 
 export default function PromptPage() {
+  return (
+    <ProtectedUserPage>
+      <PromptContent />
+    </ProtectedUserPage>
+  )
+}
+
+function PromptContent() {
   const [prompt, setPrompt] = useState('')
   const [mode, setMode] = useState<PromptOptimizationMode>('expand')
   const [submittedPrompt, setSubmittedPrompt] = useState('')

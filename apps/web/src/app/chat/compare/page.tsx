@@ -9,10 +9,19 @@ import { useEffect, useReducer, useRef, useState } from 'react'
 import { AssistantMarkdown } from '../assistant-markdown'
 import type { CompareColumn } from './compare-state'
 import { compareReducer, initialCompareState } from './compare-state'
+import { ProtectedUserPage } from '../../../components/protected-user-page'
 
 const client = createAIGatewayClient()
 
 export default function ChatComparePage() {
+  return (
+    <ProtectedUserPage>
+      <ChatCompareContent />
+    </ProtectedUserPage>
+  )
+}
+
+function ChatCompareContent() {
   const [prompt, setPrompt] = useState('')
   const [models, setModels] = useState<ModelSummary[]>([])
   const [selected, setSelected] = useState<TextModelAlias[]>([])

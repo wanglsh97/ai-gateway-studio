@@ -18,12 +18,21 @@ import {
   readImageHistory,
   upsertImageHistory,
 } from './image-history'
+import { ProtectedUserPage } from '../../components/protected-user-page'
 
 const client = createAIGatewayClient()
 const examples = ['雨后江南古镇，水墨画风格', 'A tiny astronaut tending flowers on Mars']
 type PageStatus = 'idle' | 'submitting' | 'polling' | 'cancelled' | 'timeout' | 'error'
 
 export default function ImagePage() {
+  return (
+    <ProtectedUserPage>
+      <ImageContent />
+    </ProtectedUserPage>
+  )
+}
+
+function ImageContent() {
   const [models, setModels] = useState<ModelSummary[]>([])
   const [model, setModel] = useState<ImageModelAlias>('wanxiang')
   const [prompt, setPrompt] = useState('')
