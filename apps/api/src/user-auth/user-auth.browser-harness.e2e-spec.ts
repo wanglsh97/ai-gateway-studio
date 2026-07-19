@@ -3,6 +3,7 @@ import { Test } from '@nestjs/testing'
 import type { Express, Response } from 'express'
 
 import { configureApplication } from '../configure-app'
+import { RateLimitService } from '../rate-limit/rate-limit.service'
 import { GITHUB_OAUTH_CLIENT } from './user-auth.constants'
 
 const describeBrowserHarness = process.env.BROWSER_E2E_HARNESS === 'true' ? describe : describe.skip
@@ -19,6 +20,12 @@ describeBrowserHarness('User auth browser E2E harness', () => {
     process.env.GITHUB_CALLBACK_URL = 'http://localhost:3001/api/v1/auth/github/callback'
     const { AppModule } = await import('../app.module')
     const testingModule = await Test.createTestingModule({ imports: [AppModule] })
+      .overrideProvider(RateLimitService)
+      .useValue({
+        consumeChat: jest.fn().mockResolvedValue(undefined),
+        consumeImage: jest.fn().mockResolvedValue(undefined),
+        consumeAdminLogin: jest.fn().mockResolvedValue(undefined),
+      })
       .overrideProvider(GITHUB_OAUTH_CLIENT)
       .useValue({
         authenticate: jest.fn().mockResolvedValue({

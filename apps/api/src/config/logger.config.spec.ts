@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
+import pino from 'pino'
 
 import { createPinoHttpOptions } from './logger.config'
 
@@ -41,7 +42,39 @@ describe('authentication log redaction', () => {
         '*.accessToken',
         '*.sessionToken',
         '*.tokenHash',
+        '*.email',
       ]),
     )
+  })
+
+  it('removes user email and authentication credentials from serialized logs', () => {
+    let output = ''
+    const logger = pino(
+      { redact: createPinoHttpOptions().redact },
+      { write: (message: string) => (output += message) },
+    )
+
+    logger.info({
+      user: { email: 'private-octocat@example.test' },
+      auth: {
+        accessToken: 'github-access-token',
+        sessionToken: 'user-session-token',
+      },
+      req: {
+        headers: { cookie: 'aigateway_user_session=secret-cookie' },
+        query: { code: 'oauth-code', state: 'oauth-state' },
+      },
+    })
+
+    for (const secret of [
+      'private-octocat@example.test',
+      'github-access-token',
+      'user-session-token',
+      'secret-cookie',
+      'oauth-code',
+      'oauth-state',
+    ]) {
+      expect(output).not.toContain(secret)
+    }
   })
 })

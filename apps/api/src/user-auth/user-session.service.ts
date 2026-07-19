@@ -12,7 +12,6 @@ export interface AuthenticatedUser {
   githubUsername: string
   displayName: string | null
   avatarUrl: string | null
-  email: string | null
 }
 
 export interface UserSessionResult {
@@ -116,7 +115,6 @@ function toAuthenticatedUser(user: {
     githubUsername: user.githubUsername,
     displayName: user.displayName,
     avatarUrl: user.avatarUrl,
-    email: user.email,
   }
 }
 

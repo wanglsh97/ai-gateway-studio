@@ -9,6 +9,15 @@ export interface RequestLogFilters {
   model?: string
   status?: string
   requestId?: string
+  githubUsername?: string
+  githubId?: string
+}
+
+export interface RequestLogUserSummary {
+  id: string
+  githubId: string
+  githubUsername: string
+  avatarUrl: string | null
 }
 
 export interface RequestLogListItem {
@@ -23,6 +32,7 @@ export interface RequestLogListItem {
   durationMs: number | null
   errorCode: string | null
   createdAt: string
+  user: RequestLogUserSummary
   billing: {
     inputTokens: number | null
     outputTokens: number | null
@@ -53,6 +63,10 @@ export interface RequestLogDetail extends Omit<RequestLogListItem, 'billing'> {
   errorDetails: unknown
   metadata: unknown
   updatedAt: string
+  user: RequestLogUserSummary & {
+    displayName: string | null
+    email: string | null
+  }
   billing: Record<string, unknown> | null
   imageTask: Record<string, unknown> | null
 }

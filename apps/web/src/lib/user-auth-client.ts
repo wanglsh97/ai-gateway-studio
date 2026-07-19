@@ -6,7 +6,6 @@ export interface UserSessionProfile {
   githubUsername: string
   displayName: string | null
   avatarUrl: string | null
-  email: string | null
 }
 
 export interface UserSessionResponse {

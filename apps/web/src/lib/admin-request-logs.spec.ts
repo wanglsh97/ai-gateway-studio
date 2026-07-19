@@ -8,14 +8,24 @@ describe('loadRequestLogs', () => {
   it('serializes non-empty filters and uses same-origin credentials', async () => {
     let call: { url: string; init?: RequestInit } | undefined
     await loadRequestLogs(
-      { page: 2, pageSize: 25, status: 'failed', model: '' },
+      {
+        page: 2,
+        pageSize: 25,
+        status: 'failed',
+        model: '',
+        githubUsername: 'octocat',
+        githubId: '12345678',
+      },
       async (input, init) => {
         call = { url: String(input), ...(init === undefined ? {} : { init }) }
         return Response.json({ items: [], page: 2, pageSize: 25, total: 0, pageCount: 0 })
       },
     )
 
-    assert.equal(call?.url, '/api/v1/admin/logs?page=2&pageSize=25&status=failed')
+    assert.equal(
+      call?.url,
+      '/api/v1/admin/logs?page=2&pageSize=25&status=failed&githubUsername=octocat&githubId=12345678',
+    )
     assert.equal(call?.init?.credentials, 'same-origin')
   })
 

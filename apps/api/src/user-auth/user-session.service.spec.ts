@@ -35,6 +35,7 @@ describe('UserSessionService', () => {
 
     expect(created.expiresAt).toEqual(new Date('2026-08-18T00:00:00.000Z'))
     expect(created.token).toMatch(/^[A-Za-z0-9_-]{43}$/)
+    expect(created.user).not.toHaveProperty('email')
     expect(transaction.userSession.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         userId: user.id,

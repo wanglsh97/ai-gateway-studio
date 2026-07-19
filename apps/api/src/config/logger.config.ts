@@ -22,6 +22,7 @@ export function createPinoHttpOptions() {
         '*.access_token',
         '*.sessionToken',
         '*.tokenHash',
+        '*.email',
       ],
       censor: '[REDACTED]',
     },

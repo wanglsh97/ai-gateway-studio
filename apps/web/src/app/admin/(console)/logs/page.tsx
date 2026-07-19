@@ -132,6 +132,25 @@ export default function AdminRequestLogsPage() {
           />
         </label>
         <label className="text-xs font-medium text-slate-500">
+          GitHub username
+          <input
+            value={draft.githubUsername ?? ''}
+            onChange={(event) => update('githubUsername', event.target.value)}
+            placeholder="octocat"
+            className="mt-1.5 min-h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm dark:border-white/10 dark:bg-slate-900"
+          />
+        </label>
+        <label className="text-xs font-medium text-slate-500">
+          GitHub ID
+          <input
+            inputMode="numeric"
+            value={draft.githubId ?? ''}
+            onChange={(event) => update('githubId', event.target.value)}
+            placeholder="数字 ID（精确匹配）"
+            className="mt-1.5 min-h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm dark:border-white/10 dark:bg-slate-900"
+          />
+        </label>
+        <label className="text-xs font-medium text-slate-500">
           开始时间
           <input
             type="datetime-local"
@@ -186,16 +205,24 @@ export default function AdminRequestLogsPage() {
           <p className="p-8 text-center text-slate-400">暂无匹配记录</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] text-left text-sm">
+            <table className="w-full min-w-[1100px] text-left text-sm">
               <thead className="bg-slate-100/80 text-xs text-slate-500 dark:bg-white/5">
                 <tr>
-                  {['时间', 'Request ID', '能力', '模型', '状态', '耗时', 'Token', '费用'].map(
-                    (label) => (
-                      <th key={label} className="px-4 py-3 font-medium">
-                        {label}
-                      </th>
-                    ),
-                  )}
+                  {[
+                    '时间',
+                    'Request ID',
+                    '用户',
+                    '能力',
+                    '模型',
+                    '状态',
+                    '耗时',
+                    'Token',
+                    '费用',
+                  ].map((label) => (
+                    <th key={label} className="px-4 py-3 font-medium">
+                      {label}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-white/10">
@@ -212,6 +239,21 @@ export default function AdminRequestLogsPage() {
                       >
                         {item.requestId}
                       </button>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex min-w-40 items-center gap-2.5">
+                        <span className="grid size-8 shrink-0 place-items-center rounded-full bg-cyan-100 text-[10px] font-bold text-cyan-800 dark:bg-cyan-950 dark:text-cyan-200">
+                          {item.user.githubUsername.slice(0, 2).toUpperCase()}
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block truncate font-medium">
+                            @{item.user.githubUsername}
+                          </span>
+                          <span className="block font-mono text-[10px] text-slate-400">
+                            GitHub {item.user.githubId}
+                          </span>
+                        </span>
+                      </div>
                     </td>
                     <td className="px-4 py-3">{item.capability}</td>
                     <td className="px-4 py-3">{item.modelAlias}</td>
@@ -311,6 +353,11 @@ function DetailContent({ detail }: { detail: RequestLogDetail }) {
       <dl className="grid gap-4 sm:grid-cols-2">
         {[
           ['Request ID', detail.requestId],
+          ['GitHub username', `@${detail.user.githubUsername}`],
+          ['GitHub ID', detail.user.githubId],
+          ['平台用户 ID', detail.user.id],
+          ['昵称', detail.user.displayName],
+          ['邮箱（仅管理员详情）', detail.user.email],
           ['状态', detail.status],
           ['能力', detail.capability],
           ['模型 alias', detail.modelAlias],

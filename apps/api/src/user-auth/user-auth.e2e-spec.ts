@@ -19,7 +19,7 @@ describe('GitHub user authentication E2E', () => {
     githubUsername: 'octocat',
     displayName: 'The Octocat',
     avatarUrl: 'https://avatars.githubusercontent.com/u/12345678?v=4',
-    email: null,
+    email: 'private-octocat@example.test',
   })
 
   beforeAll(async () => {
@@ -73,7 +73,7 @@ describe('GitHub user authentication E2E', () => {
       prisma.user.findUnique({ where: { githubId: '12345678' } }),
     ).resolves.toMatchObject({
       githubUsername: 'octocat',
-      email: null,
+      email: 'private-octocat@example.test',
     })
     await expect(prisma.userSession.count()).resolves.toBe(1)
 
@@ -81,9 +81,11 @@ describe('GitHub user authentication E2E', () => {
       headers: { cookie: sessionCookie },
     })
     expect(session.status).toBe(200)
-    await expect(session.json()).resolves.toMatchObject({
+    const sessionBody = await session.json()
+    expect(sessionBody).toMatchObject({
       user: { githubId: '12345678', githubUsername: 'octocat' },
     })
+    expect(JSON.stringify(sessionBody)).not.toContain('private-octocat@example.test')
 
     const logout = await fetch(`${baseUrl}/api/v1/auth/logout`, {
       method: 'POST',
