@@ -18,6 +18,12 @@ const adminSessionSecret = z.preprocess(
   z.string().min(32),
 )
 
+const userSessionSecret = z.preprocess(
+  (value) =>
+    value === undefined || value === '' ? 'development-only-user-session-secret-change-me' : value,
+  z.string().min(32),
+)
+
 const optionalModelId = z.preprocess(
   (value) => (value === '' ? undefined : value),
   z.string().min(1).optional(),
@@ -46,6 +52,13 @@ const environmentSchema = z
     DATABASE_POOL_MAX: z.coerce.number().int().min(1).max(50).default(10),
     REDIS_URL: z.string().min(1, 'REDIS_URL 必填'),
     TRUSTED_PROXY_HOPS: z.coerce.number().int().min(0).max(5).default(1),
+    GITHUB_OAUTH_ENABLED: booleanFromEnv.default(false),
+    GITHUB_CLIENT_ID: optionalSecret,
+    GITHUB_CLIENT_SECRET: optionalSecret,
+    GITHUB_CALLBACK_URL: z.string().url().default('http://localhost:3001/api/v1/auth/github/callback'),
+    GITHUB_OAUTH_HTTP_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(30_000).default(10_000),
+    USER_SESSION_SECRET: userSessionSecret,
+    USER_SESSION_TTL_SECONDS: z.coerce.number().int().default(2_592_000),
     MOCK_PROVIDER_ENABLED: booleanFromEnv.default(true),
     QWEN_ENABLED: booleanFromEnv.default(false),
     GLM_ENABLED: booleanFromEnv.default(false),
@@ -104,6 +117,53 @@ const environmentSchema = z
     KIMI_OUTPUT_PRICE_CNY_PER_MILLION: optionalNonNegativeDecimal,
   })
   .superRefine((env, context) => {
+    if (env.USER_SESSION_TTL_SECONDS !== 2_592_000) {
+      context.addIssue({
+        code: 'custom',
+        path: ['USER_SESSION_TTL_SECONDS'],
+        message: '用户 Session 必须使用固定 30 天有效期（2592000 秒）',
+      })
+    }
+    if (env.GITHUB_OAUTH_ENABLED) {
+      if (!env.GITHUB_CLIENT_ID) {
+        context.addIssue({
+          code: 'custom',
+          path: ['GITHUB_CLIENT_ID'],
+          message: '启用 GitHub OAuth 时必须配置 Client ID',
+        })
+      }
+      if (!env.GITHUB_CLIENT_SECRET) {
+        context.addIssue({
+          code: 'custom',
+          path: ['GITHUB_CLIENT_SECRET'],
+          message: '启用 GitHub OAuth 时必须配置 Client Secret',
+        })
+      }
+    }
+    if (env.NODE_ENV === 'production' && !env.GITHUB_OAUTH_ENABLED) {
+      context.addIssue({
+        code: 'custom',
+        path: ['GITHUB_OAUTH_ENABLED'],
+        message: '生产环境必须启用 GitHub OAuth',
+      })
+    }
+    if (
+      env.NODE_ENV === 'production' &&
+      env.USER_SESSION_SECRET === 'development-only-user-session-secret-change-me'
+    ) {
+      context.addIssue({
+        code: 'custom',
+        path: ['USER_SESSION_SECRET'],
+        message: '生产环境必须配置独立的用户会话密钥',
+      })
+    }
+    if (env.NODE_ENV === 'production' && !env.GITHUB_CALLBACK_URL.startsWith('https://')) {
+      context.addIssue({
+        code: 'custom',
+        path: ['GITHUB_CALLBACK_URL'],
+        message: '生产环境 GitHub callback 必须使用 HTTPS',
+      })
+    }
     if (
       env.NODE_ENV === 'production' &&
       env.ADMIN_SESSION_SECRET === 'development-only-admin-session-secret-change-me'

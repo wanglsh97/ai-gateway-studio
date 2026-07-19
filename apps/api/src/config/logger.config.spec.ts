@@ -30,3 +30,18 @@ describe('request ID generation', () => {
     expect(response.setHeader).toHaveBeenCalledWith('x-request-id', requestId)
   })
 })
+
+describe('authentication log redaction', () => {
+  it('redacts OAuth codes, state, cookies, and token-shaped fields', () => {
+    expect(createPinoHttpOptions().redact.paths).toEqual(
+      expect.arrayContaining([
+        'req.query.code',
+        'req.query.state',
+        'req.headers.cookie',
+        '*.accessToken',
+        '*.sessionToken',
+        '*.tokenHash',
+      ]),
+    )
+  })
+})

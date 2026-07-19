@@ -20,6 +20,12 @@ describe('validateEnvironment', () => {
     expect(environment.COGVIEW_BASE_URL).toBe('https://open.bigmodel.cn/api/paas/v4')
     expect(environment.API_PORT).toBe(3001)
     expect(environment.TRUSTED_PROXY_HOPS).toBe(1)
+    expect(environment.GITHUB_OAUTH_ENABLED).toBe(false)
+    expect(environment.GITHUB_CALLBACK_URL).toBe(
+      'http://localhost:3001/api/v1/auth/github/callback',
+    )
+    expect(environment.GITHUB_OAUTH_HTTP_TIMEOUT_MS).toBe(10_000)
+    expect(environment.USER_SESSION_TTL_SECONDS).toBe(2_592_000)
     expect(environment.CHAT_RATE_LIMIT_PER_MINUTE).toBe(10)
     expect(environment.CHAT_MAX_TOKENS).toBe(4096)
     expect(environment.PROVIDER_TIMEOUT_MS).toBe(60_000)
@@ -73,11 +79,28 @@ describe('validateEnvironment', () => {
     )
   })
 
+  it('requires GitHub credentials when OAuth is enabled', () => {
+    expect(() =>
+      validateEnvironment({ ...requiredEnvironment, GITHUB_OAUTH_ENABLED: 'true' }),
+    ).toThrow('GITHUB_CLIENT_ID')
+  })
+
+  it('enforces the fixed 30-day user session lifetime', () => {
+    expect(() =>
+      validateEnvironment({ ...requiredEnvironment, USER_SESSION_TTL_SECONDS: '3600' }),
+    ).toThrow('USER_SESSION_TTL_SECONDS')
+  })
+
   it('blocks fixed development credentials in production', () => {
     expect(() =>
       validateEnvironment({
         ...requiredEnvironment,
         NODE_ENV: 'production',
+        GITHUB_OAUTH_ENABLED: 'true',
+        GITHUB_CLIENT_ID: 'github-client-id',
+        GITHUB_CLIENT_SECRET: 'github-client-secret',
+        GITHUB_CALLBACK_URL: 'https://example.com/api/v1/auth/github/callback',
+        USER_SESSION_SECRET: 'production-user-session-secret-with-32-characters',
         ADMIN_SESSION_SECRET: 'production-session-secret-with-32-characters',
       }),
     ).toThrow('ADMIN_FIXED_CREDENTIALS_ENABLED')
@@ -86,6 +109,11 @@ describe('validateEnvironment', () => {
       validateEnvironment({
         ...requiredEnvironment,
         NODE_ENV: 'production',
+        GITHUB_OAUTH_ENABLED: 'true',
+        GITHUB_CLIENT_ID: 'github-client-id',
+        GITHUB_CLIENT_SECRET: 'github-client-secret',
+        GITHUB_CALLBACK_URL: 'https://example.com/api/v1/auth/github/callback',
+        USER_SESSION_SECRET: 'production-user-session-secret-with-32-characters',
         ADMIN_SESSION_SECRET: 'production-session-secret-with-32-characters',
         ADMIN_FIXED_CREDENTIALS_ENABLED: 'false',
       }),
@@ -111,6 +139,23 @@ describe('validateEnvironment', () => {
       })
     } catch (error) {
       expect(String(error)).not.toContain(secret)
+    }
+  })
+
+  it('does not include GitHub or session secrets in validation errors', () => {
+    const githubSecret = 'github-secret-never-print'
+    const sessionSecret = 'session-secret-never-print-with-32-characters'
+
+    try {
+      validateEnvironment({
+        ...requiredEnvironment,
+        GITHUB_OAUTH_ENABLED: 'true',
+        GITHUB_CLIENT_SECRET: githubSecret,
+        USER_SESSION_SECRET: sessionSecret,
+      })
+    } catch (error) {
+      expect(String(error)).not.toContain(githubSecret)
+      expect(String(error)).not.toContain(sessionSecret)
     }
   })
 })
