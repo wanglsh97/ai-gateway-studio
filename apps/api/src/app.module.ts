@@ -15,6 +15,7 @@ import { HealthModule } from './health/health.module'
 import { ImageModule } from './image/image.module'
 import { PromptModule } from './prompt/prompt.module'
 import { RedisModule } from './redis/redis.module'
+import { UserAuthModule } from './user-auth/user-auth.module'
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { RedisModule } from './redis/redis.module'
     }),
     DatabaseModule,
     RedisModule,
+    UserAuthModule,
     HealthModule,
     ChatModule,
     ImageModule,

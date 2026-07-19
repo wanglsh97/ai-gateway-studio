@@ -8,7 +8,7 @@
 - [x] 1.4 实现可注入 HTTP client 的 GitHub OAuth client，覆盖 token、profile、已验证主邮箱映射和超时/错误归一化
 - [x] 1.5 实现 OAuth state、callback URL 和 `returnTo` 白名单校验，拒绝伪造、重放与开放重定向
 - [x] 1.6 实现 User upsert 和数据库 UserSession：高熵 token、仅存哈希、多设备独立 Session、固定 30 天过期和过期清理
-- [ ] 1.7 实现 `/api/v1/auth/github`、callback、session、logout API 及生产安全 Cookie，GitHub access token 仅在 callback 生命周期内存在
+- [x] 1.7 实现 `/api/v1/auth/github`、callback、session、logout API 及生产安全 Cookie，GitHub access token 仅在 callback 生命周期内存在
 - [ ] 1.8 添加 OAuth/Session 单元与集成测试，CI 全程使用 fixture，不访问真实 GitHub
 
 ## 2. 付费能力认证与数据归属
