@@ -1095,10 +1095,14 @@ body {
     transform 0.2s ease,
     background 0.2s ease;
 }
-.login-github-action svg {
-  width: 1.15rem;
-  height: 1.15rem;
-  flex: 0 0 auto;
+.login-github-action .login-github-icon {
+  inline-size: 1.125rem;
+  block-size: 1.125rem;
+  min-inline-size: 1.125rem;
+  max-inline-size: 1.125rem;
+  min-block-size: 1.125rem;
+  max-block-size: 1.125rem;
+  flex: none;
 }
 .login-github-action:hover {
   transform: translateY(-2px);
