@@ -1,6 +1,6 @@
 import { createHmac, randomBytes } from 'node:crypto'
 
-import { Injectable, UnauthorizedException } from '@nestjs/common'
+import { Inject, Injectable, UnauthorizedException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 
 import { PrismaService } from '../database/prisma.service'
@@ -27,8 +27,8 @@ export class UserSessionService {
   private readonly ttlSeconds: number
 
   constructor(
-    private readonly prisma: PrismaService,
-    config: ConfigService,
+    @Inject(PrismaService) private readonly prisma: PrismaService,
+    @Inject(ConfigService) config: ConfigService,
   ) {
     this.secret = config.getOrThrow<string>('USER_SESSION_SECRET')
     this.ttlSeconds = config.getOrThrow<number>('USER_SESSION_TTL_SECONDS')

@@ -1,4 +1,4 @@
-import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common'
+import { CanActivate, ExecutionContext, Inject, Injectable } from '@nestjs/common'
 import type { Request } from 'express'
 
 import { USER_SESSION_COOKIE } from './user-auth.constants'
@@ -8,7 +8,7 @@ export type UserRequest = Request & { currentUser?: AuthenticatedUser }
 
 @Injectable()
 export class UserSessionGuard implements CanActivate {
-  constructor(private readonly sessions: UserSessionService) {}
+  constructor(@Inject(UserSessionService) private readonly sessions: UserSessionService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<UserRequest>()

@@ -1,4 +1,13 @@
-import { Inject, Controller, Get, Post, Query, Req, Res, ServiceUnavailableException } from '@nestjs/common'
+import {
+  Inject,
+  Controller,
+  Get,
+  Post,
+  Query,
+  Req,
+  Res,
+  ServiceUnavailableException,
+} from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import type { CookieOptions, Request, Response } from 'express'
 
@@ -18,9 +27,9 @@ export class UserAuthController {
 
   constructor(
     @Inject(GITHUB_OAUTH_CLIENT) private readonly github: GitHubOAuthClient,
-    private readonly oauthState: OAuthStateService,
-    private readonly sessions: UserSessionService,
-    config: ConfigService,
+    @Inject(OAuthStateService) private readonly oauthState: OAuthStateService,
+    @Inject(UserSessionService) private readonly sessions: UserSessionService,
+    @Inject(ConfigService) config: ConfigService,
   ) {
     this.enabled = config.get<boolean>('GITHUB_OAUTH_ENABLED', false)
     this.production = config.get<string>('NODE_ENV') === 'production'
