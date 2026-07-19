@@ -22,7 +22,7 @@
 
 ## 3. Web 登录与会话体验
 
-- [ ] 3.1 新增 `/login` 页面，提供 GitHub 登录按钮、邮箱 scope 说明、loading、失败和重试状态
+- [x] 3.1 新增 `/login` 页面，提供 GitHub 登录按钮、邮箱 scope 说明、loading、失败和重试状态
 - [ ] 3.2 实现 Web 会话恢复和 `/chat`、`/image`、`/prompt` 路由保护，登录后仅返回白名单站内路径
 - [ ] 3.3 在公共导航展示 GitHub avatar/username 和退出入口，头像失败时使用本地占位符
 - [ ] 3.4 统一处理 API 401，使失效/过期 Session 回到登录页且不产生无限重定向
