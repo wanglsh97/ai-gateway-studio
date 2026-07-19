@@ -33,9 +33,11 @@ export function githubLoginUrl(returnTo: string | null | undefined): string {
 }
 
 export function userLoginErrorMessage(error: string | null): string {
-  if (error === 'authorization_rejected') return '你取消了 GitHub 授权，可以重新尝试登录。'
-  if (error === 'oauth_failed') return 'GitHub 登录未完成，请检查网络后重试。'
-  return error ? '登录请求已失效，请重新发起 GitHub 登录。' : ''
+  if (error === 'authorization_rejected')
+    return 'GitHub authorization was cancelled. Try again when you are ready.'
+  if (error === 'oauth_failed')
+    return 'GitHub sign-in could not finish. Check your connection and try again.'
+  return error ? 'This sign-in request has expired. Start a new GitHub sign-in.' : ''
 }
 
 export function getUserSession(

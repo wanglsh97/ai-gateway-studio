@@ -25,8 +25,8 @@ describe('user auth login helpers', () => {
   })
 
   it('maps callback errors without exposing provider details', () => {
-    assert.match(userLoginErrorMessage('authorization_rejected'), /取消/)
-    assert.match(userLoginErrorMessage('oauth_failed'), /未完成/)
+    assert.match(userLoginErrorMessage('authorization_rejected'), /cancelled/)
+    assert.match(userLoginErrorMessage('oauth_failed'), /could not finish/)
     assert.equal(userLoginErrorMessage(null), '')
   })
 })

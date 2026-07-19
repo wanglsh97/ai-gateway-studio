@@ -4,12 +4,61 @@ import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
+import { useUserSession } from '../../components/user-session-provider'
 import {
   githubLoginUrl,
   sanitizeUserReturnTo,
   userLoginErrorMessage,
 } from '../../lib/user-auth-client'
-import { useUserSession } from '../../components/user-session-provider'
+
+const destinations = [
+  { name: 'Chat', detail: 'STREAM', color: 'violet' },
+  { name: 'Image', detail: 'CREATE', color: 'coral' },
+  { name: 'Prompt', detail: 'REFINE', color: 'mint' },
+]
+
+function IdentityRelay() {
+  return (
+    <div className="login-relay" aria-label="One GitHub identity connects to three AI tools">
+      <div className="login-relay-head">
+        <span>IDENTITY RELAY</span>
+        <span className="login-relay-live">
+          <i /> READY
+        </span>
+      </div>
+
+      <div className="login-relay-stage">
+        <div className="login-identity-node">
+          <span className="login-identity-orbit" aria-hidden="true" />
+          <strong>GH</strong>
+          <small>YOUR IDENTITY</small>
+        </div>
+
+        <div className="login-relay-line" aria-hidden="true">
+          <span />
+          <span />
+          <span />
+        </div>
+
+        <div className="login-destinations">
+          {destinations.map((destination) => (
+            <div className="login-destination" key={destination.name}>
+              <i className={`login-destination-${destination.color}`} />
+              <span>{destination.name}</span>
+              <small>{destination.detail}</small>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="login-relay-foot">
+        <span>ONE SIGN-IN</span>
+        <span>THREE TOOLS</span>
+        <span>FREE ACCESS</span>
+      </div>
+    </div>
+  )
+}
 
 export function LoginContent() {
   const searchParams = useSearchParams()
@@ -24,50 +73,62 @@ export function LoginContent() {
   }, [returnTo, router, session.status])
 
   return (
-    <main className="px-5 py-16 sm:px-8 sm:py-24 lg:px-10">
-      <section className="mx-auto max-w-lg overflow-hidden rounded-3xl border border-slate-200/80 bg-white/85 p-7 shadow-2xl shadow-slate-900/10 backdrop-blur sm:p-10 dark:border-white/10 dark:bg-slate-950/75">
-        <p className="text-xs font-bold tracking-[0.2em] text-cyan-700 dark:text-cyan-300">
-          USER SIGN IN
-        </p>
-        <h1 className="mt-4 text-4xl font-semibold tracking-tight">使用 GitHub 登录</h1>
-        <p className="mt-4 leading-7 text-slate-600 dark:text-slate-300">
-          登录后即可免费使用
-        </p>
-
-        {errorMessage && (
-          <div
-            role="alert"
-            className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm leading-6 text-rose-700 dark:border-rose-400/20 dark:bg-rose-950/25 dark:text-rose-200"
-          >
-            {errorMessage}
-          </div>
-        )}
-
-        <a
-          href={githubLoginUrl(returnTo)}
-          aria-disabled={leaving}
-          onClick={() => setLeaving(true)}
-          className={`mt-7 flex min-h-12 w-full items-center justify-center gap-3 rounded-xl bg-slate-950 px-5 text-sm font-semibold text-white transition hover:bg-slate-800 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-cyan-500 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-100 ${leaving ? 'pointer-events-none opacity-60' : ''}`}
-        >
-          <span aria-hidden="true" className="text-lg">
-            ◉
-          </span>
-          {leaving
-            ? '正在前往 GitHub…'
-            : errorMessage
-              ? '重新使用 GitHub 登录'
-              : '使用 GitHub 登录'}
-        </a>
-
-        <div className="mt-7 border-t border-slate-200 pt-5 text-center text-sm dark:border-white/10">
-          <Link
-            className="text-slate-600 underline-offset-4 hover:underline dark:text-slate-300"
-            href="/"
-          >
-            返回首页
-          </Link>
+    <main className="login-page">
+      <div className="login-layout">
+        <div className="login-story">
+          <p className="login-kicker">AI GATEWAY / ACCESS</p>
+          <h1>
+            One identity.
+            <br />
+            <span>Every capability.</span>
+          </h1>
+          <p>
+            Bring your GitHub identity. We&apos;ll open the route to every AI tool in the studio.
+          </p>
+          <IdentityRelay />
         </div>
-      </section>
+
+        <section className="login-card" aria-labelledby="login-title">
+          <div className="login-card-index">ACCESS / 01</div>
+          <div className="login-card-mark" aria-hidden="true">
+            GH
+          </div>
+          <p className="login-card-eyebrow">USER SIGN IN</p>
+          <h2 id="login-title">Continue with GitHub</h2>
+          <p className="login-card-description">Sign in once. Use every tool for free.</p>
+
+          {errorMessage && (
+            <div role="alert" className="login-error">
+              {errorMessage}
+            </div>
+          )}
+
+          <a
+            href={githubLoginUrl(returnTo)}
+            aria-disabled={leaving}
+            onClick={() => setLeaving(true)}
+            className={`login-github-action ${leaving ? 'login-github-action-disabled' : ''}`}
+          >
+            <span>
+              {leaving
+                ? 'Opening GitHub…'
+                : errorMessage
+                  ? 'Try GitHub again'
+                  : 'Continue with GitHub'}
+            </span>
+            <span aria-hidden="true">↗</span>
+          </a>
+
+          <div className="login-card-meta">
+            <span>SECURE OAUTH</span>
+            <span>NO PASSWORD STORED</span>
+          </div>
+
+          <Link className="login-back-link" href="/">
+            ← Back to home
+          </Link>
+        </section>
+      </div>
     </main>
   )
 }
