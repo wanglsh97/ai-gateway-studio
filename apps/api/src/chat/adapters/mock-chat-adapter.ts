@@ -3,7 +3,9 @@ import { Inject, Injectable } from '@nestjs/common'
 import type {
   ChatAdapter,
   ChatAdapterEvent,
+  ChatAdapterMessage,
   ChatAdapterRequest,
+  ChatAdapterToolCall,
   ChatAdapterUsage,
 } from './chat-adapter'
 import { ChatAdapterError } from './chat-adapter'
@@ -23,6 +25,8 @@ export interface MockChatAdapterOptions {
   delayMs: number
   usage?: ChatAdapterUsage
   failure?: MockChatFailure
+  /** Agent tool-calling 模式是否发出模拟的 provider reasoning，默认 true。 */
+  emitReasoning?: boolean
 }
 
 export const MOCK_CHAT_ADAPTER_OPTIONS = Symbol('MOCK_CHAT_ADAPTER_OPTIONS')
@@ -32,6 +36,23 @@ export const DEFAULT_MOCK_CHAT_ADAPTER_OPTIONS: MockChatAdapterOptions = Object.
   delayMs: 25,
 })
 
+const DEFAULT_FETCH_URL = 'https://example.com/'
+
+/**
+ * 确定性 Mock Chat Adapter。
+ *
+ * 普通 Chat（无 tools）：发出配置好的 chunk、usage 与 finish。
+ * Agent 模式（请求带 tools）：根据 messages 中已有 tool result 数量与最近 user 指令，
+ * 确定性模拟 reasoning、web_fetch tool call、tool result 后续 turn、最终答案、模型流错误
+ * 与取消，供 Pi harness 完成 tool-call → tool-result → follow-up 闭环。
+ *
+ * 指令（写在 user 消息中，便于测试驱动确定性场景）：
+ * - `FETCH:<n>`：需要 n 次 web_fetch 后再作答（默认 1）。
+ * - `SCENARIO:unknown-tool`：首轮请求一个未注册工具。
+ * - `SCENARIO:invalid-args`：首轮请求缺少 url 的 web_fetch。
+ * - `SCENARIO:stream-error`：首轮以模型流错误终止。
+ * - `URL:<url>` 或消息中的 http(s) 链接：作为 web_fetch 目标。
+ */
 @Injectable()
 export class MockChatAdapter implements ChatAdapter {
   readonly id = 'mock' as const
@@ -54,6 +75,18 @@ export class MockChatAdapter implements ChatAdapter {
       throw this.createFailure(this.options.failure, providerRequestId)
     }
 
+    if ((request.tools?.length ?? 0) > 0) {
+      yield* this.streamAgentTurn(request, providerRequestId)
+      return
+    }
+
+    yield* this.streamPlainChat(request, providerRequestId)
+  }
+
+  private async *streamPlainChat(
+    request: ChatAdapterRequest,
+    providerRequestId: string,
+  ): AsyncIterable<ChatAdapterEvent> {
     for (const [index, content] of this.options.chunks.entries()) {
       await this.waitForDelay(request.signal)
       yield { type: 'delta', content, providerRequestId }
@@ -67,18 +100,98 @@ export class MockChatAdapter implements ChatAdapter {
     this.throwIfAborted(request.signal)
     yield {
       type: 'usage',
-      usage: this.options.usage ?? this.calculateUsage(request),
+      usage: this.options.usage ?? this.calculateUsage(request, this.options.chunks.join('')),
       providerRequestId,
     }
     yield { type: 'finish', finishReason: 'stop', providerRequestId }
   }
 
-  private calculateUsage(request: ChatAdapterRequest): ChatAdapterUsage {
+  private async *streamAgentTurn(
+    request: ChatAdapterRequest,
+    providerRequestId: string,
+  ): AsyncIterable<ChatAdapterEvent> {
+    const instruction = latestUserText(request.messages)
+    const directives = parseDirectives(instruction)
+    const completedFetches = countToolResults(request.messages)
+    let emittedContent = ''
+
+    const maybeFailAfterFirst = async (): Promise<void> => {
+      if (this.options.failure?.phase === 'after-first-delta') {
+        await this.waitForDelay(request.signal)
+        throw this.createFailure(this.options.failure, providerRequestId)
+      }
+    }
+
+    if (completedFetches < directives.wantFetches) {
+      if (directives.scenario === 'stream-error') {
+        await this.waitForDelay(request.signal)
+        throw new ChatAdapterError('Mock 模型流错误', {
+          code: 'MOCK_AGENT_STREAM_ERROR',
+          retryable: false,
+          providerRequestId,
+        })
+      }
+
+      if (this.options.emitReasoning !== false && completedFetches === 0) {
+        await this.waitForDelay(request.signal)
+        yield { type: 'reasoning', content: '需要联网获取实时信息以回答问题。', providerRequestId }
+        await maybeFailAfterFirst()
+      }
+
+      await this.waitForDelay(request.signal)
+      const toolCall = this.buildToolCall(directives, completedFetches)
+      yield { type: 'tool-call', toolCall, providerRequestId }
+      await maybeFailAfterFirst()
+
+      this.throwIfAborted(request.signal)
+      yield {
+        type: 'usage',
+        usage: this.calculateUsage(request, JSON.stringify(toolCall)),
+        providerRequestId,
+      }
+      yield { type: 'finish', finishReason: 'tool_calls', providerRequestId }
+      return
+    }
+
+    if (this.options.emitReasoning !== false) {
+      await this.waitForDelay(request.signal)
+      yield { type: 'reasoning', content: '已获得检索结果，正在整理答案。', providerRequestId }
+      await maybeFailAfterFirst()
+    }
+
+    const answer = buildAnswer(request.messages, completedFetches)
+    for (const [index, chunk] of answer.entries()) {
+      await this.waitForDelay(request.signal)
+      yield { type: 'delta', content: chunk, providerRequestId }
+      emittedContent += chunk
+      if (index === 0) await maybeFailAfterFirst()
+    }
+
+    this.throwIfAborted(request.signal)
+    yield {
+      type: 'usage',
+      usage: this.calculateUsage(request, emittedContent),
+      providerRequestId,
+    }
+    yield { type: 'finish', finishReason: 'stop', providerRequestId }
+  }
+
+  private buildToolCall(directives: MockDirectives, completedFetches: number): ChatAdapterToolCall {
+    const id = `call_${completedFetches + 1}`
+    if (directives.scenario === 'unknown-tool') {
+      return { id, name: 'nonexistent_tool', arguments: { reason: 'mock unknown tool' } }
+    }
+    if (directives.scenario === 'invalid-args') {
+      return { id, name: 'web_fetch', arguments: {} }
+    }
+    return { id, name: 'web_fetch', arguments: { url: directives.url } }
+  }
+
+  private calculateUsage(request: ChatAdapterRequest, outputText: string): ChatAdapterUsage {
+    if (this.options.usage) return this.options.usage
     const inputText = request.messages.map((message) => message.content).join('')
-    const outputText = this.options.chunks.join('')
     const inputTokens = this.estimateTokens(inputText)
     const outputTokens = this.estimateTokens(outputText)
-
     return {
       inputTokens,
       outputTokens,
@@ -126,4 +239,46 @@ export class MockChatAdapter implements ChatAdapter {
   private abortError(): DOMException {
     return new DOMException('The operation was aborted', 'AbortError')
   }
+}
+
+type MockScenario = 'normal' | 'unknown-tool' | 'invalid-args' | 'stream-error'
+
+interface MockDirectives {
+  wantFetches: number
+  scenario: MockScenario
+  url: string
+}
+
+function parseDirectives(instruction: string): MockDirectives {
+  const fetchMatch = /FETCH:(\d+)/i.exec(instruction)
+  const wantFetches = fetchMatch ? Math.max(1, Number.parseInt(fetchMatch[1] ?? '1', 10)) : 1
+
+  let scenario: MockScenario = 'normal'
+  if (/SCENARIO:unknown-tool/i.test(instruction)) scenario = 'unknown-tool'
+  else if (/SCENARIO:invalid-args/i.test(instruction)) scenario = 'invalid-args'
+  else if (/SCENARIO:stream-error/i.test(instruction)) scenario = 'stream-error'
+
+  const explicitUrl = /URL:(\S+)/i.exec(instruction)?.[1]
+  const linkUrl = /https?:\/\/[^\s"')]+/i.exec(instruction)?.[0]
+  const url = explicitUrl ?? linkUrl ?? DEFAULT_FETCH_URL
+
+  return { wantFetches, scenario, url }
+}
+
+function latestUserText(messages: readonly ChatAdapterMessage[]): string {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index]
+    if (message && message.role === 'user') return message.content
+  }
+  return ''
+}
+
+function countToolResults(messages: readonly ChatAdapterMessage[]): number {
+  return messages.filter((message) => message.role === 'tool').length
+}
+
+function buildAnswer(messages: readonly ChatAdapterMessage[], fetches: number): readonly string[] {
+  const lastResult = [...messages].reverse().find((message) => message.role === 'tool')
+  const snippet = (lastResult?.content ?? '').replace(/\s+/g, ' ').trim().slice(0, 60)
+  return [`已根据 ${fetches} 个检索来源整理答案：`, snippet.length > 0 ? snippet : '（无正文）']
 }
