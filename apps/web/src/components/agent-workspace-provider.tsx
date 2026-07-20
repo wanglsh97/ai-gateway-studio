@@ -17,6 +17,9 @@ import { useUserSession } from './user-session-provider'
 
 const client = createAIGatewayClient()
 
+/** 与 API `AGENT_THREAD_TITLE_MAX_LENGTH` 对齐。 */
+export const AGENT_THREAD_TITLE_MAX_LENGTH = 200
+
 type AgentWorkspaceValue = {
   threads: AgentThreadSummary[]
   models: ModelSummary[]
@@ -28,6 +31,8 @@ type AgentWorkspaceValue = {
   openThread: (threadId: string) => void
   prependThread: (thread: AgentThreadSummary) => void
   refreshThreads: () => Promise<void>
+  renameThread: (threadId: string, title: string) => Promise<AgentThreadSummary>
+  deleteThread: (threadId: string) => Promise<void>
 }
 
 const AgentWorkspaceContext = createContext<AgentWorkspaceValue | null>(null)
@@ -95,6 +100,30 @@ export function AgentWorkspaceProvider({ children }: Readonly<{ children: ReactN
     setThreads((current) => [thread, ...current.filter((item) => item.id !== thread.id)])
   }, [])
 
+  const renameThread = useCallback(async (threadId: string, title: string) => {
+    const updated = await client.agent.threads.rename(threadId, { title })
+    setThreads((current) => {
+      const next = current.map((item) => (item.id === threadId ? updated : item))
+      return next.sort(
+        (left, right) =>
+          new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime(),
+      )
+    })
+    return updated
+  }, [])
+
+  const deleteThread = useCallback(
+    async (threadId: string) => {
+      await client.agent.threads.delete(threadId)
+      setThreads((current) => current.filter((item) => item.id !== threadId))
+      const params = new URLSearchParams(window.location.search)
+      if (params.get('thread') === threadId) {
+        router.push('/agent')
+      }
+    },
+    [router],
+  )
+
   const value = useMemo<AgentWorkspaceValue>(
     () => ({
       threads,
@@ -107,6 +136,8 @@ export function AgentWorkspaceProvider({ children }: Readonly<{ children: ReactN
       openThread,
       prependThread,
       refreshThreads,
+      renameThread,
+      deleteThread,
     }),
     [
       threads,
@@ -118,6 +149,8 @@ export function AgentWorkspaceProvider({ children }: Readonly<{ children: ReactN
       openThread,
       prependThread,
       refreshThreads,
+      renameThread,
+      deleteThread,
     ],
   )
 

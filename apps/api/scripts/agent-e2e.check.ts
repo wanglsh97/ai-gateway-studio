@@ -111,8 +111,44 @@ async function main(): Promise<void> {
       assert.equal(log.capability, 'AGENT')
       assert.ok(log.billing, 'RequestLog 应有一对一 BillingRecord')
     }
+    const requestLogIds = requestLogs.map((log) => log.id)
+    const billingIds = requestLogs.map((log) => {
+      assert.ok(log.billing)
+      return log.billing.id
+    })
 
-    console.log('agent-e2e.check PASS: Web→SDK→API→Pi→Mock→web_fetch→follow-up→SSE→PostgreSQL 全链路成功')
+    // 2.2：重命名与永久删除；Agent 子记录级联清除，RequestLog/BillingRecord 保留
+    const renamed = await client.agent.threads.rename(thread.id, { title: 'e2e 重命名会话' })
+    assert.equal(renamed.title, 'e2e 重命名会话')
+    const listed = await client.agent.threads.list()
+    assert.ok(
+      listed.items.some((item) => item.id === thread.id && item.title === 'e2e 重命名会话'),
+      '列表应反映新标题',
+    )
+
+    await client.agent.threads.delete(thread.id)
+    threadId = undefined
+
+    assert.equal(await prisma.agentThread.count({ where: { id: thread.id } }), 0)
+    assert.equal(await prisma.agentMessage.count({ where: { threadId: thread.id } }), 0)
+    assert.equal(await prisma.agentRun.count({ where: { id: run.id } }), 0)
+    assert.equal(await prisma.agentEvent.count({ where: { runId: run.id } }), 0)
+    assert.equal(await prisma.agentToolCall.count({ where: { runId: run.id } }), 0)
+
+    const retainedLogs = await prisma.requestLog.findMany({
+      where: { id: { in: requestLogIds } },
+      include: { billing: true },
+    })
+    assert.equal(retainedLogs.length, requestLogIds.length, '删除会话不得删除 RequestLog')
+    for (const log of retainedLogs) {
+      assert.equal(log.agentRunId, null, 'RequestLog.agentRunId 应为 SetNull')
+      assert.ok(log.billing, 'BillingRecord 应随 RequestLog 保留')
+      assert.ok(billingIds.includes(log.billing.id))
+    }
+
+    console.log(
+      'agent-e2e.check PASS: Web→SDK→API→Pi→Mock→web_fetch→follow-up→SSE→PostgreSQL，含 rename/delete 级联与账单保留',
+    )
   } finally {
     if (threadId) await prisma.agentThread.delete({ where: { id: threadId } }).catch(() => undefined)
     await prisma.requestLog.deleteMany({ where: { userId: user.id } }).catch(() => undefined)

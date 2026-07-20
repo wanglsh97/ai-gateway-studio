@@ -180,6 +180,35 @@ describe('AgentService', () => {
     expect(threads.deleteForOwner).not.toHaveBeenCalled()
   })
 
+  it('rejects blank rename titles after trim', async () => {
+    const { service, threads } = setup()
+    await expect(service.renameThread(user, 'thread-1', '   ')).rejects.toBeInstanceOf(
+      BadRequestException,
+    )
+    expect(threads.renameForOwner).not.toHaveBeenCalled()
+  })
+
+  it('renames an owned thread and returns the updated summary', async () => {
+    const { service, threads } = setup()
+    ;(threads.renameForOwner as jest.Mock).mockResolvedValue(true)
+    ;(threads.findSummaryForOwner as jest.Mock).mockResolvedValue(
+      threadRow({ title: '整理会议纪要' }),
+    )
+    await expect(service.renameThread(user, 'thread-1', '  整理会议纪要  ')).resolves.toEqual(
+      expect.objectContaining({ id: 'thread-1', title: '整理会议纪要' }),
+    )
+    expect(threads.renameForOwner).toHaveBeenCalledWith('thread-1', 'user-a', '整理会议纪要')
+  })
+
+  it('deletes an owned thread when no run is active', async () => {
+    const { service, threads, runs } = setup()
+    ;(threads.findSummaryForOwner as jest.Mock).mockResolvedValue(threadRow())
+    ;(runs.findActiveForThread as jest.Mock).mockResolvedValue(null)
+    ;(threads.deleteForOwner as jest.Mock).mockResolvedValue(true)
+    await expect(service.deleteThread(user, 'thread-1')).resolves.toBeUndefined()
+    expect(threads.deleteForOwner).toHaveBeenCalledWith('thread-1', 'user-a')
+  })
+
   it('cancels a run only when owned by the user', async () => {
     const { service, runs, runService } = setup()
     ;(runs.findForOwner as jest.Mock).mockResolvedValue(null)

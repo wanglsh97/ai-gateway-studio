@@ -4,8 +4,14 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { Suspense, type ReactNode, useEffect, useRef, useState } from 'react'
 
+import type { AgentThreadSummary } from '@aigateway/sdk'
+
 import { logoutUser, sanitizeUserReturnTo } from '../lib/user-auth-client'
-import { useAgentActiveThreadId, useAgentWorkspace } from './agent-workspace-provider'
+import {
+  AGENT_THREAD_TITLE_MAX_LENGTH,
+  useAgentActiveThreadId,
+  useAgentWorkspace,
+} from './agent-workspace-provider'
 import { ThemeToggle } from './theme-toggle'
 import { useUserSession } from './user-session-provider'
 
@@ -255,10 +261,46 @@ function AgentNavGroup({
 
 function AgentThreadLinks() {
   const session = useUserSession()
-  const { threads, loading, listError } = useAgentWorkspace()
+  const { threads, loading, listError, renameThread, deleteThread } = useAgentWorkspace()
   const activeThreadId = useAgentActiveThreadId()
+  const [renamingId, setRenamingId] = useState<string | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<AgentThreadSummary | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
 
   if (session.status !== 'authenticated') return null
+
+  async function submitRename(threadId: string, title: string) {
+    const trimmed = title.trim()
+    if (!trimmed) {
+      setActionError('会话标题不能为空')
+      return
+    }
+    setBusy(true)
+    setActionError(null)
+    try {
+      await renameThread(threadId, trimmed)
+      setRenamingId(null)
+    } catch (unknownError) {
+      setActionError(unknownError instanceof Error ? unknownError.message : '重命名失败')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function confirmDelete() {
+    if (!pendingDelete || busy) return
+    setBusy(true)
+    setActionError(null)
+    try {
+      await deleteThread(pendingDelete.id)
+      setPendingDelete(null)
+    } catch (unknownError) {
+      setActionError(unknownError instanceof Error ? unknownError.message : '删除失败')
+    } finally {
+      setBusy(false)
+    }
+  }
 
   return (
     <div className="sidebar-agent-threads" aria-label="Agent 会话">
@@ -266,6 +308,7 @@ function AgentThreadLinks() {
         + 新建会话
       </Link>
       {listError ? <p className="sidebar-agent-hint">{listError}</p> : null}
+      {actionError ? <p className="sidebar-agent-hint is-error">{actionError}</p> : null}
       {loading && threads.length === 0 ? (
         <p className="sidebar-agent-hint">加载会话…</p>
       ) : null}
@@ -276,20 +319,117 @@ function AgentThreadLinks() {
         {threads.map((thread) => {
           const href = `/agent?thread=${encodeURIComponent(thread.id)}`
           const isActive = thread.id === activeThreadId
+          const isRenaming = renamingId === thread.id
           return (
-            <li key={thread.id}>
-              <Link
-                href={href}
-                className={`sidebar-agent-thread${isActive ? ' is-active' : ''}`}
-                title={thread.title}
-                aria-current={isActive ? 'page' : undefined}
-              >
-                {thread.title}
-              </Link>
+            <li key={thread.id} className="sidebar-agent-thread-item">
+              {isRenaming ? (
+                <form
+                  className="sidebar-agent-rename"
+                  onSubmit={(event) => {
+                    event.preventDefault()
+                    const form = new FormData(event.currentTarget)
+                    void submitRename(thread.id, String(form.get('title') ?? ''))
+                  }}
+                >
+                  <input
+                    name="title"
+                    className="sidebar-agent-rename-input"
+                    defaultValue={thread.title}
+                    maxLength={AGENT_THREAD_TITLE_MAX_LENGTH}
+                    aria-label="会话标题"
+                    autoFocus
+                    disabled={busy}
+                  />
+                  <button type="submit" className="sidebar-agent-action" disabled={busy}>
+                    保存
+                  </button>
+                  <button
+                    type="button"
+                    className="sidebar-agent-action"
+                    disabled={busy}
+                    onClick={() => setRenamingId(null)}
+                  >
+                    取消
+                  </button>
+                </form>
+              ) : (
+                <>
+                  <Link
+                    href={href}
+                    className={`sidebar-agent-thread${isActive ? ' is-active' : ''}`}
+                    title={thread.title}
+                    aria-current={isActive ? 'page' : undefined}
+                  >
+                    {thread.title}
+                  </Link>
+                  <div className="sidebar-agent-thread-actions">
+                    <button
+                      type="button"
+                      className="sidebar-agent-action"
+                      title="重命名"
+                      aria-label={`重命名「${thread.title}」`}
+                      disabled={busy}
+                      onClick={() => {
+                        setActionError(null)
+                        setRenamingId(thread.id)
+                      }}
+                    >
+                      改
+                    </button>
+                    <button
+                      type="button"
+                      className="sidebar-agent-action is-danger"
+                      title="删除"
+                      aria-label={`删除「${thread.title}」`}
+                      disabled={busy}
+                      onClick={() => {
+                        setActionError(null)
+                        setPendingDelete(thread)
+                      }}
+                    >
+                      删
+                    </button>
+                  </div>
+                </>
+              )}
             </li>
           )
         })}
       </ul>
+
+      {pendingDelete ? (
+        <div className="sidebar-agent-confirm-scrim" role="presentation">
+          <div
+            className="sidebar-agent-confirm"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="agent-delete-title"
+          >
+            <h3 id="agent-delete-title">确认删除会话</h3>
+            <p>
+              将永久删除「{pendingDelete.title}」及其消息、运行与工具记录。请求日志与账单记录会保留。此操作不可恢复。
+            </p>
+            <div className="sidebar-agent-confirm-actions">
+              <button
+                type="button"
+                className="sidebar-agent-action"
+                disabled={busy}
+                onClick={() => setPendingDelete(null)}
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                className="sidebar-agent-action is-danger-solid"
+                disabled={busy}
+                onClick={() => void confirmDelete()}
+              >
+                {busy ? '正在删除…' : '确认删除'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

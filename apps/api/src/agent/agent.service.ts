@@ -96,7 +96,10 @@ export class AgentService {
     threadId: string,
     title: string,
   ): Promise<AgentThreadSummary> {
-    const updated = await this.threads.renameForOwner(threadId, user.id, title.trim())
+    const trimmed = title.trim()
+    if (!trimmed) throw new BadRequestException('会话标题不能为空')
+
+    const updated = await this.threads.renameForOwner(threadId, user.id, trimmed)
     if (!updated) throw new NotFoundException('Agent 会话不存在')
     const summary = await this.threads.findSummaryForOwner(threadId, user.id)
     if (!summary) throw new NotFoundException('Agent 会话不存在')
@@ -110,6 +113,7 @@ export class AgentService {
     const activeRun = await this.runs.findActiveForThread(threadId)
     if (activeRun) throw new ConflictException('该会话存在进行中的运行，无法删除')
 
+    // Prisma 级联删除 messages/runs/events/toolCalls；RequestLog.agentRunId 为 SetNull，账单保留。
     const deleted = await this.threads.deleteForOwner(threadId, user.id)
     if (!deleted) throw new NotFoundException('Agent 会话不存在')
   }
