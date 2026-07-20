@@ -1,7 +1,7 @@
 'use client'
 
 import { createAIGatewayClient } from '@aigateway/sdk'
-import type { AgentThreadSummary, ModelSummary } from '@aigateway/sdk'
+import type { AgentRunSummary, AgentThreadSummary, ModelSummary } from '@aigateway/sdk'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import {
   createContext,
@@ -27,10 +27,13 @@ type AgentWorkspaceValue = {
   setSelectedModel: (modelId: string) => void
   loading: boolean
   listError: string | null
+  /** 当前用户全局进行中的 Agent run；非空时禁用所有 Composer 提交。 */
+  userActiveRun: AgentRunSummary | null
   startNewThread: () => void
   openThread: (threadId: string) => void
   prependThread: (thread: AgentThreadSummary) => void
   refreshThreads: () => Promise<void>
+  setUserActiveRun: (run: AgentRunSummary | null) => void
   renameThread: (threadId: string, title: string) => Promise<AgentThreadSummary>
   deleteThread: (threadId: string) => Promise<void>
 }
@@ -48,10 +51,12 @@ export function AgentWorkspaceProvider({ children }: Readonly<{ children: ReactN
   const [selectedModel, setSelectedModel] = useState('')
   const [loading, setLoading] = useState(false)
   const [listError, setListError] = useState<string | null>(null)
+  const [userActiveRun, setUserActiveRun] = useState<AgentRunSummary | null>(null)
 
   const refreshThreads = useCallback(async () => {
     const threadPage = await client.agent.threads.list()
     setThreads(threadPage.items)
+    setUserActiveRun(threadPage.activeRun)
   }, [])
 
   useEffect(() => {
@@ -67,6 +72,7 @@ export function AgentWorkspaceProvider({ children }: Readonly<{ children: ReactN
         ])
         if (cancelled) return
         setThreads(threadPage.items)
+        setUserActiveRun(threadPage.activeRun)
         const usable = modelList.filter(
           (model) => model.enabled && model.capabilities.includes('agent'),
         )
@@ -134,10 +140,12 @@ export function AgentWorkspaceProvider({ children }: Readonly<{ children: ReactN
       setSelectedModel,
       loading,
       listError,
+      userActiveRun,
       startNewThread,
       openThread,
       prependThread,
       refreshThreads,
+      setUserActiveRun,
       renameThread,
       deleteThread,
     }),
@@ -147,6 +155,7 @@ export function AgentWorkspaceProvider({ children }: Readonly<{ children: ReactN
       selectedModel,
       loading,
       listError,
+      userActiveRun,
       startNewThread,
       openThread,
       prependThread,

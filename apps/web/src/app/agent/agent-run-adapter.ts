@@ -16,6 +16,7 @@ export interface AgentRunAdapterContext {
   threadId: string | null
   model: string
   onThreadCreated: (thread: AgentThreadSummary) => void
+  onRunCreated?: (run: { id: string; threadId: string }) => void
   onRunFinished?: () => void
 }
 
@@ -68,6 +69,7 @@ export function createAgentRunAdapter(
       }
 
       const run = await client.agent.runs.create(threadId, { input })
+      context.onRunCreated?.({ id: run.id, threadId })
       const metadata: AgentRunMetadata = { model: context.model, runId: run.id }
       const parts: MutablePart[] = []
 

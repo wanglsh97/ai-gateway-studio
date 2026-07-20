@@ -40,6 +40,7 @@ describe('AgentClient threads and runs', () => {
             pageSize: 50,
             total: 1,
             pageCount: 1,
+            activeRun: null,
           })
         }
         return Response.json({ id: threadId, title: 't', model: 'qwen3.7-plus', createdAt: '', updatedAt: '' })
@@ -71,6 +72,7 @@ describe('AgentClient threads and runs', () => {
           pageSize: 50,
           total: 1,
           pageCount: 1,
+          activeRun: null,
         }),
     })
     const page = await client.agent.threads.list()

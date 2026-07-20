@@ -69,16 +69,20 @@ export class AgentService {
   ): Promise<AgentThreadListPage> {
     const page = query.page ?? AGENT_THREAD_LIST_DEFAULT_PAGE
     const pageSize = query.pageSize ?? AGENT_THREAD_LIST_DEFAULT_PAGE_SIZE
-    const { rows, total } = await this.threads.listForOwner(user.id, {
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    })
+    const [{ rows, total }, activeRun] = await Promise.all([
+      this.threads.listForOwner(user.id, {
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.runs.findActiveForUser(user.id),
+    ])
     return {
       items: rows.map(toThreadSummary),
       page,
       pageSize,
       total,
       pageCount: total === 0 ? 0 : Math.ceil(total / pageSize),
+      activeRun: activeRun ? toRunSummary(activeRun) : null,
     }
   }
 

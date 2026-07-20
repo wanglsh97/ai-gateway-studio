@@ -60,6 +60,8 @@ function AgentConsole() {
     prependThread,
     startNewThread,
     refreshThreads,
+    userActiveRun,
+    setUserActiveRun,
   } = useAgentWorkspace()
   const activeThreadId = useAgentActiveThreadId()
 
@@ -68,6 +70,7 @@ function AgentConsole() {
     threadId: activeThreadId as string | null,
     model: selectedModel,
     onThreadCreated: (_thread: Parameters<typeof prependThread>[0]) => undefined as void,
+    onRunCreated: (_run: { id: string; threadId: string }) => undefined as void,
     onRunFinished: () => undefined as void,
   })
 
@@ -78,7 +81,30 @@ function AgentConsole() {
     prependThread(thread)
     openThread(thread.id)
   }
+  contextRef.current.onRunCreated = (run) => {
+    setUserActiveRun({
+      id: run.id,
+      threadId: run.threadId,
+      status: 'running',
+      limitReason: null,
+      usage: {
+        inputTokens: null,
+        outputTokens: null,
+        totalTokens: null,
+        usageUnknown: true,
+        estimatedCostCny: null,
+        modelCalls: 0,
+        toolCalls: 0,
+        webFetchCalls: 0,
+      },
+      lastSequence: -1,
+      createdAt: new Date().toISOString(),
+      startedAt: null,
+      completedAt: null,
+    })
+  }
   contextRef.current.onRunFinished = () => {
+    setUserActiveRun(null)
     void refreshThreads().catch(() => undefined)
   }
 
@@ -116,6 +142,7 @@ function AgentConsole() {
 
   const runtime = useLocalRuntime(adapter)
   const modelDisabled = modelOptions.length === 0
+  const submitBlocked = modelDisabled || userActiveRun !== null
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
@@ -125,6 +152,12 @@ function AgentConsole() {
         <section className="agent-console agent-chat-panel" aria-label="智能体">
           <AgentThread
             modelDisabled={modelDisabled}
+            submitBlocked={submitBlocked}
+            activeRunHint={
+              userActiveRun && userActiveRun.threadId !== activeThreadId
+                ? '另一会话正在运行，请等待结束后再提交'
+                : null
+            }
             modelBoundToThread={activeThreadId !== null}
             modelOptions={modelOptions}
             selectedModel={(selectedModel as TextModelId) || modelOptions[0]?.value || 'qwen3.7-plus'}
@@ -181,6 +214,8 @@ function ThreadHydrator({
 
 function AgentThread({
   modelDisabled,
+  submitBlocked,
+  activeRunHint,
   modelBoundToThread,
   modelOptions,
   selectedModel,
@@ -188,6 +223,8 @@ function AgentThread({
   onNewThread,
 }: {
   modelDisabled: boolean
+  submitBlocked: boolean
+  activeRunHint: string | null
   modelBoundToThread: boolean
   modelOptions: ReadonlyArray<ModelOption>
   selectedModel: TextModelId
@@ -208,13 +245,18 @@ function AgentThread({
         ↓
       </ThreadPrimitive.ScrollToBottom>
       <div className="agent-composer-dock">
+        {activeRunHint ? <p className="agent-active-run-hint">{activeRunHint}</p> : null}
         <ComposerPrimitive.Root className="agent-composer">
           <ComposerPrimitive.Input
             aria-label="描述 Agent 任务"
             rows={1}
             maxLength={8000}
-            disabled={modelDisabled}
-            placeholder="描述你想让 Agent 完成的任务…"
+            disabled={submitBlocked}
+            placeholder={
+              submitBlocked && !modelDisabled
+                ? '已有进行中的 Agent 运行，请等待结束后再提交…'
+                : '描述你想让 Agent 完成的任务…'
+            }
           />
           <div className="agent-composer-footer">
             <div className="agent-composer-actions">
@@ -236,7 +278,7 @@ function AgentThread({
               <AuiIf condition={({ thread }) => !thread.isRunning}>
                 <ComposerPrimitive.Send
                   className="agent-send-button"
-                  disabled={modelDisabled}
+                  disabled={submitBlocked}
                   aria-label="发送任务"
                 >
                   <svg aria-hidden="true" viewBox="0 0 20 20">

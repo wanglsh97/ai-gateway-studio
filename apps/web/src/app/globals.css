@@ -828,6 +828,17 @@ body {
   background: #ece7f5;
   color: #211b32;
 }
+.agent-active-run-hint {
+  width: min(100%, 58rem);
+  margin: 0 auto 0.45rem;
+  color: #8a6d3b;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  text-align: center;
+}
+.dark .agent-active-run-hint {
+  color: #e7c27d;
+}
 .agent-privacy-note {
   width: min(100%, 58rem);
   margin: 0.5rem auto 0;

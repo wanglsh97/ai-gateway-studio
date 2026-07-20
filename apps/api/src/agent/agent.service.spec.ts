@@ -120,11 +120,12 @@ describe('AgentService', () => {
   })
 
   it('lists threads as a paginated page sorted by repository order', async () => {
-    const { service, threads } = setup()
+    const { service, threads, runs } = setup()
     ;(threads.listForOwner as jest.Mock).mockResolvedValue({
       rows: [threadRow({ id: 'newer' }), threadRow({ id: 'older' })],
       total: 2,
     })
+    ;(runs.findActiveForUser as jest.Mock).mockResolvedValue(null)
     await expect(service.listThreads(user, { page: 1, pageSize: 20 })).resolves.toEqual({
       items: [
         expect.objectContaining({ id: 'newer' }),
@@ -134,19 +135,47 @@ describe('AgentService', () => {
       pageSize: 20,
       total: 2,
       pageCount: 1,
+      activeRun: null,
     })
     expect(threads.listForOwner).toHaveBeenCalledWith('user-a', { skip: 0, take: 20 })
   })
 
+  it('includes the user-global active run on the thread list page', async () => {
+    const { service, threads, runs } = setup()
+    ;(threads.listForOwner as jest.Mock).mockResolvedValue({ rows: [threadRow()], total: 1 })
+    ;(runs.findActiveForUser as jest.Mock).mockResolvedValue({
+      id: 'run-live',
+      threadId: 'thread-1',
+      status: 'RUNNING',
+      limitReason: null,
+      usageUnknown: false,
+      inputTokens: 0,
+      outputTokens: 0,
+      totalTokens: 0,
+      estimatedCostCny: null,
+      modelCallCount: 0,
+      toolCallCount: 0,
+      webFetchCount: 0,
+      lastSequence: 0,
+      createdAt: new Date('2026-07-20T00:00:00.000Z'),
+      startedAt: new Date('2026-07-20T00:00:00.000Z'),
+      completedAt: null,
+    })
+    const page = await service.listThreads(user)
+    expect(page.activeRun).toEqual(expect.objectContaining({ id: 'run-live', status: 'running' }))
+  })
+
   it('returns an empty page when the owner has no threads', async () => {
-    const { service, threads } = setup()
+    const { service, threads, runs } = setup()
     ;(threads.listForOwner as jest.Mock).mockResolvedValue({ rows: [], total: 0 })
+    ;(runs.findActiveForUser as jest.Mock).mockResolvedValue(null)
     await expect(service.listThreads(user)).resolves.toEqual({
       items: [],
       page: 1,
       pageSize: 50,
       total: 0,
       pageCount: 0,
+      activeRun: null,
     })
   })
 
