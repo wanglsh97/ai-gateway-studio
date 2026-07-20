@@ -135,6 +135,7 @@ export interface OptimizePromptResult {
 
 export interface ModelSummary {
   alias: ModelAlias
+  modelId?: string
   capabilities: Capability[]
   displayName: string
   enabled: boolean

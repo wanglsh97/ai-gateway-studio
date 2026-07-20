@@ -548,11 +548,6 @@ body {
   background: #f1edfc;
   box-shadow: 0 0 0 2px rgb(112 87 232 / 0.08);
 }
-.agent-model-trigger .agent-live-mark {
-  width: 0.65rem;
-  height: 0.65rem;
-  flex: 0 0 auto;
-}
 .agent-model-trigger-label {
   overflow: hidden;
   min-width: 0;
@@ -623,6 +618,55 @@ body {
   transition:
     background 0.14s,
     color 0.14s;
+}
+.agent-model-option-main {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.65rem;
+}
+.agent-model-logo {
+  display: grid;
+  width: 1.55rem;
+  height: 1.55rem;
+  flex: 0 0 1.55rem;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid #e2ddec;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgb(46 32 76 / 0.08);
+  font-size: 0.68rem;
+  font-weight: 850;
+  line-height: 1;
+}
+.agent-model-logo.is-kimi {
+  border-color: #111018;
+  background: #111018;
+  color: #fff;
+  font-style: italic;
+}
+.agent-model-logo.is-qwen {
+  border-color: #ddd4ff;
+  background: linear-gradient(145deg, #6c55e8, #b26bef);
+  color: #fff;
+}
+.agent-model-logo.is-glm {
+  border-color: #17151e;
+  background: #17151e;
+  color: #fff;
+}
+.agent-model-logo.is-deepseek {
+  border-color: #d7e1ff;
+  color: #5d7cf0;
+}
+.agent-model-logo svg {
+  width: 1.15rem;
+  height: 1.15rem;
+  fill: currentColor;
+}
+.dark .agent-model-logo {
+  border-color: #4a4059;
 }
 .agent-model-menu button:hover {
   background: #f2eefb;

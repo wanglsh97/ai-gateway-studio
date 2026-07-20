@@ -29,6 +29,7 @@ export class ModelsController {
         ? [
             {
               alias: 'qwen' as const,
+              modelId: 'mock-chat',
               capabilities: ['chat', 'prompt'],
               displayName: '通义千问（Mock）',
               enabled: true,
@@ -39,6 +40,7 @@ export class ModelsController {
         : await Promise.all(
             adapters.map(async (adapter) => ({
               alias: adapter.id as TextModelAlias,
+              modelId: adapter.resolvedModel,
               capabilities: ['chat', 'prompt'],
               displayName: MODEL_DISPLAY_NAMES[adapter.id as TextModelAlias],
               enabled: true,
@@ -52,6 +54,7 @@ export class ModelsController {
         ? [
             {
               alias: 'wanxiang',
+              modelId: 'mock-image',
               capabilities: ['image'],
               displayName: '通义万相（Mock）',
               enabled: true,
@@ -61,6 +64,7 @@ export class ModelsController {
           ]
         : imageAdapters.map((adapter) => ({
             alias: adapter.id as ImageModelAlias,
+            modelId: adapter.resolvedModel,
             capabilities: ['image'],
             displayName: adapter.id === 'wanxiang' ? '通义万相' : '智谱 CogView',
             enabled: true,

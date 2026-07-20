@@ -376,6 +376,7 @@ async function listModels(
 function parseModelSummary(value: unknown, requestId: string): ModelSummary {
   const model = asRecord(value)
   const alias = stringValue(model?.alias)
+  const modelId = model?.modelId === undefined ? undefined : stringValue(model.modelId)
   const displayName = stringValue(model?.displayName)
   const capabilities = model?.capabilities
   const enabled = booleanValue(model?.enabled)
@@ -387,6 +388,7 @@ function parseModelSummary(value: unknown, requestId: string): ModelSummary {
     !alias ||
     !['qwen', 'glm', 'deepseek', 'kimi', 'wanxiang', 'cogview'].includes(alias) ||
     !displayName ||
+    (model?.modelId !== undefined && !modelId) ||
     !Array.isArray(capabilities) ||
     !capabilities.every((item) => ['chat', 'image', 'prompt'].includes(String(item))) ||
     enabled === undefined ||

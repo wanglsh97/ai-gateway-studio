@@ -245,6 +245,7 @@ describe('createAIGatewayClient models.list', () => {
     const models = [
       {
         alias: 'qwen',
+        modelId: 'qwen-plus',
         capabilities: ['chat', 'prompt'],
         displayName: '通义千问',
         enabled: true,

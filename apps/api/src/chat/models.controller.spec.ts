@@ -40,6 +40,7 @@ describe('ModelsController', () => {
     await expect(controller.list()).resolves.toEqual([
       {
         alias: 'qwen',
+        modelId: 'qwen-model',
         capabilities: ['chat', 'prompt'],
         displayName: '通义千问',
         enabled: true,
@@ -48,6 +49,7 @@ describe('ModelsController', () => {
       },
       {
         alias: 'deepseek',
+        modelId: 'deepseek-model',
         capabilities: ['chat', 'prompt'],
         displayName: 'DeepSeek',
         enabled: true,
@@ -56,6 +58,7 @@ describe('ModelsController', () => {
       },
       {
         alias: 'wanxiang',
+        modelId: 'wanxiang-image-model',
         capabilities: ['image'],
         displayName: '通义万相',
         enabled: true,
@@ -64,6 +67,7 @@ describe('ModelsController', () => {
       },
       {
         alias: 'cogview',
+        modelId: 'cogview-image-model',
         capabilities: ['image'],
         displayName: '智谱 CogView',
         enabled: true,
@@ -83,6 +87,7 @@ describe('ModelsController', () => {
     await expect(controller.list()).resolves.toEqual([
       {
         alias: 'qwen',
+        modelId: 'mock-chat',
         capabilities: ['chat', 'prompt'],
         displayName: '通义千问（Mock）',
         enabled: true,
@@ -91,6 +96,7 @@ describe('ModelsController', () => {
       },
       {
         alias: 'wanxiang',
+        modelId: 'mock-image',
         capabilities: ['image'],
         displayName: '通义万相（Mock）',
         enabled: true,

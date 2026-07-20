@@ -39,7 +39,7 @@
 - [x] 1.25 实现 Qwen Adapter，用去敏 fixture 和低额度真实请求分别验收
 - [x] 1.26 实现 GLM Adapter，用去敏 fixture 和低额度真实请求分别验收
 - [x] 1.27 实现 DeepSeek Adapter，用去敏 fixture 和低额度真实请求分别验收
-- [x] 1.28 实现 `/api/v1/models`，仅返回启用 alias、能力、展示名、配置状态和健康摘要
+- [x] 1.28 实现 `/api/v1/models`，仅返回启用 alias、实际模型 ID、能力、展示名、配置状态和健康摘要
 - [x] 1.29 实现 provider 被动健康状态和 Redis TTL 投影，不用健康状态强行切换已开始的流
 - [x] 1.30 实现单模型首 delta 前最多一次 failover，对比模式及首 delta 后禁止切换
 - [x] 1.31 添加 failover 测试，覆盖超时/5xx 切换、不可重试错误、首 delta 后失败和取消
@@ -136,6 +136,7 @@
 - [x] 3.25 移除 Composer 输入框自身的粗焦点描边，仅由 Composer 卡片提供统一的细焦点状态
 - [x] 3.26 重排 Composer 底部操作栏，将对比与参数左置、模型与圆形发送按钮右置，并移除快捷键提示
 - [x] 3.27 放大发送箭头并将原生模型 select 替换为可统一美化的无障碍下拉菜单
+- [x] 3.28 模型发现接口返回实际模型 ID，并在 Composer 模型菜单中展示厂商 Logo 与具体模型名称
 
 ### 文生图页面
 

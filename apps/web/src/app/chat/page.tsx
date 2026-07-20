@@ -25,11 +25,15 @@ import { useAuthenticationFailure } from '../../components/use-authentication-fa
 
 const client = createAIGatewayClient()
 const examples = ['解释什么是 API 网关', '为周末杭州之旅列一个计划', '用简单比喻介绍大语言模型']
-const fallbackModelOptions: ReadonlyArray<{ value: TextModelAlias; label: string }> = [
-  { value: 'kimi', label: 'Kimi' },
-  { value: 'qwen', label: '通义千问 Qwen' },
-  { value: 'glm', label: '智谱 GLM' },
-  { value: 'deepseek', label: 'DeepSeek' },
+interface ModelOption {
+  value: TextModelAlias
+  label: string
+}
+const fallbackModelOptions: ReadonlyArray<ModelOption> = [
+  { value: 'kimi', label: 'Kimi K2.6' },
+  { value: 'qwen', label: 'Qwen Plus' },
+  { value: 'glm', label: 'GLM 4.7 Flash' },
+  { value: 'deepseek', label: 'DeepSeek V4 Flash' },
 ]
 
 export default function ChatPage() {
@@ -78,7 +82,7 @@ function ChatContent() {
         if (!active) return
         const enabled = models.flatMap((model) =>
           model.enabled && model.capabilities.includes('chat') && isTextModelAlias(model.alias)
-            ? [{ value: model.alias, label: model.displayName }]
+            ? [{ value: model.alias, label: formatModelName(model.modelId ?? model.displayName) }]
             : [],
         )
         setModelOptions(enabled)
@@ -124,7 +128,7 @@ function ChatContent() {
 interface AgentThreadProps {
   modelDisabled: boolean
   modelError: string
-  modelOptions: ReadonlyArray<{ value: TextModelAlias; label: string }>
+  modelOptions: ReadonlyArray<ModelOption>
   selectedModel: TextModelAlias
   onModelChange: (model: TextModelAlias) => void
   settingsOpen: boolean
@@ -262,7 +266,7 @@ function ModelSelect({
   onChange,
 }: {
   value: TextModelAlias
-  options: ReadonlyArray<{ value: TextModelAlias; label: string }>
+  options: ReadonlyArray<ModelOption>
   disabled: boolean
   onChange: (value: TextModelAlias) => void
 }) {
@@ -292,7 +296,7 @@ function ModelSelect({
         aria-expanded={open}
         onClick={() => setOpen((current) => !current)}
       >
-        <span className="agent-live-mark" aria-hidden="true" />
+        <ModelLogo alias={value} />
         <span className="agent-model-trigger-label">{selectedLabel}</span>
         <svg aria-hidden="true" viewBox="0 0 16 16">
           <path d="m5 6 3 3 3-3" />
@@ -315,7 +319,10 @@ function ModelSelect({
                   setOpen(false)
                 }}
               >
-                <span>{option.label}</span>
+                <span className="agent-model-option-main">
+                  <ModelLogo alias={option.value} />
+                  <span>{option.label}</span>
+                </span>
                 {selected && <span aria-hidden="true">✓</span>}
               </button>
             )
@@ -324,6 +331,35 @@ function ModelSelect({
       )}
     </div>
   )
+}
+
+function ModelLogo({ alias }: { alias: TextModelAlias }) {
+  return (
+    <span className={`agent-model-logo is-${alias}`} aria-hidden="true">
+      {alias === 'qwen' && <span>Q</span>}
+      {alias === 'glm' && <span>智</span>}
+      {alias === 'deepseek' && (
+        <svg viewBox="0 0 24 24"><path d="M4 13.5c2.8-5.3 8.6-7 15.8-4.3-1 5.9-5.3 9.6-11.2 8.8-1.7-.2-3.2-1.2-4.6-2.7 1.9.3 3.7 0 5.2-.9-2 .3-3.7 0-5.2-.9Z" /><circle cx="16.7" cy="10.6" r="1" /></svg>
+      )}
+      {alias === 'kimi' && <span>K</span>}
+    </span>
+  )
+}
+
+function formatModelName(modelId: string): string {
+  return modelId
+    .split('-')
+    .filter(Boolean)
+    .map((part) => {
+      const lower = part.toLowerCase()
+      if (lower === 'qwen') return 'Qwen'
+      if (lower === 'glm') return 'GLM'
+      if (lower === 'kimi') return 'Kimi'
+      if (lower === 'deepseek') return 'DeepSeek'
+      if (/^\d+(?:\.\d+)*$/.test(part)) return part
+      return part.charAt(0).toUpperCase() + part.slice(1)
+    })
+    .join(' ')
 }
 
 function AgentEmptyState() {
