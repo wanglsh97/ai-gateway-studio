@@ -14,6 +14,7 @@ enum RequestCapability {
   CHAT
   IMAGE
   PROMPT
+  AGENT
 }
 
 enum RequestStatus {
@@ -35,6 +36,36 @@ enum AdminAuditAction {
   DELETE
 }
 
+enum AgentRunStatus {
+  RUNNING
+  CANCELLING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+  LIMIT_REACHED
+  INTERRUPTED
+}
+
+enum AgentRunLimitReason {
+  MODEL_CALLS
+  TOOL_CALLS
+  WEB_FETCH_CALLS
+  DURATION
+}
+
+enum AgentMessageRole {
+  USER
+  ASSISTANT
+  TOOL
+}
+
+enum AgentToolCallStatus {
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
 model User {
   id             String                @id @default(uuid()) @db.Uuid
   githubId       String                @unique @db.VarChar(32)
@@ -48,6 +79,8 @@ model User {
   sessions       UserSession[]
   requestLogs    RequestLog[]
   imageTasks     ImageGenerationTask[]
+  agentThreads   AgentThread[]
+  agentRuns      AgentRun[]
 
   @@index([githubUsername])
   @@index([createdAt])
@@ -93,6 +126,8 @@ model RequestLog {
   updatedAt         DateTime             @updatedAt @db.Timestamptz(3)
   userId            String               @db.Uuid
   user              User                 @relation(fields: [userId], references: [id], onDelete: Restrict)
+  agentRunId        String?              @db.Uuid
+  agentRun          AgentRun?            @relation(fields: [agentRunId], references: [id], onDelete: SetNull)
   billing           BillingRecord?
   imageTask         ImageGenerationTask?
 
@@ -101,6 +136,7 @@ model RequestLog {
   @@index([status, createdAt])
   @@index([modelAlias, createdAt])
   @@index([capability, createdAt])
+  @@index([agentRunId])
 }
 
 model BillingRecord {
@@ -165,4 +201,101 @@ model AdminAuditLog {
   @@index([createdAt])
   @@index([action, createdAt])
   @@index([targetTable, createdAt])
+}
+
+model AgentThread {
+  id        String         @id @default(uuid()) @db.Uuid
+  userId    String         @db.Uuid
+  title     String         @db.VarChar(200)
+  modelId   String         @db.VarChar(128)
+  provider  String         @db.VarChar(64)
+  createdAt DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime       @updatedAt @db.Timestamptz(3)
+  user      User           @relation(fields: [userId], references: [id], onDelete: Restrict)
+  messages  AgentMessage[]
+  runs      AgentRun[]
+
+  @@index([userId, updatedAt])
+  @@index([userId, createdAt])
+}
+
+model AgentMessage {
+  id        String           @id @default(uuid()) @db.Uuid
+  threadId  String           @db.Uuid
+  runId     String?          @db.Uuid
+  role      AgentMessageRole
+  sequence  Int
+  parts     Json
+  createdAt DateTime         @default(now()) @db.Timestamptz(3)
+  thread    AgentThread      @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  run       AgentRun?        @relation(fields: [runId], references: [id], onDelete: SetNull)
+
+  @@unique([threadId, sequence])
+  @@index([threadId, createdAt])
+  @@index([runId])
+}
+
+model AgentRun {
+  id               String               @id @default(uuid()) @db.Uuid
+  threadId         String               @db.Uuid
+  userId           String               @db.Uuid
+  status           AgentRunStatus       @default(RUNNING)
+  limitReason      AgentRunLimitReason?
+  input            String               @db.Text
+  errorCode        String?              @db.VarChar(64)
+  errorMessage     String?              @db.Text
+  modelCallCount   Int                  @default(0)
+  toolCallCount    Int                  @default(0)
+  webFetchCount    Int                  @default(0)
+  inputTokens      Int                  @default(0)
+  outputTokens     Int                  @default(0)
+  totalTokens      Int                  @default(0)
+  usageUnknown     Boolean              @default(false)
+  estimatedCostCny Decimal?             @db.Decimal(18, 8)
+  lastSequence     Int                  @default(-1)
+  startedAt        DateTime?            @db.Timestamptz(3)
+  completedAt      DateTime?            @db.Timestamptz(3)
+  createdAt        DateTime             @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime             @updatedAt @db.Timestamptz(3)
+  thread           AgentThread          @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  user             User                 @relation(fields: [userId], references: [id], onDelete: Restrict)
+  events           AgentEvent[]
+  toolCallRecords  AgentToolCall[]
+  messages         AgentMessage[]
+  requestLogs      RequestLog[]
+
+  @@index([threadId, createdAt])
+  @@index([userId, status])
+}
+
+model AgentEvent {
+  id        String   @id @default(uuid()) @db.Uuid
+  runId     String   @db.Uuid
+  sequence  Int
+  type      String   @db.VarChar(64)
+  payload   Json
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  run       AgentRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, sequence])
+  @@index([runId, sequence])
+}
+
+model AgentToolCall {
+  id           String              @id @default(uuid()) @db.Uuid
+  runId        String              @db.Uuid
+  toolCallId   String              @db.VarChar(191)
+  toolName     String              @db.VarChar(64)
+  args         Json
+  status       AgentToolCallStatus @default(RUNNING)
+  summary      String?             @db.Text
+  audit        Json?
+  errorCode    String?             @db.VarChar(64)
+  errorMessage String?             @db.Text
+  startedAt    DateTime            @default(now()) @db.Timestamptz(3)
+  completedAt  DateTime?           @db.Timestamptz(3)
+  run          AgentRun            @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, toolCallId])
+  @@index([runId])
 }
