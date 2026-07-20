@@ -7,8 +7,9 @@ function setup() {
   const findFirst = jest.fn()
   const updateMany = jest.fn()
   const deleteMany = jest.fn()
+  const count = jest.fn()
   const prisma = {
-    agentThread: { create, findMany, findFirst, updateMany, deleteMany },
+    agentThread: { create, findMany, findFirst, updateMany, deleteMany, count },
   } as unknown as PrismaService
   return {
     create,
@@ -16,25 +17,45 @@ function setup() {
     findFirst,
     updateMany,
     deleteMany,
+    count,
     repository: new AgentThreadRepository(prisma),
   }
 }
 
 describe('AgentThreadRepository', () => {
-  it('always scopes reads by the owner userId', async () => {
-    const { findFirst, findMany, repository } = setup()
+  it('always scopes reads by the owner userId and sorts by updatedAt desc', async () => {
+    const { findFirst, findMany, count, repository } = setup()
     findFirst.mockResolvedValue(null)
     findMany.mockResolvedValue([])
+    count.mockResolvedValue(0)
 
     await repository.findSummaryForOwner('thread-1', 'user-a')
-    await repository.listForOwner('user-a')
+    await repository.listForOwner('user-a', { skip: 0, take: 50 })
 
     expect(findFirst).toHaveBeenCalledWith(
       expect.objectContaining({ where: { id: 'thread-1', userId: 'user-a' } }),
     )
     expect(findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { userId: 'user-a' }, orderBy: { updatedAt: 'desc' } }),
+      expect.objectContaining({
+        where: { userId: 'user-a' },
+        orderBy: { updatedAt: 'desc' },
+        skip: 0,
+        take: 50,
+      }),
     )
+    expect(count).toHaveBeenCalledWith({ where: { userId: 'user-a' } })
+  })
+
+  it('returns paginated rows with total for boundary pages', async () => {
+    const { findMany, count, repository } = setup()
+    findMany.mockResolvedValue([{ id: 'thread-2' }])
+    count.mockResolvedValue(51)
+
+    await expect(repository.listForOwner('user-a', { skip: 50, take: 50 })).resolves.toEqual({
+      rows: [{ id: 'thread-2' }],
+      total: 51,
+    })
+    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ skip: 50, take: 50 }))
   })
 
   it('returns null when a thread belongs to another user', async () => {

@@ -1,0 +1,141 @@
+'use client'
+
+import { createAIGatewayClient } from '@aigateway/sdk'
+import type { AgentThreadSummary, ModelSummary } from '@aigateway/sdk'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react'
+
+import { useUserSession } from './user-session-provider'
+
+const client = createAIGatewayClient()
+
+type AgentWorkspaceValue = {
+  threads: AgentThreadSummary[]
+  models: ModelSummary[]
+  selectedModel: string
+  setSelectedModel: (modelId: string) => void
+  loading: boolean
+  listError: string | null
+  startNewThread: () => void
+  openThread: (threadId: string) => void
+  prependThread: (thread: AgentThreadSummary) => void
+  refreshThreads: () => Promise<void>
+}
+
+const AgentWorkspaceContext = createContext<AgentWorkspaceValue | null>(null)
+
+export function AgentWorkspaceProvider({ children }: Readonly<{ children: ReactNode }>) {
+  const session = useUserSession()
+  const router = useRouter()
+  const pathname = usePathname()
+  const onAgentRoute = pathname === '/agent' || pathname.startsWith('/agent/')
+
+  const [threads, setThreads] = useState<AgentThreadSummary[]>([])
+  const [models, setModels] = useState<ModelSummary[]>([])
+  const [selectedModel, setSelectedModel] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [listError, setListError] = useState<string | null>(null)
+
+  const refreshThreads = useCallback(async () => {
+    const threadPage = await client.agent.threads.list()
+    setThreads(threadPage.items)
+  }, [])
+
+  useEffect(() => {
+    if (!onAgentRoute || session.status !== 'authenticated') return
+    let cancelled = false
+    setLoading(true)
+    setListError(null)
+    void (async () => {
+      try {
+        const [threadPage, modelList] = await Promise.all([
+          client.agent.threads.list(),
+          client.models.list(),
+        ])
+        if (cancelled) return
+        setThreads(threadPage.items)
+        const usable = modelList.filter(
+          (model) => model.enabled && model.capabilities.includes('chat'),
+        )
+        setModels(usable)
+        setSelectedModel((current) => current || usable[0]?.id || '')
+      } catch (unknownError) {
+        if (!cancelled) {
+          setListError(unknownError instanceof Error ? unknownError.message : '加载 Agent 会话失败')
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [onAgentRoute, session.status])
+
+  const startNewThread = useCallback(() => {
+    router.push('/agent')
+  }, [router])
+
+  const openThread = useCallback(
+    (threadId: string) => {
+      router.push(`/agent?thread=${encodeURIComponent(threadId)}`)
+    },
+    [router],
+  )
+
+  const prependThread = useCallback((thread: AgentThreadSummary) => {
+    setThreads((current) => [thread, ...current.filter((item) => item.id !== thread.id)])
+  }, [])
+
+  const value = useMemo<AgentWorkspaceValue>(
+    () => ({
+      threads,
+      models,
+      selectedModel,
+      setSelectedModel,
+      loading,
+      listError,
+      startNewThread,
+      openThread,
+      prependThread,
+      refreshThreads,
+    }),
+    [
+      threads,
+      models,
+      selectedModel,
+      loading,
+      listError,
+      startNewThread,
+      openThread,
+      prependThread,
+      refreshThreads,
+    ],
+  )
+
+  return <AgentWorkspaceContext.Provider value={value}>{children}</AgentWorkspaceContext.Provider>
+}
+
+export function useAgentWorkspace(): AgentWorkspaceValue {
+  const value = useContext(AgentWorkspaceContext)
+  if (!value) {
+    throw new Error('useAgentWorkspace 必须在 AgentWorkspaceProvider 内使用')
+  }
+  return value
+}
+
+/** 仅在已挂起 Suspense 的叶子组件中使用，避免根布局被 searchParams 整树 CSR。 */
+export function useAgentActiveThreadId(): string | null {
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  if (pathname !== '/agent' && !pathname.startsWith('/agent/')) return null
+  return searchParams.get('thread')
+}

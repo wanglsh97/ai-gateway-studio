@@ -1,4 +1,9 @@
-import type { AgentRunSummary, AgentThread, AgentThreadSummary } from '@aigateway/sdk'
+import type {
+  AgentRunSummary,
+  AgentThread,
+  AgentThreadListPage,
+  AgentThreadSummary,
+} from '@aigateway/sdk'
 import {
   BadRequestException,
   ConflictException,
@@ -8,15 +13,20 @@ import {
   NotFoundException,
 } from '@nestjs/common'
 
-import type { AuthenticatedUser } from '../user-auth/user-session.service'
 import { ChatModelCatalog } from '../chat/chat-model-catalog'
-import { AGENT_DEFAULT_THREAD_TITLE, AGENT_DERIVED_TITLE_MAX_LENGTH } from './agent.constants'
+import type { AgentRun } from '../generated/prisma/client'
+import type { AuthenticatedUser } from '../user-auth/user-session.service'
+import {
+  AGENT_DEFAULT_THREAD_TITLE,
+  AGENT_THREAD_LIST_DEFAULT_PAGE,
+  AGENT_THREAD_LIST_DEFAULT_PAGE_SIZE,
+} from './agent.constants'
 import { AgentMessageRepository } from './agent-message.repository'
 import { AgentRunRepository } from './agent-run.repository'
 import { AgentRunService } from './agent-run.service'
+import { deriveAgentThreadTitle } from './agent-title'
 import { AgentThreadRepository } from './agent-thread.repository'
 import { toMessage, toRunSummary, toThreadSummary } from './agent.mappers'
-import type { AgentRun } from '../generated/prisma/client'
 
 @Injectable()
 export class AgentService {
@@ -46,9 +56,23 @@ export class AgentService {
     return toThreadSummary(row)
   }
 
-  async listThreads(user: AuthenticatedUser): Promise<AgentThreadSummary[]> {
-    const rows = await this.threads.listForOwner(user.id)
-    return rows.map(toThreadSummary)
+  async listThreads(
+    user: AuthenticatedUser,
+    query: { page?: number; pageSize?: number } = {},
+  ): Promise<AgentThreadListPage> {
+    const page = query.page ?? AGENT_THREAD_LIST_DEFAULT_PAGE
+    const pageSize = query.pageSize ?? AGENT_THREAD_LIST_DEFAULT_PAGE_SIZE
+    const { rows, total } = await this.threads.listForOwner(user.id, {
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    })
+    return {
+      items: rows.map(toThreadSummary),
+      page,
+      pageSize,
+      total,
+      pageCount: total === 0 ? 0 : Math.ceil(total / pageSize),
+    }
   }
 
   async getThread(user: AuthenticatedUser, threadId: string): Promise<AgentThread> {
@@ -110,7 +134,7 @@ export class AgentService {
     const run = await this.runs.create({ threadId, userId: user.id, input })
     await this.messages.appendUserMessage(threadId, run.id, input)
     if (thread.title === AGENT_DEFAULT_THREAD_TITLE) {
-      await this.threads.renameForOwner(threadId, user.id, deriveTitle(input))
+      await this.threads.renameForOwner(threadId, user.id, deriveAgentThreadTitle(input))
     }
 
     void this.runService
@@ -138,10 +162,4 @@ export class AgentService {
     this.runService.cancel(runId)
     return toRunSummary(run)
   }
-}
-
-function deriveTitle(input: string): string {
-  const normalized = input.replace(/\s+/g, ' ').trim()
-  if (normalized.length <= AGENT_DERIVED_TITLE_MAX_LENGTH) return normalized || AGENT_DEFAULT_THREAD_TITLE
-  return `${normalized.slice(0, AGENT_DERIVED_TITLE_MAX_LENGTH)}…`
 }

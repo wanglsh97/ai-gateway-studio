@@ -108,6 +108,14 @@ export interface AgentThreadSummary {
   updatedAt: string
 }
 
+export interface AgentThreadListPage {
+  items: AgentThreadSummary[]
+  page: number
+  pageSize: number
+  total: number
+  pageCount: number
+}
+
 export interface AgentThread extends AgentThreadSummary {
   messages: AgentMessage[]
   activeRun: AgentRunSummary | null

@@ -50,12 +50,22 @@ export class AgentThreadRepository {
     })
   }
 
-  async listForOwner(userId: string): Promise<AgentThreadSummaryRow[]> {
-    return this.prisma.agentThread.findMany({
-      where: { userId },
-      orderBy: { updatedAt: 'desc' },
-      select: SUMMARY_SELECT,
-    })
+  async listForOwner(
+    userId: string,
+    options: { skip: number; take: number },
+  ): Promise<{ rows: AgentThreadSummaryRow[]; total: number }> {
+    const where = { userId }
+    const [rows, total] = await Promise.all([
+      this.prisma.agentThread.findMany({
+        where,
+        orderBy: { updatedAt: 'desc' },
+        skip: options.skip,
+        take: options.take,
+        select: SUMMARY_SELECT,
+      }),
+      this.prisma.agentThread.count({ where }),
+    ])
+    return { rows, total }
   }
 
   async findSummaryForOwner(

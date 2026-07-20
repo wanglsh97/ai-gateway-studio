@@ -1,371 +1,491 @@
 'use client'
 
 import { createAIGatewayClient } from '@aigateway/sdk'
-import type {
-  AgentMessage,
-  AgentMessagePart,
-  AgentThread,
-  AgentThreadSummary,
-  ModelSummary,
-} from '@aigateway/sdk'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { TextModelAlias, TextModelId } from '@aigateway/sdk'
+import {
+  ActionBarPrimitive,
+  AssistantRuntimeProvider,
+  AuiIf,
+  ComposerPrimitive,
+  ErrorPrimitive,
+  makeAssistantToolUI,
+  MessagePrimitive,
+  ThreadPrimitive,
+  useAui,
+  useAuiState,
+  useLocalRuntime,
+} from '@assistant-ui/react'
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 
+import {
+  useAgentActiveThreadId,
+  useAgentWorkspace,
+} from '../../components/agent-workspace-provider'
 import { ProtectedUserPage } from '../../components/protected-user-page'
 import { useAuthenticationFailure } from '../../components/use-authentication-failure'
+import { CHAT_PROVIDER_BRANDING } from '../../config/chat-provider-branding'
 import { AssistantMarkdown } from '../chat/assistant-markdown'
 import {
-  initialAgentRunViewState,
-  isActiveStatus,
-  reduceAgentEvent,
-  type AgentRunViewState,
-} from './agent-run-reducer'
+  agentMessagesToThreadMessages,
+  createAgentRunAdapter,
+  type AgentRunMetadata,
+} from './agent-run-adapter'
 
 const client = createAIGatewayClient()
+
+interface ModelOption {
+  value: TextModelId
+  label: string
+  provider: TextModelAlias
+}
 
 export default function AgentPage() {
   return (
     <ProtectedUserPage>
-      <AgentConsole />
+      <Suspense fallback={<main className="agent-page" aria-busy="true" />}>
+        <AgentConsole />
+      </Suspense>
     </ProtectedUserPage>
   )
 }
 
 function AgentConsole() {
   const handleAuthenticationFailure = useAuthenticationFailure()
-  const [threads, setThreads] = useState<AgentThreadSummary[]>([])
-  const [activeThreadId, setActiveThreadId] = useState<string | null>(null)
-  const [models, setModels] = useState<ModelSummary[]>([])
-  const [selectedModel, setSelectedModel] = useState<string>('')
-  const [persistedMessages, setPersistedMessages] = useState<AgentMessage[]>([])
-  const [runState, setRunState] = useState<AgentRunViewState>(initialAgentRunViewState())
-  const [activeRunId, setActiveRunId] = useState<string | null>(null)
-  const [input, setInput] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
+  const {
+    models,
+    selectedModel,
+    setSelectedModel,
+    openThread,
+    prependThread,
+    startNewThread,
+    refreshThreads,
+  } = useAgentWorkspace()
+  const activeThreadId = useAgentActiveThreadId()
 
-  const subscriptionRef = useRef<AbortController | null>(null)
+  const skipHydrationRef = useRef(false)
+  const contextRef = useRef({
+    threadId: activeThreadId as string | null,
+    model: selectedModel,
+    onThreadCreated: (_thread: Parameters<typeof prependThread>[0]) => undefined as void,
+    onRunFinished: () => undefined as void,
+  })
 
-  const reportError = useCallback(
-    (unknownError: unknown, fallback: string) => {
-      if (handleAuthenticationFailure(unknownError)) return
-      setError(unknownError instanceof Error ? unknownError.message : fallback)
-    },
+  contextRef.current.threadId = activeThreadId
+  contextRef.current.model = selectedModel
+  contextRef.current.onThreadCreated = (thread) => {
+    skipHydrationRef.current = true
+    prependThread(thread)
+    openThread(thread.id)
+  }
+  contextRef.current.onRunFinished = () => {
+    void refreshThreads().catch(() => undefined)
+  }
+
+  const modelOptions = useMemo<ModelOption[]>(
+    () =>
+      models.flatMap((model) =>
+        isTextModelAlias(model.alias)
+          ? [{ value: model.id as TextModelId, label: model.displayName, provider: model.alias }]
+          : [],
+      ),
+    [models],
+  )
+
+  const adapter = useMemo(
+    () =>
+      createAgentRunAdapter(
+        client,
+        () => contextRef.current,
+        (error) => {
+          handleAuthenticationFailure(error)
+        },
+      ),
     [handleAuthenticationFailure],
   )
 
-  useEffect(() => {
-    let cancelled = false
-    void (async () => {
-      try {
-        const [threadList, modelList] = await Promise.all([
-          client.agent.threads.list(),
-          client.models.list(),
-        ])
-        if (cancelled) return
-        setThreads(threadList)
-        const usable = modelList.filter((model) => model.enabled && model.capabilities.includes('chat'))
-        setModels(usable)
-        setSelectedModel((current) => current || usable[0]?.id || '')
-      } catch (unknownError) {
-        if (!cancelled) reportError(unknownError, '加载 Agent 会话失败')
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [reportError])
-
-  useEffect(() => {
-    return () => subscriptionRef.current?.abort()
-  }, [])
-
-  const subscribeToRun = useCallback(
-    (threadId: string, runId: string, after: number) => {
-      subscriptionRef.current?.abort()
-      const controller = new AbortController()
-      subscriptionRef.current = controller
-      void (async () => {
-        try {
-          for await (const event of client.agent.runs.subscribe(runId, {
-            after,
-            signal: controller.signal,
-          })) {
-            setRunState((state) => reduceAgentEvent(state, event))
-            if (event.type === 'run-terminal') {
-              await refreshThread(threadId)
-            }
-          }
-        } catch (unknownError) {
-          if (controller.signal.aborted) return
-          reportError(unknownError, 'Agent 事件流中断')
-        } finally {
-          if (subscriptionRef.current === controller) {
-            subscriptionRef.current = null
-            setActiveRunId(null)
-          }
-        }
-      })()
-    },
-    [reportError],
-  )
-
-  const refreshThread = useCallback(
-    async (threadId: string): Promise<AgentThread | null> => {
-      try {
-        const thread = await client.agent.threads.get(threadId)
-        setPersistedMessages(thread.messages)
-        setRunState(initialAgentRunViewState())
-        return thread
-      } catch (unknownError) {
-        reportError(unknownError, '加载会话详情失败')
-        return null
-      }
-    },
-    [reportError],
-  )
-
-  const openThread = useCallback(
-    async (threadId: string) => {
-      setActiveThreadId(threadId)
-      setError(null)
-      const thread = await refreshThread(threadId)
-      if (thread?.activeRun && isActiveStatus(thread.activeRun.status)) {
-        setActiveRunId(thread.activeRun.id)
-        subscribeToRun(threadId, thread.activeRun.id, -1)
-      } else {
-        setActiveRunId(null)
-      }
-    },
-    [refreshThread, subscribeToRun],
-  )
-
-  const startNewThread = useCallback(() => {
-    subscriptionRef.current?.abort()
-    setActiveThreadId(null)
-    setPersistedMessages([])
-    setRunState(initialAgentRunViewState())
-    setActiveRunId(null)
-    setError(null)
-  }, [])
-
-  const submit = useCallback(async () => {
-    const trimmed = input.trim()
-    if (!trimmed || busy || activeRunId) return
-    setBusy(true)
-    setError(null)
-    try {
-      let threadId = activeThreadId
-      if (!threadId) {
-        if (!selectedModel) {
-          setError('没有可用的 Agent 模型')
-          return
-        }
-        const created = await client.agent.threads.create({ model: selectedModel })
-        threadId = created.id
-        setActiveThreadId(threadId)
-        setThreads((current) => [created, ...current])
-      }
-      setPersistedMessages((current) => [
-        ...current,
-        { id: `local-${Date.now()}`, role: 'user', parts: [{ type: 'text', text: trimmed }], createdAt: '' },
-      ])
-      setRunState(initialAgentRunViewState())
-      setInput('')
-      const run = await client.agent.runs.create(threadId, { input: trimmed })
-      setActiveRunId(run.id)
-      subscribeToRun(threadId, run.id, -1)
-    } catch (unknownError) {
-      reportError(unknownError, '发起 Agent 运行失败')
-    } finally {
-      setBusy(false)
-    }
-  }, [activeRunId, activeThreadId, busy, input, reportError, selectedModel, subscribeToRun])
-
-  const stop = useCallback(async () => {
-    if (!activeRunId) return
-    try {
-      await client.agent.runs.cancel(activeRunId)
-    } catch (unknownError) {
-      reportError(unknownError, '取消运行失败')
-    }
-  }, [activeRunId, reportError])
-
-  const messages = useMemo(
-    () => [...persistedMessages, ...runState.messages],
-    [persistedMessages, runState.messages],
-  )
-  const running = isActiveStatus(runState.status) || activeRunId !== null
+  const runtime = useLocalRuntime(adapter)
+  const modelLocked = activeThreadId !== null
+  const modelDisabled = modelOptions.length === 0
 
   return (
-    <main className="agent-page">
-      <div className="agent-layout">
-        <aside className="agent-sidebar">
-          <button type="button" className="agent-new-thread" onClick={startNewThread}>
-            + 新建会话
-          </button>
-          <label className="agent-model-picker">
-            <span>模型</span>
-            <select
-              value={selectedModel}
-              disabled={activeThreadId !== null || running}
-              onChange={(event) => setSelectedModel(event.target.value)}
-            >
-              {models.length === 0 ? <option value="">无可用模型</option> : null}
-              {models.map((model) => (
-                <option key={model.id} value={model.id}>
-                  {model.displayName}
-                </option>
-              ))}
-            </select>
-          </label>
-          <ul className="agent-thread-list">
-            {threads.map((thread) => (
-              <li key={thread.id}>
-                <button
-                  type="button"
-                  className={`agent-thread-item${thread.id === activeThreadId ? ' is-active' : ''}`}
-                  onClick={() => void openThread(thread.id)}
-                >
-                  {thread.title}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </aside>
-
-        <section className="agent-console agent-chat-panel">
-          {error ? (
-            <div className="agent-message-error" role="alert">
-              {error}
-            </div>
-          ) : null}
-
-          <div className="agent-thread">
-            {messages.length === 0 ? (
-              <p className="agent-empty">向 Agent 提出任务，它可以自主调用工具（如 web_fetch）并跨多轮完成。</p>
-            ) : (
-              messages.map((message) => <MessageView key={message.id} message={message} />)
-            )}
-            {running ? <StatusLine status={runState.status} /> : null}
-            {runState.status === 'cancelled' ? <p className="agent-note">运行已取消。</p> : null}
-            {runState.status === 'limit_reached' ? (
-              <p className="agent-note">已达到运行上限（{runState.limitReason ?? '限制'}）。</p>
-            ) : null}
-            {runState.usage ? (
-              <p className="agent-usage">
-                模型调用 {runState.usage.modelCalls} · 工具调用 {runState.usage.toolCalls} · Token{' '}
-                {runState.usage.totalTokens ?? '—'}
-              </p>
-            ) : null}
-          </div>
-
-          <form
-            className="agent-composer"
-            onSubmit={(event) => {
-              event.preventDefault()
-              void submit()
-            }}
-          >
-            <textarea
-              value={input}
-              onChange={(event) => setInput(event.target.value)}
-              placeholder="描述你想让 Agent 完成的任务…"
-              rows={2}
-              disabled={running}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' && !event.shiftKey) {
-                  event.preventDefault()
-                  void submit()
-                }
-              }}
-            />
-            {running ? (
-              <button type="button" className="agent-stop" onClick={() => void stop()}>
-                停止
-              </button>
-            ) : (
-              <button type="submit" className="agent-send" disabled={busy || input.trim().length === 0}>
-                发送
-              </button>
-            )}
-          </form>
+    <AssistantRuntimeProvider runtime={runtime}>
+      <ThreadHydrator skipHydrationRef={skipHydrationRef} />
+      <WebFetchToolUI />
+      <main className="agent-page">
+        <section className="agent-console agent-chat-panel" aria-label="智能体">
+          <AgentThread
+            modelDisabled={modelDisabled}
+            modelLocked={modelLocked}
+            modelOptions={modelOptions}
+            selectedModel={(selectedModel as TextModelId) || modelOptions[0]?.value || 'qwen3.7-plus'}
+            onModelChange={(model) => setSelectedModel(model)}
+            onNewThread={startNewThread}
+          />
         </section>
-      </div>
-    </main>
+      </main>
+    </AssistantRuntimeProvider>
   )
 }
 
-function StatusLine({ status }: { status: AgentRunViewState['status'] }) {
-  const label = status === 'cancelling' ? '正在取消…' : 'Agent 正在工作…'
+function ThreadHydrator({
+  skipHydrationRef,
+}: {
+  skipHydrationRef: { current: boolean }
+}) {
+  const api = useAui()
+  const activeThreadId = useAgentActiveThreadId()
+  const handleAuthenticationFailure = useAuthenticationFailure()
+
+  useEffect(() => {
+    if (skipHydrationRef.current) {
+      skipHydrationRef.current = false
+      return
+    }
+
+    let cancelled = false
+    void (async () => {
+      try {
+        if (!activeThreadId) {
+          api.thread().reset([])
+          return
+        }
+        const thread = await client.agent.threads.get(activeThreadId)
+        if (cancelled) return
+        api.thread().reset(agentMessagesToThreadMessages(thread.messages))
+      } catch (error) {
+        if (!cancelled) handleAuthenticationFailure(error)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+    // api 引用不稳定，只按会话 ID 水合
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- hydrate on thread change only
+  }, [activeThreadId])
+
+  return null
+}
+
+function AgentThread({
+  modelDisabled,
+  modelLocked,
+  modelOptions,
+  selectedModel,
+  onModelChange,
+  onNewThread,
+}: {
+  modelDisabled: boolean
+  modelLocked: boolean
+  modelOptions: ReadonlyArray<ModelOption>
+  selectedModel: TextModelId
+  onModelChange: (model: TextModelId) => void
+  onNewThread: () => void
+}) {
   return (
-    <p className="agent-status-line">
-      <span className="agent-stream-caret" aria-hidden />
-      {label}
+    <ThreadPrimitive.Root className="agent-thread">
+      <ThreadPrimitive.Viewport className="agent-thread-viewport">
+        <ThreadPrimitive.Empty>
+          <AgentEmptyState />
+        </ThreadPrimitive.Empty>
+        <ThreadPrimitive.Messages>
+          {({ message }) => (message.role === 'user' ? <UserMessage /> : <AssistantMessage />)}
+        </ThreadPrimitive.Messages>
+      </ThreadPrimitive.Viewport>
+      <ThreadPrimitive.ScrollToBottom className="agent-scroll-button" aria-label="滚动到底部">
+        ↓
+      </ThreadPrimitive.ScrollToBottom>
+      <div className="agent-composer-dock">
+        <ComposerPrimitive.Root className="agent-composer">
+          <ComposerPrimitive.Input
+            aria-label="描述 Agent 任务"
+            rows={1}
+            maxLength={8000}
+            disabled={modelDisabled}
+            placeholder="描述你想让 Agent 完成的任务…"
+          />
+          <div className="agent-composer-footer">
+            <div className="agent-composer-actions">
+              <NewThreadButton onNewThread={onNewThread} />
+            </div>
+            <div className="agent-composer-submit-group">
+              <ModelSelect
+                value={selectedModel}
+                options={modelOptions}
+                disabled={modelDisabled || modelLocked}
+                onChange={onModelChange}
+              />
+              <AuiIf condition={({ thread }) => thread.isRunning}>
+                <ComposerPrimitive.Cancel className="agent-send-button is-cancel">
+                  停止
+                </ComposerPrimitive.Cancel>
+              </AuiIf>
+              <AuiIf condition={({ thread }) => !thread.isRunning}>
+                <ComposerPrimitive.Send
+                  className="agent-send-button"
+                  disabled={modelDisabled}
+                  aria-label="发送任务"
+                >
+                  <svg aria-hidden="true" viewBox="0 0 20 20">
+                    <path d="M10 15V5m0 0L6 9m4-4 4 4" />
+                  </svg>
+                </ComposerPrimitive.Send>
+              </AuiIf>
+            </div>
+          </div>
+        </ComposerPrimitive.Root>
+        <p className="agent-privacy-note">内容由 AI 生成，请仔细甄别</p>
+      </div>
+    </ThreadPrimitive.Root>
+  )
+}
+
+const WebFetchToolUI = makeAssistantToolUI<
+  { url?: string },
+  { summary?: string; status?: string; audit?: Record<string, unknown> }
+>({
+  toolName: 'web_fetch',
+  render: ({ args, result, status, isError }) => {
+    const url = typeof args.url === 'string' ? args.url : ''
+    const finalUrl =
+      typeof result?.audit?.finalUrl === 'string' ? result.audit.finalUrl : undefined
+    const httpStatus = typeof result?.audit?.status === 'number' ? result.audit.status : undefined
+    const running = status.type === 'running'
+
+    if (running) {
+      return (
+        <div className="agent-tool-call">
+          <span className="agent-tool-name">web_fetch</span>
+          {url ? <span className="agent-tool-target">{url}</span> : null}
+          <span className="agent-tool-status is-running">调用中…</span>
+        </div>
+      )
+    }
+
+    return (
+      <div className={`agent-tool-result${isError ? ' is-error' : ''}`}>
+        <div className="agent-tool-result-head">
+          <span className="agent-tool-name">web_fetch</span>
+          <span className={`agent-tool-status is-${result?.status ?? 'succeeded'}`}>
+            {result?.status ?? (isError ? 'failed' : 'succeeded')}
+          </span>
+          {httpStatus ? <span className="agent-tool-http">HTTP {httpStatus}</span> : null}
+        </div>
+        {result?.summary ? <p className="agent-tool-summary">{result.summary}</p> : null}
+        {finalUrl ? (
+          <a className="agent-tool-link" href={finalUrl} target="_blank" rel="noreferrer noopener">
+            {finalUrl}
+          </a>
+        ) : null}
+      </div>
+    )
+  },
+})
+
+function ModelSelect({
+  value,
+  options,
+  disabled,
+  onChange,
+}: {
+  value: TextModelId
+  options: ReadonlyArray<ModelOption>
+  disabled: boolean
+  onChange: (value: TextModelId) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const rootRef = useRef<HTMLDivElement>(null)
+  const selectedLabel = options.find((option) => option.value === value)?.label ?? value
+  const selectedProvider = options.find((option) => option.value === value)?.provider ?? 'qwen'
+
+  useEffect(() => {
+    if (!open) return
+    const closeOnOutsideClick = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false)
+    }
+    document.addEventListener('pointerdown', closeOnOutsideClick)
+    return () => document.removeEventListener('pointerdown', closeOnOutsideClick)
+  }, [open])
+
+  return (
+    <div
+      className="agent-model-picker"
+      ref={rootRef}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') setOpen(false)
+      }}
+    >
+      <button
+        type="button"
+        className="agent-model-trigger"
+        disabled={disabled}
+        aria-label={`运行模型：${selectedLabel}`}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}
+      >
+        <ModelLogo alias={selectedProvider} />
+        <span className="agent-model-trigger-label">{selectedLabel}</span>
+        <svg aria-hidden="true" viewBox="0 0 16 16">
+          <path d="m5 6 3 3 3-3" />
+        </svg>
+      </button>
+      {open && (
+        <div className="agent-model-menu" role="listbox" aria-label="选择运行模型">
+          <p>运行模型</p>
+          {options.map((option) => {
+            const selected = option.value === value
+            return (
+              <button
+                key={option.value}
+                type="button"
+                role="option"
+                aria-selected={selected}
+                className={selected ? 'is-selected' : undefined}
+                onClick={() => {
+                  onChange(option.value)
+                  setOpen(false)
+                }}
+              >
+                <span className="agent-model-option-main">
+                  <ModelLogo alias={option.provider} />
+                  <span>{option.label}</span>
+                </span>
+                {selected && <span aria-hidden="true">✓</span>}
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ModelLogo({ alias }: { alias: TextModelAlias }) {
+  const branding = CHAT_PROVIDER_BRANDING[alias]
+  return (
+    <span
+      className={`agent-model-logo is-${alias}${branding.logoUrl ? ' has-logo' : ''}`}
+      style={branding.logoUrl ? { backgroundImage: `url("${branding.logoUrl}")` } : undefined}
+      aria-hidden="true"
+    >
+      {!branding.logoUrl && <span>{branding.fallbackText}</span>}
+    </span>
+  )
+}
+
+function AgentEmptyState() {
+  const api = useAui()
+  const examples = [
+    '总结 https://example.com/ 页面要点',
+    '抓取指定 URL 并对比两处说法是否一致',
+    '根据网页内容整理一份简短行动清单',
+  ]
+  return (
+    <div className="agent-empty-state">
+      <div className="agent-orbit" aria-hidden="true">
+        <span>AI</span>
+      </div>
+      <p className="agent-empty-kicker">AGENT THREAD · EMPTY</p>
+      <h2>交给 Agent 一个可执行的任务</h2>
+      <p>它可以自主调用工具（如 web_fetch），并在同一会话里跨多轮完成。</p>
+      <div className="agent-suggestions">
+        {examples.map((example) => (
+          <button key={example} type="button" onClick={() => api.composer().setText(example)}>
+            {example}
+            <span aria-hidden="true">↗</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function UserMessage() {
+  return (
+    <MessagePrimitive.Root className="agent-message is-user">
+      <div className="agent-message-label">YOU</div>
+      <div className="agent-user-bubble">
+        <MessagePrimitive.Parts />
+      </div>
+    </MessagePrimitive.Root>
+  )
+}
+
+function AssistantMessage() {
+  return (
+    <MessagePrimitive.Root className="agent-message is-assistant">
+      <div className="agent-assistant-rail" aria-hidden="true">
+        <span>AI</span>
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="agent-message-label">AI GATEWAY · AGENT</div>
+        <div className="agent-assistant-content">
+          <MessagePrimitive.Parts>
+            {({ part }) => {
+              if (part.type === 'tool-call') return part.toolUI ?? null
+              if (part.type === 'text') {
+                return <AssistantMarkdown>{part.text}</AssistantMarkdown>
+              }
+              if (part.type === 'reasoning') {
+                return (
+                  <details className="agent-reasoning">
+                    <summary>推理过程（可能不完整或不准确）</summary>
+                    <div>{part.text}</div>
+                  </details>
+                )
+              }
+              return null
+            }}
+          </MessagePrimitive.Parts>
+          <AuiIf condition={({ message }) => message.status?.type === 'running'}>
+            <span className="agent-stream-caret" aria-label="正在生成" />
+          </AuiIf>
+        </div>
+        <MessagePrimitive.Error>
+          <ErrorPrimitive.Root className="agent-message-error" role="alert">
+            请求失败：
+            <ErrorPrimitive.Message />
+          </ErrorPrimitive.Root>
+        </MessagePrimitive.Error>
+        <div className="agent-message-foot">
+          <MessageMetadata />
+          <ActionBarPrimitive.Root className="agent-message-actions">
+            <ActionBarPrimitive.Copy className="agent-copy-button">复制</ActionBarPrimitive.Copy>
+          </ActionBarPrimitive.Root>
+        </div>
+      </div>
+    </MessagePrimitive.Root>
+  )
+}
+
+function MessageMetadata() {
+  const custom = useAuiState(({ message }) => message.metadata.custom) as AgentRunMetadata
+  const status = useAuiState(({ message }) => message.status)
+  return (
+    <p>
+      {custom.model ?? '模型'}
+      {status?.type === 'running'
+        ? ' · 生成中'
+        : custom.totalTokens != null
+          ? ` · ${custom.totalTokens} tokens`
+          : ''}
+      {custom.modelCalls != null ? ` · 模型 ${custom.modelCalls}` : ''}
+      {custom.toolCalls != null ? ` · 工具 ${custom.toolCalls}` : ''}
     </p>
   )
 }
 
-function MessageView({ message }: { message: AgentMessage }) {
-  if (message.role === 'tool') {
-    return (
-      <>
-        {message.parts.map((part, index) => (
-          <PartView key={index} part={part} />
-        ))}
-      </>
-    )
-  }
+function NewThreadButton({ onNewThread }: { onNewThread: () => void }) {
+  const hasMessages = useAuiState(({ thread }) => thread.messages.length > 0)
+  if (!hasMessages) return null
   return (
-    <div className={`agent-message is-${message.role}`}>
-      {message.parts.map((part, index) => (
-        <PartView key={index} part={part} role={message.role} />
-      ))}
-    </div>
+    <button type="button" className="agent-composer-action" onClick={onNewThread}>
+      新会话
+    </button>
   )
 }
 
-function PartView({ part, role }: { part: AgentMessagePart; role?: AgentMessage['role'] }) {
-  if (part.type === 'text') {
-    return role === 'assistant' ? (
-      <AssistantMarkdown>{part.text}</AssistantMarkdown>
-    ) : (
-      <p className="agent-user-text">{part.text}</p>
-    )
-  }
-  if (part.type === 'reasoning') {
-    return (
-      <details className="agent-reasoning">
-        <summary>推理过程（可能不完整或不准确）</summary>
-        <div>{part.text}</div>
-      </details>
-    )
-  }
-  if (part.type === 'tool-call') {
-    const url = typeof part.args.url === 'string' ? part.args.url : ''
-    return (
-      <div className="agent-tool-call">
-        <span className="agent-tool-name">{part.toolName}</span>
-        {url ? <span className="agent-tool-target">{url}</span> : null}
-        <span className="agent-tool-status is-running">调用中…</span>
-      </div>
-    )
-  }
-  // tool-result
-  const finalUrl = typeof part.audit?.finalUrl === 'string' ? part.audit.finalUrl : undefined
-  const httpStatus = typeof part.audit?.status === 'number' ? part.audit.status : undefined
-  return (
-    <div className={`agent-tool-result${part.isError ? ' is-error' : ''}`}>
-      <div className="agent-tool-result-head">
-        <span className="agent-tool-name">{part.toolName}</span>
-        <span className={`agent-tool-status is-${part.status}`}>{part.status}</span>
-        {httpStatus ? <span className="agent-tool-http">HTTP {httpStatus}</span> : null}
-      </div>
-      <p className="agent-tool-summary">{part.summary}</p>
-      {finalUrl ? (
-        <a className="agent-tool-link" href={finalUrl} target="_blank" rel="noreferrer noopener">
-          {finalUrl}
-        </a>
-      ) : null}
-    </div>
-  )
+function isTextModelAlias(value: string): value is TextModelAlias {
+  return ['qwen', 'glm', 'deepseek', 'kimi'].includes(value)
 }

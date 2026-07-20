@@ -26,7 +26,11 @@ import { AgentRunEventBus } from './agent-run-event-bus'
 import { AgentRunRepository } from './agent-run.repository'
 import { AgentService } from './agent.service'
 import { CreateAgentRunDto } from './dto/create-agent-run.dto'
-import { CreateAgentThreadDto, UpdateAgentThreadDto } from './dto/agent-thread.dto'
+import {
+  CreateAgentThreadDto,
+  ListAgentThreadsQueryDto,
+  UpdateAgentThreadDto,
+} from './dto/agent-thread.dto'
 
 @ApiTags('Agent')
 @ApiCookieAuth(USER_SESSION_COOKIE)
@@ -45,8 +49,11 @@ export class AgentController {
   }
 
   @Get('threads')
-  async listThreads(@CurrentUser() user: AuthenticatedUser) {
-    return this.agent.listThreads(user)
+  async listThreads(
+    @Query() query: ListAgentThreadsQueryDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.agent.listThreads(user, query)
   }
 
   @Get('threads/:threadId')

@@ -2,9 +2,10 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { type ReactNode, useEffect, useRef, useState } from 'react'
+import { Suspense, type ReactNode, useEffect, useRef, useState } from 'react'
 
 import { logoutUser, sanitizeUserReturnTo } from '../lib/user-auth-client'
+import { useAgentActiveThreadId, useAgentWorkspace } from './agent-workspace-provider'
 import { ThemeToggle } from './theme-toggle'
 import { useUserSession } from './user-session-provider'
 
@@ -126,6 +127,18 @@ function UserWorkspace({ children }: Readonly<{ children: ReactNode }>) {
           {navigation.map((item) => {
             const active = pathname === item.href || pathname.startsWith(`${item.href}/`)
             const Icon = item.icon
+            if (item.href === '/agent') {
+              return (
+                <AgentNavGroup
+                  key={item.href}
+                  active={active}
+                  collapsed={collapsed}
+                  label={item.label}
+                  description={item.description}
+                  Icon={Icon}
+                />
+              )
+            }
             return (
               <Link
                 key={item.href}
@@ -197,6 +210,86 @@ function UserWorkspace({ children }: Readonly<{ children: ReactNode }>) {
       </aside>
 
       <div className={`workspace-content ${collapsed ? 'sidebar-collapsed' : ''}`}>{children}</div>
+    </div>
+  )
+}
+
+function AgentNavGroup({
+  active,
+  collapsed,
+  label,
+  description,
+  Icon,
+}: Readonly<{
+  active: boolean
+  collapsed: boolean
+  label: string
+  description: string
+  Icon: () => ReactNode
+}>) {
+  return (
+    <div className={`sidebar-agent-group ${active ? 'is-active' : ''}`}>
+      <Link
+        href="/agent"
+        className={`sidebar-nav-item ${active ? 'is-active' : ''}`}
+        aria-current={active ? 'page' : undefined}
+        title={collapsed ? label : undefined}
+      >
+        <span className="sidebar-nav-icon"><Icon /></span>
+        {!collapsed && (
+          <span className="min-w-0">
+            <strong>{label}</strong>
+            <small>{description}</small>
+          </span>
+        )}
+      </Link>
+
+      {active && !collapsed ? (
+        <Suspense fallback={null}>
+          <AgentThreadLinks />
+        </Suspense>
+      ) : null}
+    </div>
+  )
+}
+
+function AgentThreadLinks() {
+  const session = useUserSession()
+  const { threads, loading, listError } = useAgentWorkspace()
+  const activeThreadId = useAgentActiveThreadId()
+
+  if (session.status !== 'authenticated') return null
+
+  return (
+    <div className="sidebar-agent-threads" aria-label="Agent 会话">
+      <Link href="/agent" className="sidebar-agent-new">
+        + 新建会话
+      </Link>
+      {listError ? <p className="sidebar-agent-hint">{listError}</p> : null}
+      {loading && threads.length === 0 ? (
+        <p className="sidebar-agent-hint">加载会话…</p>
+      ) : null}
+      {!loading && !listError && threads.length === 0 ? (
+        <p className="sidebar-agent-hint">还没有会话，发送第一条任务后会出现在这里。</p>
+      ) : null}
+      <ul className="sidebar-agent-thread-list">
+        {threads.map((thread) => {
+          const href = `/agent?thread=${encodeURIComponent(thread.id)}`
+          const isActive = thread.id === activeThreadId
+          return (
+            <li key={thread.id}>
+              <Link
+                href={href}
+                className={`sidebar-agent-thread${isActive ? ' is-active' : ''}`}
+                title={thread.title}
+                aria-current={isActive ? 'page' : undefined}
+              >
+                {thread.title}
+              </Link>
+            </li>
+          )
+        })}
+      </ul>
     </div>
   )
 }

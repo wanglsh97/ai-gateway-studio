@@ -10,7 +10,7 @@ export type {
 } from './client.js'
 export { decodeAgentEvent, encodeAgentEvent } from './agent-events.js'
 export type { AgentEventWire } from './agent-events.js'
-export type { AgentClient, AgentEventSubscribeOptions } from './agent-client.js'
+export type { AgentClient, AgentEventSubscribeOptions, AgentThreadListOptions } from './agent-client.js'
 export {
   AGENT_EVENT_SSE_DONE,
   AGENT_MESSAGE_ROLES,
@@ -32,6 +32,7 @@ export type {
   AgentStreamEvent,
   AgentTextPart,
   AgentThread,
+  AgentThreadListPage,
   AgentThreadSummary,
   AgentToolCallPart,
   AgentToolCallStatus,

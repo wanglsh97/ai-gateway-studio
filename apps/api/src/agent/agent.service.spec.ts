@@ -72,6 +72,58 @@ describe('AgentService', () => {
     )
   })
 
+  it('creates a thread with the default title when title is omitted or blank', async () => {
+    const { service, models, threads } = setup()
+    ;(models.resolve as jest.Mock).mockReturnValue({
+      id: 'qwen3.7-plus',
+      provider: 'qwen',
+      upstreamModelId: 'x',
+      displayName: 'Q',
+    })
+    ;(threads.create as jest.Mock).mockResolvedValue(threadRow())
+    await service.createThread(user, { model: 'qwen3.7-plus' })
+    await service.createThread(user, { model: 'qwen3.7-plus', title: '   ' })
+    expect(threads.create).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ title: '新的 Agent 会话' }),
+    )
+    expect(threads.create).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ title: '新的 Agent 会话' }),
+    )
+  })
+
+  it('lists threads as a paginated page sorted by repository order', async () => {
+    const { service, threads } = setup()
+    ;(threads.listForOwner as jest.Mock).mockResolvedValue({
+      rows: [threadRow({ id: 'newer' }), threadRow({ id: 'older' })],
+      total: 2,
+    })
+    await expect(service.listThreads(user, { page: 1, pageSize: 20 })).resolves.toEqual({
+      items: [
+        expect.objectContaining({ id: 'newer' }),
+        expect.objectContaining({ id: 'older' }),
+      ],
+      page: 1,
+      pageSize: 20,
+      total: 2,
+      pageCount: 1,
+    })
+    expect(threads.listForOwner).toHaveBeenCalledWith('user-a', { skip: 0, take: 20 })
+  })
+
+  it('returns an empty page when the owner has no threads', async () => {
+    const { service, threads } = setup()
+    ;(threads.listForOwner as jest.Mock).mockResolvedValue({ rows: [], total: 0 })
+    await expect(service.listThreads(user)).resolves.toEqual({
+      items: [],
+      page: 1,
+      pageSize: 50,
+      total: 0,
+      pageCount: 0,
+    })
+  })
+
   it('returns 404 for a thread owned by another user', async () => {
     const { service, threads } = setup()
     ;(threads.findSummaryForOwner as jest.Mock).mockResolvedValue(null)

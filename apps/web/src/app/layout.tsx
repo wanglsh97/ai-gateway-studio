@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
 
+import { AgentWorkspaceProvider } from '../components/agent-workspace-provider'
 import { AppShell } from '../components/app-shell'
 import { UserSessionProvider } from '../components/user-session-provider'
 
@@ -34,7 +35,9 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
       </head>
       <body suppressHydrationWarning>
         <UserSessionProvider>
-          <AppShell>{children}</AppShell>
+          <AgentWorkspaceProvider>
+            <AppShell>{children}</AppShell>
+          </AgentWorkspaceProvider>
         </UserSessionProvider>
       </body>
     </html>

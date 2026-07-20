@@ -3,6 +3,7 @@ import type {
   AgentRunSummary,
   AgentStreamEvent,
   AgentThread,
+  AgentThreadListPage,
   AgentThreadSummary,
   CreateAgentRunRequest,
   CreateAgentThreadRequest,
@@ -25,10 +26,15 @@ export interface AgentEventSubscribeOptions extends RequestOptions {
   after?: number
 }
 
+export interface AgentThreadListOptions extends RequestOptions {
+  page?: number
+  pageSize?: number
+}
+
 export interface AgentClient {
   threads: {
     create(input: CreateAgentThreadRequest, options?: RequestOptions): Promise<AgentThreadSummary>
-    list(options?: RequestOptions): Promise<AgentThreadSummary[]>
+    list(options?: AgentThreadListOptions): Promise<AgentThreadListPage>
     get(threadId: string, options?: RequestOptions): Promise<AgentThread>
     rename(
       threadId: string,
@@ -59,8 +65,19 @@ export function createAgentClient(
     threads: {
       create: (input, options) =>
         requestJson(fetchImplementation, 'POST', `${baseUrl}/api/v1/agent/threads`, input, options),
-      list: (options) =>
-        requestJson(fetchImplementation, 'GET', `${baseUrl}/api/v1/agent/threads`, undefined, options),
+      list: (options) => {
+        const params = new URLSearchParams()
+        if (options?.page !== undefined) params.set('page', String(options.page))
+        if (options?.pageSize !== undefined) params.set('pageSize', String(options.pageSize))
+        const query = params.toString()
+        return requestJson(
+          fetchImplementation,
+          'GET',
+          `${baseUrl}/api/v1/agent/threads${query ? `?${query}` : ''}`,
+          undefined,
+          options,
+        )
+      },
       get: (threadId, options) =>
         requestJson(
           fetchImplementation,

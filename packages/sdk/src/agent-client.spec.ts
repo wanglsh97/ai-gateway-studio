@@ -33,12 +33,21 @@ describe('AgentClient threads and runs', () => {
       fetch: async (input, init) => {
         calls.push({ url: String(input), method: init?.method, body: init?.body })
         if (init?.method === 'DELETE') return new Response(null, { status: 204 })
+        if (String(input).includes('/api/v1/agent/threads?') || (init?.method === 'GET' && String(input).endsWith('/threads'))) {
+          return Response.json({
+            items: [{ id: threadId, title: 't', model: 'qwen3.7-plus', createdAt: '', updatedAt: '' }],
+            page: 1,
+            pageSize: 50,
+            total: 1,
+            pageCount: 1,
+          })
+        }
         return Response.json({ id: threadId, title: 't', model: 'qwen3.7-plus', createdAt: '', updatedAt: '' })
       },
     })
 
     await client.agent.threads.create({ model: 'qwen3.7-plus' })
-    await client.agent.threads.list()
+    await client.agent.threads.list({ page: 2, pageSize: 20 })
     await client.agent.threads.get(threadId)
     await client.agent.threads.rename(threadId, { title: '新标题' })
     await client.agent.threads.delete(threadId)
@@ -46,10 +55,28 @@ describe('AgentClient threads and runs', () => {
     assert.equal(calls[0]?.url, 'http://localhost:3001/api/v1/agent/threads')
     assert.equal(calls[0]?.method, 'POST')
     assert.equal(calls[1]?.method, 'GET')
+    assert.equal(calls[1]?.url, 'http://localhost:3001/api/v1/agent/threads?page=2&pageSize=20')
     assert.equal(calls[2]?.url, `http://localhost:3001/api/v1/agent/threads/${threadId}`)
     assert.equal(calls[3]?.method, 'PATCH')
     assert.equal(calls[3]?.body, JSON.stringify({ title: '新标题' }))
     assert.equal(calls[4]?.method, 'DELETE')
+  })
+
+  it('returns a paginated thread list page', async () => {
+    const client = createAIGatewayClient({
+      fetch: async () =>
+        Response.json({
+          items: [{ id: threadId, title: 't', model: 'qwen3.7-plus', createdAt: '', updatedAt: '' }],
+          page: 1,
+          pageSize: 50,
+          total: 1,
+          pageCount: 1,
+        }),
+    })
+    const page = await client.agent.threads.list()
+    assert.equal(page.items.length, 1)
+    assert.equal(page.total, 1)
+    assert.equal(page.pageSize, 50)
   })
 
   it('creates and cancels runs', async () => {
