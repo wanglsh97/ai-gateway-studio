@@ -627,9 +627,9 @@ body {
 }
 .agent-model-logo {
   display: grid;
-  width: 1.55rem;
-  height: 1.55rem;
-  flex: 0 0 1.55rem;
+  width: 1.3rem;
+  height: 1.3rem;
+  flex: 0 0 1.3rem;
   place-items: center;
   overflow: hidden;
   border: 1px solid #e2ddec;
@@ -656,7 +656,7 @@ body {
   background-repeat: no-repeat;
   background-size: cover;
 }
-.agent-model-logo.is-glm {
+.agent-model-logo.is-glm:not(.has-logo) {
   border-color: #17151e;
   background: #17151e;
   color: #fff;
