@@ -68,7 +68,7 @@ export function AgentWorkspaceProvider({ children }: Readonly<{ children: ReactN
         if (cancelled) return
         setThreads(threadPage.items)
         const usable = modelList.filter(
-          (model) => model.enabled && model.capabilities.includes('chat'),
+          (model) => model.enabled && model.capabilities.includes('agent'),
         )
         setModels(usable)
         setSelectedModel((current) => current || usable[0]?.id || '')

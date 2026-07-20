@@ -2,6 +2,7 @@ import type { TextModelAlias } from '@aigateway/sdk'
 import { Inject, Injectable } from '@nestjs/common'
 
 import { ChatAdapterRegistry } from './adapters/chat-adapter.registry'
+import { canAdvertiseAgentCapability } from './chat-model-capabilities'
 import { CHAT_MODELS } from './chat-models.config'
 
 export interface ChatModelDefinition {
@@ -23,5 +24,22 @@ export class ChatModelCatalog {
 
   resolve(id: string): ChatModelDefinition | undefined {
     return this.list().find((definition) => definition.id === id)
+  }
+
+  /** 仅启用、可服务且通过 Agent tool-calling contract 的模型可创建 Agent thread。 */
+  resolveForAgent(id: string): ChatModelDefinition | undefined {
+    const model = this.resolve(id)
+    if (!model) return undefined
+    if (
+      !canAdvertiseAgentCapability({
+        modelId: model.id,
+        provider: model.provider,
+        providerConfigured: this.adapters.has(model.provider),
+        mockAvailable: this.adapters.has('mock'),
+      })
+    ) {
+      return undefined
+    }
+    return model
   }
 }

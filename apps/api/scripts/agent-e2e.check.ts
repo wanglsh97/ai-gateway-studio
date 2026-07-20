@@ -60,8 +60,11 @@ async function main(): Promise<void> {
   let threadId: string | undefined
   try {
     const models = await client.models.list()
-    const model = models.find((candidate) => candidate.enabled && candidate.capabilities.includes('chat'))
-    assert.ok(model, '需要至少一个启用的 Chat 模型（开发环境应启用 Mock）')
+    const model = models.find(
+      (candidate) => candidate.enabled && candidate.capabilities.includes('agent'),
+    )
+    assert.ok(model, '需要至少一个启用且声明 agent capability 的模型（开发环境应启用 Mock）')
+    assert.ok(model.capabilities.includes('agent'))
 
     const thread = await client.agent.threads.create({ model: model.id })
     threadId = thread.id

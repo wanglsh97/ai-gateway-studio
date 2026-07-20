@@ -3,6 +3,7 @@ import { Controller, Get, Inject } from '@nestjs/common'
 
 import { ImageAdapterRegistry } from '../image/adapters/image-adapter.registry'
 import { ChatAdapterRegistry } from './adapters/chat-adapter.registry'
+import { resolveChatModelCapabilities } from './chat-model-capabilities'
 import { ChatModelCatalog } from './chat-model-catalog'
 import { ProviderHealthService } from './provider-health.service'
 
@@ -17,6 +18,7 @@ export class ModelsController {
 
   @Get()
   async list(): Promise<ModelSummary[]> {
+    const mockAvailable = this.adapters.has('mock')
     const chatModels: ModelSummary[] = await Promise.all(
       this.chatModels.list().map(async (model) => {
         const configured = this.adapters.has(model.provider)
@@ -24,7 +26,12 @@ export class ModelsController {
           id: model.id,
           alias: model.provider,
           modelId: model.upstreamModelId,
-          capabilities: ['chat', 'prompt'],
+          capabilities: resolveChatModelCapabilities({
+            modelId: model.id,
+            provider: model.provider,
+            providerConfigured: configured,
+            mockAvailable,
+          }),
           displayName: model.displayName,
           enabled: true,
           configured,

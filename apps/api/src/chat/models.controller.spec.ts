@@ -1,4 +1,6 @@
 import type { ChatAdapter } from './adapters/chat-adapter'
+import type { ChatModelDefinition } from './chat-model-catalog'
+import { canAdvertiseAgentCapability } from './chat-model-capabilities'
 import { ChatAdapterRegistry } from './adapters/chat-adapter.registry'
 import type { ImageAdapter } from '../image/adapters/image-adapter'
 import { ImageAdapterRegistry } from '../image/adapters/image-adapter.registry'
@@ -98,7 +100,7 @@ describe('ModelsController', () => {
     ])
   })
 
-  it('exposes a stable public alias without querying health in a Mock-only environment', async () => {
+  it('exposes agent capability for Mock-backed catalog entries', async () => {
     const controller = new ModelsController(
       new ChatAdapterRegistry([adapter('mock')]),
       {
@@ -115,7 +117,7 @@ describe('ModelsController', () => {
         id: 'qwen',
         alias: 'qwen',
         modelId: 'mock-chat',
-        capabilities: ['chat', 'prompt'],
+        capabilities: ['chat', 'prompt', 'agent'],
         displayName: 'Qwen Mock',
         enabled: true,
         configured: false,
@@ -133,5 +135,22 @@ describe('ModelsController', () => {
       },
     ])
     expect(providerHealth.getStatus).not.toHaveBeenCalledWith('mock')
+  })
+
+  it('documents that unverified configured providers omit agent', () => {
+    const model = {
+      id: 'qwen3.7-plus',
+      provider: 'qwen',
+      upstreamModelId: 'qwen3.7-plus',
+      displayName: 'Qwen',
+    } satisfies ChatModelDefinition
+    expect(
+      canAdvertiseAgentCapability({
+        modelId: model.id,
+        provider: model.provider,
+        providerConfigured: true,
+        mockAvailable: true,
+      }),
+    ).toBe(false)
   })
 })

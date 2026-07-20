@@ -34,7 +34,10 @@ function setup() {
     listForThread: jest.fn().mockResolvedValue([]),
     appendUserMessage: jest.fn(),
   } as unknown as jest.Mocked<AgentMessageRepository>
-  const models = { resolve: jest.fn() } as unknown as jest.Mocked<ChatModelCatalog>
+  const models = {
+    resolve: jest.fn(),
+    resolveForAgent: jest.fn(),
+  } as unknown as jest.Mocked<ChatModelCatalog>
   const runService = { execute: jest.fn().mockResolvedValue(undefined), cancel: jest.fn() } as unknown as jest.Mocked<AgentRunService>
   const service = new AgentService(threads, runs, messages, models, runService)
   return { threads, runs, messages, models, runService, service }
@@ -53,18 +56,23 @@ function threadRow(overrides: Partial<{ id: string; title: string; modelId: stri
 }
 
 describe('AgentService', () => {
-  it('rejects creating a thread with an unknown model', async () => {
+  it('rejects creating a thread with an unknown or non-agent model', async () => {
     const { service, models, threads } = setup()
-    ;(models.resolve as jest.Mock).mockReturnValue(undefined)
+    ;(models.resolveForAgent as jest.Mock).mockReturnValue(undefined)
     await expect(service.createThread(user, { model: 'ghost' })).rejects.toBeInstanceOf(
       BadRequestException,
     )
     expect(threads.create).not.toHaveBeenCalled()
   })
 
-  it('creates a thread bound to the resolved provider', async () => {
+  it('creates a thread bound to the resolved agent-capable provider', async () => {
     const { service, models, threads } = setup()
-    ;(models.resolve as jest.Mock).mockReturnValue({ id: 'qwen3.7-plus', provider: 'qwen', upstreamModelId: 'x', displayName: 'Q' })
+    ;(models.resolveForAgent as jest.Mock).mockReturnValue({
+      id: 'qwen3.7-plus',
+      provider: 'qwen',
+      upstreamModelId: 'x',
+      displayName: 'Q',
+    })
     ;(threads.create as jest.Mock).mockResolvedValue(threadRow())
     await service.createThread(user, { model: 'qwen3.7-plus' })
     expect(threads.create).toHaveBeenCalledWith(
@@ -74,7 +82,7 @@ describe('AgentService', () => {
 
   it('creates a thread with the default title when title is omitted or blank', async () => {
     const { service, models, threads } = setup()
-    ;(models.resolve as jest.Mock).mockReturnValue({
+    ;(models.resolveForAgent as jest.Mock).mockReturnValue({
       id: 'qwen3.7-plus',
       provider: 'qwen',
       upstreamModelId: 'x',

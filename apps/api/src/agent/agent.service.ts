@@ -44,8 +44,12 @@ export class AgentService {
     user: AuthenticatedUser,
     input: { model: string; title?: string },
   ): Promise<AgentThreadSummary> {
-    const model = this.models.resolve(input.model)
-    if (!model) throw new BadRequestException(`未知或未启用的 Agent 模型 "${input.model}"`)
+    const model = this.models.resolveForAgent(input.model)
+    if (!model) {
+      throw new BadRequestException(
+        `未知、未启用或不支持 Agent（tool-calling）的模型 "${input.model}"`,
+      )
+    }
 
     const row = await this.threads.create({
       userId: user.id,

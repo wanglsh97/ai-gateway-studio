@@ -52,4 +52,19 @@ describe('ChatModelCatalog', () => {
 
     expect(catalog.list()).toEqual(CHAT_MODELS)
   })
+
+  it('resolveForAgent allows Mock-backed models and rejects unverified real providers', () => {
+    const mockCatalog = new ChatModelCatalog(new ChatAdapterRegistry([adapter('mock', 'mock-chat')]))
+    expect(mockCatalog.resolveForAgent('qwen3.7-plus')).toEqual(
+      expect.objectContaining({ id: 'qwen3.7-plus', provider: 'qwen' }),
+    )
+
+    const realCatalog = new ChatModelCatalog(
+      new ChatAdapterRegistry([adapter('mock', 'mock-chat'), adapter('qwen', 'qwen3.7-plus')]),
+    )
+    expect(realCatalog.resolveForAgent('qwen3.7-plus')).toBeUndefined()
+    expect(realCatalog.resolve('qwen3.7-plus')).toEqual(
+      expect.objectContaining({ id: 'qwen3.7-plus' }),
+    )
+  })
 })
