@@ -167,38 +167,6 @@ function AgentThread({
       </ThreadPrimitive.ScrollToBottom>
       <div className="agent-composer-dock">
         <ComposerPrimitive.Root className="agent-composer">
-          <div className="agent-composer-toolbar">
-            <label className="agent-composer-model">
-              <span className="agent-live-mark" aria-hidden="true" />
-              <span className="sr-only">运行模型</span>
-              <select
-                value={selectedModel}
-                disabled={modelDisabled}
-                onChange={(event) => onModelChange(event.target.value as TextModelAlias)}
-              >
-                {modelOptions.map(({ value, label }) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <div className="agent-composer-actions">
-              <Link href="/chat/compare" className="agent-composer-action">
-                模型对比
-              </Link>
-              <button
-                type="button"
-                className="agent-composer-action"
-                onClick={onSettingsToggle}
-                aria-expanded={settingsOpen}
-              >
-                参数
-                <span aria-hidden="true">{settingsOpen ? '−' : '+'}</span>
-              </button>
-              <NewThreadButton />
-            </div>
-          </div>
           {modelError && (
             <p role="alert" className="agent-composer-error">
               {modelError}
@@ -240,17 +208,54 @@ function AgentThread({
             placeholder="交给 Agent 一个任务…"
           />
           <div className="agent-composer-footer">
-            <span>Enter 发送 · Shift + Enter 换行</span>
-            <AuiIf condition={({ thread }) => thread.isRunning}>
-              <ComposerPrimitive.Cancel className="agent-send-button is-cancel">
-                停止
-              </ComposerPrimitive.Cancel>
-            </AuiIf>
-            <AuiIf condition={({ thread }) => !thread.isRunning}>
-              <ComposerPrimitive.Send className="agent-send-button" disabled={modelDisabled}>
-                发送 <span aria-hidden="true">↗</span>
-              </ComposerPrimitive.Send>
-            </AuiIf>
+            <div className="agent-composer-actions">
+              <Link href="/chat/compare" className="agent-composer-action">
+                模型对比
+              </Link>
+              <button
+                type="button"
+                className="agent-composer-action"
+                onClick={onSettingsToggle}
+                aria-expanded={settingsOpen}
+              >
+                参数
+                <span aria-hidden="true">{settingsOpen ? '−' : '+'}</span>
+              </button>
+              <NewThreadButton />
+            </div>
+            <div className="agent-composer-submit-group">
+              <label className="agent-composer-model">
+                <span className="agent-live-mark" aria-hidden="true" />
+                <span className="sr-only">运行模型</span>
+                <select
+                  value={selectedModel}
+                  disabled={modelDisabled}
+                  onChange={(event) => onModelChange(event.target.value as TextModelAlias)}
+                >
+                  {modelOptions.map(({ value, label }) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <AuiIf condition={({ thread }) => thread.isRunning}>
+                <ComposerPrimitive.Cancel className="agent-send-button is-cancel">
+                  停止
+                </ComposerPrimitive.Cancel>
+              </AuiIf>
+              <AuiIf condition={({ thread }) => !thread.isRunning}>
+                <ComposerPrimitive.Send
+                  className="agent-send-button"
+                  disabled={modelDisabled}
+                  aria-label="发送消息"
+                >
+                  <svg aria-hidden="true" viewBox="0 0 20 20">
+                    <path d="M10 15V5m0 0L6 9m4-4 4 4" />
+                  </svg>
+                </ComposerPrimitive.Send>
+              </AuiIf>
+            </div>
           </div>
         </ComposerPrimitive.Root>
         <p className="agent-privacy-note">内容由 AI 生成，请仔细甄别</p>

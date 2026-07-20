@@ -514,23 +514,14 @@ body {
   background: #181322;
   box-shadow: 0 14px 35px rgb(0 0 0 / 0.24);
 }
-.agent-composer-toolbar {
-  display: flex;
-  min-height: 2.65rem;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  border-bottom: 1px solid #ebe7f0;
-  padding: 0 0.3rem 0.5rem;
-}
-.dark .agent-composer-toolbar {
-  border-color: #302943;
-}
 .agent-composer-model {
   display: flex;
   min-width: 0;
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.45rem;
+  border-radius: 0.65rem;
+  background: #f5f2fb;
+  padding: 0 0.55rem;
 }
 .agent-composer-model .agent-live-mark {
   width: 0.65rem;
@@ -548,6 +539,9 @@ body {
 }
 .dark .agent-composer-model select {
   color: #f8fafc;
+}
+.dark .agent-composer-model {
+  background: #272036;
 }
 .agent-composer-actions {
   display: flex;
@@ -634,26 +628,39 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  padding-left: 0.65rem;
+  border-top: 1px solid #ebe7f0;
+  padding: 0.55rem 0.1rem 0;
 }
-.agent-composer-footer > span {
-  color: #aaa2b4;
-  font-size: 0.6rem;
+.dark .agent-composer-footer {
+  border-color: #302943;
+}
+.agent-composer-submit-group {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.45rem;
 }
 .agent-send-button {
-  display: inline-flex;
-  min-height: 2.35rem;
-  align-items: center;
-  gap: 0.55rem;
-  border-radius: 0.72rem;
+  display: grid;
+  width: 2.35rem;
+  height: 2.35rem;
+  flex: 0 0 2.35rem;
+  place-items: center;
+  border-radius: 50%;
   background: #7057e8;
-  padding: 0 0.85rem;
   color: white;
-  font-size: 0.72rem;
-  font-weight: 750;
   transition:
     background 0.16s,
     transform 0.16s;
+}
+.agent-send-button svg {
+  width: 1rem;
+  height: 1rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
 }
 .agent-send-button:hover {
   background: #5d45c8;
@@ -665,7 +672,13 @@ body {
   transform: none;
 }
 .agent-send-button.is-cancel {
+  width: auto;
+  flex-basis: auto;
+  border-radius: 999px;
+  padding: 0 0.8rem;
   background: #2c2540;
+  font-size: 0.7rem;
+  font-weight: 700;
 }
 .dark .agent-send-button.is-cancel {
   background: #ece7f5;
@@ -750,38 +763,23 @@ body {
   .agent-composer-dock {
     padding: 1.5rem 0.65rem 0.55rem;
   }
-  .agent-composer-toolbar {
-    align-items: stretch;
-    flex-direction: column;
-    gap: 0.35rem;
-  }
-  .agent-composer-model {
-    min-height: 2rem;
-  }
   .agent-composer-model select {
-    max-width: calc(100vw - 6rem);
+    max-width: 7.5rem;
   }
   .agent-composer-actions {
-    justify-content: space-between;
-    border-top: 1px solid #ebe7f0;
-    padding-top: 0.35rem;
-  }
-  .dark .agent-composer-actions {
-    border-color: #302943;
+    min-width: 0;
+    gap: 0;
   }
   .agent-composer-action {
     justify-content: center;
-    flex: 1;
+    padding-inline: 0.4rem;
   }
   .agent-composer-parameters {
     grid-template-columns: 1fr;
     gap: 0.65rem;
   }
-  .agent-composer-footer > span {
-    display: none;
-  }
   .agent-composer-footer {
-    justify-content: flex-end;
+    gap: 0.35rem;
   }
 }
 @media (max-width: 767px) {

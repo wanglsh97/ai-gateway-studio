@@ -134,6 +134,7 @@
 - [x] 3.23 使用 assistant-ui LocalRuntime 和 primitives 重构单模型 Agent 会话，保留 SDK SSE、取消、usage 与安全 Markdown 边界
 - [x] 3.24 将右侧 Chat 模块调整为完整消息画布，把模型、对比和参数控制收进底部 Composer，并展示 AI 内容提醒
 - [x] 3.25 移除 Composer 输入框自身的粗焦点描边，仅由 Composer 卡片提供统一的细焦点状态
+- [x] 3.26 重排 Composer 底部操作栏，将对比与参数左置、模型与圆形发送按钮右置，并移除快捷键提示
 
 ### 文生图页面
 
