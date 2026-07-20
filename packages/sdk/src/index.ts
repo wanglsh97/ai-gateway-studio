@@ -8,6 +8,37 @@ export type {
   ImageWaitOptions,
   RequestOptions,
 } from './client.js'
+export { decodeAgentEvent, encodeAgentEvent } from './agent-events.js'
+export type { AgentEventWire } from './agent-events.js'
+export {
+  AGENT_EVENT_SSE_DONE,
+  AGENT_MESSAGE_ROLES,
+  AGENT_RUN_LIMIT_REASONS,
+  AGENT_RUN_STATUSES,
+  AGENT_RUN_TERMINAL_STATUSES,
+  AGENT_TOOL_CALL_STATUSES,
+} from './agent-types.js'
+export type {
+  AgentMessage,
+  AgentMessagePart,
+  AgentMessageRole,
+  AgentReasoningPart,
+  AgentRunLimitReason,
+  AgentRunStatus,
+  AgentRunSummary,
+  AgentRunTerminalStatus,
+  AgentRunUsage,
+  AgentStreamEvent,
+  AgentTextPart,
+  AgentThread,
+  AgentThreadSummary,
+  AgentToolCallPart,
+  AgentToolCallStatus,
+  AgentToolResultPart,
+  CreateAgentRunRequest,
+  CreateAgentThreadRequest,
+  UpdateAgentThreadRequest,
+} from './agent-types.js'
 export {
   AIGatewayError,
   AIGatewayAuthenticationError,
