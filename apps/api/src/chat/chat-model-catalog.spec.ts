@@ -1,8 +1,7 @@
-import { ConfigService } from '@nestjs/config'
-
 import type { ChatAdapter } from './adapters/chat-adapter'
 import { ChatAdapterRegistry } from './adapters/chat-adapter.registry'
 import { ChatModelCatalog } from './chat-model-catalog'
+import { CHAT_MODELS, validateChatModels } from './chat-models.config'
 
 function adapter(id: ChatAdapter['id'], resolvedModel: string): ChatAdapter {
   return { id, resolvedModel, stream: jest.fn() }
@@ -10,54 +9,47 @@ function adapter(id: ChatAdapter['id'], resolvedModel: string): ChatAdapter {
 
 describe('ChatModelCatalog', () => {
   it('supports multiple selectable models through one provider adapter', () => {
-    const catalog = new ChatModelCatalog(
-      new ConfigService({
-        CHAT_MODELS: JSON.stringify([
-          {
-            id: 'kimi-k2.6',
-            displayName: 'Kimi K2.6',
-            provider: 'kimi',
-            upstreamModelId: 'kimi-k2.6',
-          },
-          {
-            id: 'kimi-k3',
-            displayName: 'Kimi K3',
-            provider: 'kimi',
-            upstreamModelId: 'kimi-k3',
-          },
-        ]),
-      }),
-      new ChatAdapterRegistry([adapter('kimi', 'legacy-kimi')]),
-    )
-
-    expect(catalog.list()).toHaveLength(2)
-    expect(catalog.resolve('kimi-k3')).toEqual({
-      id: 'kimi-k3',
-      displayName: 'Kimi K3',
-      provider: 'kimi',
-      upstreamModelId: 'kimi-k3',
-    })
+    expect(() =>
+      validateChatModels([
+        ...CHAT_MODELS,
+        {
+          id: 'kimi-k3',
+          displayName: 'Kimi K3',
+          provider: 'kimi',
+          upstreamModelId: 'kimi-k3',
+        },
+      ]),
+    ).not.toThrow()
   })
 
-  it('derives one backward-compatible model per enabled provider without a catalog', () => {
+  it('rejects duplicate public model ids in the repository catalog', () => {
+    expect(() => validateChatModels([...CHAT_MODELS, CHAT_MODELS[0]!])).toThrow(/重复/)
+  })
+
+  it('lists repository-owned community model names for enabled adapters', () => {
     const catalog = new ChatModelCatalog(
-      new ConfigService({}),
-      new ChatAdapterRegistry([adapter('qwen', 'qwen3.7-max'), adapter('kimi', 'kimi-k2.6')]),
+      new ChatAdapterRegistry([adapter('kimi', 'ignored-runtime-model')]),
     )
 
     expect(catalog.list()).toEqual([
       {
-        id: 'qwen',
-        displayName: 'Qwen3.7 Max',
-        provider: 'qwen',
-        upstreamModelId: 'qwen3.7-max',
-      },
-      {
-        id: 'kimi',
+        id: 'kimi-k2.6',
         displayName: 'Kimi K2.6',
         provider: 'kimi',
         upstreamModelId: 'kimi-k2.6',
       },
     ])
+    expect(catalog.resolve('kimi-k2.6')).toEqual({
+      id: 'kimi-k2.6',
+      displayName: 'Kimi K2.6',
+      provider: 'kimi',
+      upstreamModelId: 'kimi-k2.6',
+    })
+  })
+
+  it('exposes the complete repository catalog in deterministic Mock mode', () => {
+    const catalog = new ChatModelCatalog(new ChatAdapterRegistry([adapter('mock', 'mock-chat')]))
+
+    expect(catalog.list()).toEqual(CHAT_MODELS)
   })
 })

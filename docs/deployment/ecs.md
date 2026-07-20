@@ -167,8 +167,9 @@ MOCK_PROVIDER_ENABLED=true
 KIMI_ENABLED=true
 KIMI_API_KEY=<仅保存在 ECS 的新 Key>
 KIMI_BASE_URL=https://api.moonshot.cn/v1
-KIMI_MODEL_ID=kimi-k2.6
 ```
+
+模型 ID 与社区展示名统一维护在 `apps/api/src/chat/chat-models.config.ts`，不能通过 ECS 环境变量覆盖。
 
 保持 `SMOKE_MODEL_ALIAS` 指向一个未启用的文本 alias，使发布脚本仍走确定性 Mock。然后重新运行发布脚本，在浏览器登录后通过页面执行一次最多 16 Token 的受限真实请求，并在管理员请求日志中核对 GitHub 用户归属。命令行调用若没有用户 Session 会按设计返回 `401`；如需复验 SSE，使用上一节的隐藏 Cookie 输入方式，不要把 Cookie 或 Key 写在命令行：
 

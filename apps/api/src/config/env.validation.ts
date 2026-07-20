@@ -34,30 +34,6 @@ const optionalTextModelAlias = z.preprocess(
   z.enum(['qwen', 'glm', 'deepseek', 'kimi']).optional(),
 )
 
-const chatModelCatalogEntrySchema = z.object({
-  id: z.string().regex(/^[a-z0-9][a-z0-9._-]{0,63}$/),
-  displayName: z.string().min(1).max(80),
-  provider: z.enum(['qwen', 'glm', 'deepseek', 'kimi']),
-  upstreamModelId: z.string().min(1).max(160),
-})
-
-const optionalChatModels = z.preprocess(
-  (value) => (value === '' ? undefined : value),
-  z
-    .string()
-    .superRefine((value, context) => {
-      try {
-        const entries = z.array(chatModelCatalogEntrySchema).min(1).parse(JSON.parse(value))
-        if (new Set(entries.map(({ id }) => id)).size !== entries.length) {
-          context.addIssue({ code: 'custom', message: 'CHAT_MODELS 中的 id 不得重复' })
-        }
-      } catch {
-        context.addIssue({ code: 'custom', message: 'CHAT_MODELS 必须是合法的模型目录 JSON' })
-      }
-    })
-    .optional(),
-)
-
 const optionalNonNegativeDecimal = z.preprocess(
   (value) => (value === '' ? undefined : value),
   z
@@ -105,11 +81,6 @@ const environmentSchema = z
     WANXIANG_BASE_URL: z.string().url().default('https://dashscope.aliyuncs.com/api/v1'),
     COGVIEW_API_KEY: optionalSecret,
     COGVIEW_BASE_URL: z.string().url().default('https://open.bigmodel.cn/api/paas/v4'),
-    QWEN_MODEL_ID: optionalModelId,
-    GLM_MODEL_ID: optionalModelId,
-    DEEPSEEK_MODEL_ID: optionalModelId,
-    KIMI_MODEL_ID: optionalModelId,
-    CHAT_MODELS: optionalChatModels,
     QWEN_FALLBACK_ALIAS: optionalTextModelAlias,
     GLM_FALLBACK_ALIAS: optionalTextModelAlias,
     DEEPSEEK_FALLBACK_ALIAS: optionalTextModelAlias,
@@ -210,15 +181,14 @@ const environmentSchema = z
       })
     }
     const providers = [
-      { name: 'QWEN', enabled: env.QWEN_ENABLED, key: env.QWEN_API_KEY, model: env.QWEN_MODEL_ID },
-      { name: 'GLM', enabled: env.GLM_ENABLED, key: env.GLM_API_KEY, model: env.GLM_MODEL_ID },
+      { name: 'QWEN', enabled: env.QWEN_ENABLED, key: env.QWEN_API_KEY },
+      { name: 'GLM', enabled: env.GLM_ENABLED, key: env.GLM_API_KEY },
       {
         name: 'DEEPSEEK',
         enabled: env.DEEPSEEK_ENABLED,
         key: env.DEEPSEEK_API_KEY,
-        model: env.DEEPSEEK_MODEL_ID,
       },
-      { name: 'KIMI', enabled: env.KIMI_ENABLED, key: env.KIMI_API_KEY, model: env.KIMI_MODEL_ID },
+      { name: 'KIMI', enabled: env.KIMI_ENABLED, key: env.KIMI_API_KEY },
       {
         name: 'WANXIANG',
         enabled: env.WANXIANG_ENABLED,
@@ -242,7 +212,7 @@ const environmentSchema = z
           message: `${provider.name} 启用时必须配置 API Key`,
         })
       }
-      if (!provider.model) {
+      if ('model' in provider && !provider.model) {
         context.addIssue({
           code: 'custom',
           path: [`${provider.name}_MODEL_ID`],

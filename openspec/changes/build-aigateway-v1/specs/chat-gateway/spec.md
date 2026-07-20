@@ -25,20 +25,20 @@ The public Chat page SHALL let an anonymous visitor select one enabled text-mode
 - **THEN** the API returns a normalized 400 JSON error before opening an SSE stream
 
 ### Requirement: Selectable model instances are resolved through a configurable catalog
-The gateway SHALL accept stable public model instance IDs and resolve each instance through a server-owned catalog to a community display name, one of the supported domestic provider adapters, and an actual upstream model ID. Multiple public model instances MAY resolve to the same provider adapter. A shared OpenAI-compatible transport MAY handle common HTTP/SSE behavior, while each adapter MUST own authentication, request mapping, chunk mapping, usage mapping, and error mapping.
+The gateway SHALL accept stable public model instance IDs and resolve each instance through a version-controlled, repository-owned catalog to a community display name, one of the supported domestic provider adapters, and an actual upstream model ID. Multiple public model instances MAY resolve to the same provider adapter. Runtime environment variables MUST NOT replace or mutate the model catalog. A shared OpenAI-compatible transport MAY handle common HTTP/SSE behavior, while each adapter MUST own authentication, request mapping, chunk mapping, usage mapping, and error mapping.
 
 #### Scenario: A second Kimi model is added
 - **GIVEN** a Kimi provider Adapter is enabled and an existing Kimi model instance remains configured
-- **WHEN** an operator appends a Kimi K3 entry to the model catalog and restarts the API
+- **WHEN** a developer appends a Kimi K3 entry to the repository model catalog and deploys the reviewed change
 - **THEN** model discovery returns both Kimi instances with their configured community names
 - **AND** clients can select either public model ID without adding a new provider Adapter or changing a frontend model union
 - **AND** persisted records contain the selected public model ID, provider alias, and resolved upstream model ID
 
-#### Scenario: Existing deployment has no explicit model catalog
-- **GIVEN** an existing deployment only supplies the legacy provider enable flags and `*_MODEL_ID` values
+#### Scenario: Runtime attempts to override the catalog
+- **GIVEN** a deployment environment contains an unreviewed `CHAT_MODELS` value
 - **WHEN** the upgraded API starts
-- **THEN** it derives one selectable model instance per enabled provider
-- **AND** existing chat capability remains available without an immediate configuration migration
+- **THEN** the runtime value does not alter the repository-owned model list
+- **AND** only API credentials, provider endpoints, and provider enable flags remain deployment configuration
 
 ### Requirement: Single-model failover is bounded by the first delta
 For single-model chat only, the gateway SHALL attempt a configured fallback when the primary returns a timeout or eligible 5xx error before any content delta is sent. The gateway MUST NOT switch providers after the first content delta, and MUST NOT apply failover in comparison mode.

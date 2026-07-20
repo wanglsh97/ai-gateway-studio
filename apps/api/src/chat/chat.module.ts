@@ -19,6 +19,7 @@ import {
 import { QwenChatAdapter } from './adapters/qwen-chat-adapter'
 import { ChatController } from './chat.controller'
 import { ChatModelCatalog } from './chat-model-catalog'
+import { defaultUpstreamModelId } from './chat-models.config'
 import { ChatFailoverService } from './chat-failover.service'
 import { ModelsController } from './models.controller'
 import { ProviderHealthService } from './provider-health.service'
@@ -56,7 +57,7 @@ import { OpenAICompatibleChatTransport } from './transports/openai-compatible-ch
             new QwenChatAdapter(transport, {
               apiKey: config.getOrThrow<string>('QWEN_API_KEY'),
               baseUrl: config.getOrThrow<string>('QWEN_BASE_URL'),
-              modelId: config.getOrThrow<string>('QWEN_MODEL_ID'),
+              modelId: defaultUpstreamModelId('qwen'),
             }),
           )
         }
@@ -65,7 +66,7 @@ import { OpenAICompatibleChatTransport } from './transports/openai-compatible-ch
             new GlmChatAdapter(transport, {
               apiKey: config.getOrThrow<string>('GLM_API_KEY'),
               baseUrl: config.getOrThrow<string>('GLM_BASE_URL'),
-              modelId: config.getOrThrow<string>('GLM_MODEL_ID'),
+              modelId: defaultUpstreamModelId('glm'),
             }),
           )
         }
@@ -74,7 +75,7 @@ import { OpenAICompatibleChatTransport } from './transports/openai-compatible-ch
             new DeepSeekChatAdapter(transport, {
               apiKey: config.getOrThrow<string>('DEEPSEEK_API_KEY'),
               baseUrl: config.getOrThrow<string>('DEEPSEEK_BASE_URL'),
-              modelId: config.getOrThrow<string>('DEEPSEEK_MODEL_ID'),
+              modelId: defaultUpstreamModelId('deepseek'),
             }),
           )
         }
@@ -83,7 +84,7 @@ import { OpenAICompatibleChatTransport } from './transports/openai-compatible-ch
             new KimiChatAdapter(transport, {
               apiKey: config.getOrThrow<string>('KIMI_API_KEY'),
               baseUrl: config.getOrThrow<string>('KIMI_BASE_URL'),
-              modelId: config.getOrThrow<string>('KIMI_MODEL_ID'),
+              modelId: defaultUpstreamModelId('kimi'),
             }),
           )
         }

@@ -6,23 +6,6 @@ const requiredEnvironment = {
 }
 
 describe('validateEnvironment', () => {
-  it('accepts multiple catalog models for the same provider and rejects duplicate ids', () => {
-    const entries = [
-      { id: 'kimi-k2.6', displayName: 'Kimi K2.6', provider: 'kimi', upstreamModelId: 'kimi-k2.6' },
-      { id: 'kimi-k3', displayName: 'Kimi K3', provider: 'kimi', upstreamModelId: 'kimi-k3' },
-    ]
-    expect(
-      validateEnvironment({ ...requiredEnvironment, CHAT_MODELS: JSON.stringify(entries) })
-        .CHAT_MODELS,
-    ).toBe(JSON.stringify(entries))
-    expect(() =>
-      validateEnvironment({
-        ...requiredEnvironment,
-        CHAT_MODELS: JSON.stringify([entries[0], { ...entries[1], id: entries[0]!.id }]),
-      }),
-    ).toThrow(/CHAT_MODELS/)
-  })
-
   it('applies safe defaults for a Mock-only environment', () => {
     const environment = validateEnvironment(requiredEnvironment)
 
@@ -57,13 +40,21 @@ describe('validateEnvironment', () => {
     )
   })
 
-  it('requires key and model id when a real provider is enabled', () => {
+  it('requires an API key when a real Chat provider is enabled', () => {
     expect(() =>
       validateEnvironment({
         ...requiredEnvironment,
         QWEN_ENABLED: 'true',
       }),
     ).toThrow('QWEN_API_KEY')
+
+    expect(() =>
+      validateEnvironment({
+        ...requiredEnvironment,
+        QWEN_ENABLED: 'true',
+        QWEN_API_KEY: 'qwen-test-key',
+      }),
+    ).not.toThrow()
   })
 
   it.each(['QWEN', 'GLM', 'DEEPSEEK', 'KIMI', 'WANXIANG', 'COGVIEW'] as const)(
@@ -146,7 +137,7 @@ describe('validateEnvironment', () => {
         QWEN_ENABLED: 'true',
         QWEN_API_KEY: secret,
       }),
-    ).toThrow('QWEN_MODEL_ID')
+    ).not.toThrow()
 
     try {
       validateEnvironment({

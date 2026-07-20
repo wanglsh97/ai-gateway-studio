@@ -88,7 +88,7 @@ DeepSeek 当前使用 V4 模型 ID，真实冒烟命令如下：
 pnpm test:smoke:deepseek
 ```
 
-上述冒烟命令与 Kimi 一样读取根目录中不会提交的 `.env`，不会打印 API Key，也不会被 `pnpm test` 或 CI 自动执行。运行前必须填写对应 `*_API_KEY` 和 `*_MODEL_ID`；正式启动 API 时还需要将对应 `*_ENABLED` 改为 `true`。
+上述冒烟命令与 Kimi 一样读取根目录中不会提交的 `.env`，不会打印 API Key，也不会被 `pnpm test` 或 CI 自动执行。运行前必须填写对应 `*_API_KEY`；模型 ID 统一取自 `apps/api/src/chat/chat-models.config.ts`，正式启动 API 时还需要将对应 `*_ENABLED` 改为 `true`。
 
 Kimi 使用中国区 Moonshot 兼容端点。先在 Moonshot 控制台创建新 Key，并只写入不会提交的本地 `.env`：
 
@@ -96,7 +96,6 @@ Kimi 使用中国区 Moonshot 兼容端点。先在 Moonshot 控制台创建新 
 KIMI_ENABLED=true
 KIMI_API_KEY=<新创建的 Key>
 KIMI_BASE_URL=https://api.moonshot.cn/v1
-KIMI_MODEL_ID=kimi-k2.6
 ```
 
 然后显式执行最多输出 16 Token 的真实冒烟：

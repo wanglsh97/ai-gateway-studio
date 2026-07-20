@@ -1,13 +1,14 @@
 import { randomUUID } from 'node:crypto'
 
 import { GlmChatAdapter } from '../src/chat/adapters/glm-chat-adapter'
+import { defaultUpstreamModelId } from '../src/chat/chat-models.config'
 import { OpenAICompatibleChatTransport } from '../src/chat/transports/openai-compatible-chat.transport'
 
 void main()
 
 async function main(): Promise<void> {
   const apiKey = required('GLM_API_KEY')
-  const modelId = required('GLM_MODEL_ID')
+  const modelId = defaultUpstreamModelId('glm')
   const baseUrl = process.env.GLM_BASE_URL ?? 'https://open.bigmodel.cn/api/paas/v4'
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 65_000)
@@ -53,7 +54,7 @@ async function main(): Promise<void> {
   }
 }
 
-function required(name: 'GLM_API_KEY' | 'GLM_MODEL_ID'): string {
+function required(name: 'GLM_API_KEY'): string {
   const value = process.env[name]?.trim()
   if (!value) throw new Error(`${name} is required for the explicit GLM smoke test`)
   return value

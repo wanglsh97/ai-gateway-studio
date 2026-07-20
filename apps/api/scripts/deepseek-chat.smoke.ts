@@ -1,13 +1,14 @@
 import { randomUUID } from 'node:crypto'
 
 import { DeepSeekChatAdapter } from '../src/chat/adapters/deepseek-chat-adapter'
+import { defaultUpstreamModelId } from '../src/chat/chat-models.config'
 import { OpenAICompatibleChatTransport } from '../src/chat/transports/openai-compatible-chat.transport'
 
 void main()
 
 async function main(): Promise<void> {
   const apiKey = required('DEEPSEEK_API_KEY')
-  const modelId = required('DEEPSEEK_MODEL_ID')
+  const modelId = defaultUpstreamModelId('deepseek')
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 65_000)
   try {
@@ -56,7 +57,7 @@ async function main(): Promise<void> {
   }
 }
 
-function required(name: 'DEEPSEEK_API_KEY' | 'DEEPSEEK_MODEL_ID'): string {
+function required(name: 'DEEPSEEK_API_KEY'): string {
   const value = process.env[name]?.trim()
   if (!value) throw new Error(`${name} is required for the explicit DeepSeek smoke test`)
   return value

@@ -1,13 +1,14 @@
 import { randomUUID } from 'node:crypto'
 
 import { QwenChatAdapter } from '../src/chat/adapters/qwen-chat-adapter'
+import { defaultUpstreamModelId } from '../src/chat/chat-models.config'
 import { OpenAICompatibleChatTransport } from '../src/chat/transports/openai-compatible-chat.transport'
 
 void main()
 
 async function main(): Promise<void> {
   const apiKey = requiredEnvironment('QWEN_API_KEY')
-  const modelId = requiredEnvironment('QWEN_MODEL_ID')
+  const modelId = defaultUpstreamModelId('qwen')
   const baseUrl = process.env.QWEN_BASE_URL ?? 'https://dashscope.aliyuncs.com/compatible-mode/v1'
   const controller = new AbortController()
   const timeout = setTimeout(
@@ -59,7 +60,7 @@ async function main(): Promise<void> {
   }
 }
 
-function requiredEnvironment(name: 'QWEN_API_KEY' | 'QWEN_MODEL_ID'): string {
+function requiredEnvironment(name: 'QWEN_API_KEY'): string {
   const value = process.env[name]?.trim()
   if (!value) throw new Error(`${name} is required for the explicit Qwen smoke test`)
   return value

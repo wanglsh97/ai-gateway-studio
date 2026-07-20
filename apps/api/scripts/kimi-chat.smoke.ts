@@ -1,13 +1,14 @@
 import { randomUUID } from 'node:crypto'
 
 import { KimiChatAdapter } from '../src/chat/adapters/kimi-chat-adapter'
+import { defaultUpstreamModelId } from '../src/chat/chat-models.config'
 import { OpenAICompatibleChatTransport } from '../src/chat/transports/openai-compatible-chat.transport'
 
 void main()
 
 async function main(): Promise<void> {
   const apiKey = required('KIMI_API_KEY')
-  const modelId = required('KIMI_MODEL_ID')
+  const modelId = defaultUpstreamModelId('kimi')
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 30_000)
   try {
@@ -50,7 +51,7 @@ async function main(): Promise<void> {
   }
 }
 
-function required(name: 'KIMI_API_KEY' | 'KIMI_MODEL_ID'): string {
+function required(name: 'KIMI_API_KEY'): string {
   const value = process.env[name]?.trim()
   if (!value) throw new Error(`${name} is required for the explicit Kimi smoke test`)
   return value

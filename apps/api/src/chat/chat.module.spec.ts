@@ -26,19 +26,15 @@ async function createRegistry(options: {
             QWEN_ENABLED: options.qwenEnabled ?? false,
             QWEN_API_KEY: 'sanitized-test-key',
             QWEN_BASE_URL: 'https://dashscope.example/compatible-mode/v1',
-            QWEN_MODEL_ID: 'qwen-test-model',
             GLM_ENABLED: options.glmEnabled ?? false,
             GLM_API_KEY: 'sanitized-test-key',
             GLM_BASE_URL: 'https://glm.example/api/paas/v4',
-            GLM_MODEL_ID: 'glm-test-model',
             DEEPSEEK_ENABLED: options.deepseekEnabled ?? false,
             DEEPSEEK_API_KEY: 'sanitized-test-key',
             DEEPSEEK_BASE_URL: 'https://deepseek.example',
-            DEEPSEEK_MODEL_ID: 'deepseek-test-model',
             KIMI_ENABLED: options.kimiEnabled ?? false,
             KIMI_API_KEY: 'sanitized-test-key',
             KIMI_BASE_URL: 'https://kimi.example/v1',
-            KIMI_MODEL_ID: 'kimi-test-model',
             DATABASE_URL: 'postgresql://aigateway:password@localhost:5432/aigateway_test',
             REDIS_URL: 'redis://localhost:6379',
             CHAT_RATE_LIMIT_PER_MINUTE: 10,
@@ -76,7 +72,7 @@ describe('ChatModule', () => {
     const { module, registry } = await createRegistry({ mockEnabled: true, qwenEnabled: true })
 
     expect(registry.get('qwen')).toBeInstanceOf(QwenChatAdapter)
-    expect(registry.get('qwen').resolvedModel).toBe('qwen-test-model')
+    expect(registry.get('qwen').resolvedModel).toBe('qwen-plus')
     await module.close()
   })
 
@@ -84,7 +80,7 @@ describe('ChatModule', () => {
     const { module, registry } = await createRegistry({ mockEnabled: true, glmEnabled: true })
 
     expect(registry.get('glm')).toBeInstanceOf(GlmChatAdapter)
-    expect(registry.get('glm').resolvedModel).toBe('glm-test-model')
+    expect(registry.get('glm').resolvedModel).toBe('glm-4.7-flash')
     await module.close()
   })
 
@@ -95,7 +91,7 @@ describe('ChatModule', () => {
     })
 
     expect(registry.get('deepseek')).toBeInstanceOf(DeepSeekChatAdapter)
-    expect(registry.get('deepseek').resolvedModel).toBe('deepseek-test-model')
+    expect(registry.get('deepseek').resolvedModel).toBe('deepseek-v4-flash')
     await module.close()
   })
 
@@ -103,7 +99,7 @@ describe('ChatModule', () => {
     const { module, registry } = await createRegistry({ mockEnabled: true, kimiEnabled: true })
 
     expect(registry.get('kimi')).toBeInstanceOf(KimiChatAdapter)
-    expect(registry.get('kimi').resolvedModel).toBe('kimi-test-model')
+    expect(registry.get('kimi').resolvedModel).toBe('kimi-k2.6')
     await module.close()
   })
 })
