@@ -12,6 +12,13 @@ local ttl = redis.call('TTL', KEYS[1])
 return { count, ttl }
 `
 
+const DELETE_IF_VALUE_EQUALS_SCRIPT = `
+if redis.call('GET', KEYS[1]) == ARGV[1] then
+  return redis.call('DEL', KEYS[1])
+end
+return 0
+`
+
 export interface FixedWindowCounter {
   count: number
   retryAfterSeconds: number
@@ -75,6 +82,23 @@ export class RedisService implements OnModuleDestroy {
   async setWithTtl(key: string, value: string, ttlSeconds: number): Promise<void> {
     await this.ensureConnected()
     await this.client.set(key, value, { EX: ttlSeconds })
+  }
+
+  /** SET key value NX EX ttl — 成功返回 true，键已存在返回 false。 */
+  async trySetNxEx(key: string, value: string, ttlSeconds: number): Promise<boolean> {
+    await this.ensureConnected()
+    const result = await this.client.set(key, value, { NX: true, EX: ttlSeconds })
+    return result === 'OK'
+  }
+
+  /** 仅当当前值匹配时删除（安全释放锁）。 */
+  async deleteIfValueEquals(key: string, expectedValue: string): Promise<boolean> {
+    await this.ensureConnected()
+    const result = await this.client.eval(DELETE_IF_VALUE_EQUALS_SCRIPT, {
+      keys: [key],
+      arguments: [expectedValue],
+    })
+    return result === 1
   }
 
   private async ensureConnected() {

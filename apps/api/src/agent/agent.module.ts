@@ -2,8 +2,10 @@ import { Module } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
 
 import { ChatModule } from '../chat/chat.module'
+import { RedisModule } from '../redis/redis.module'
 import { RequestLifecycleModule } from '../request-lifecycle/request-lifecycle.module'
 import { UserAuthModule } from '../user-auth/user-auth.module'
+import { AgentActiveRunLock } from './agent-active-run.lock'
 import { AgentController } from './agent.controller'
 import { AgentMessageRepository } from './agent-message.repository'
 import { AgentRunEventBus } from './agent-run-event-bus'
@@ -23,13 +25,14 @@ import { webFetchFixtureTool } from './tools/web-fetch-fixture.tool'
  * 始终限制在服务端，不进入 SDK 公共面或浏览器。
  */
 @Module({
-  imports: [ConfigModule, UserAuthModule, ChatModule, RequestLifecycleModule],
+  imports: [ConfigModule, UserAuthModule, ChatModule, RequestLifecycleModule, RedisModule],
   controllers: [AgentController],
   providers: [
     AgentThreadRepository,
     AgentRunRepository,
     AgentMessageRepository,
     AgentRunEventBus,
+    AgentActiveRunLock,
     AgentRunService,
     AgentService,
     {
@@ -44,6 +47,7 @@ import { webFetchFixtureTool } from './tools/web-fetch-fixture.tool'
     AgentMessageRepository,
     AgentRunEventBus,
     AgentRunService,
+    AgentActiveRunLock,
     AgentToolRegistry,
   ],
 })

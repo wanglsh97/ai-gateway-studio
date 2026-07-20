@@ -12,10 +12,12 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common'
+import { randomUUID } from 'node:crypto'
 
 import { ChatModelCatalog } from '../chat/chat-model-catalog'
 import type { AgentRun } from '../generated/prisma/client'
 import type { AuthenticatedUser } from '../user-auth/user-session.service'
+import { AgentActiveRunLock } from './agent-active-run.lock'
 import {
   AGENT_DEFAULT_THREAD_TITLE,
   AGENT_THREAD_LIST_DEFAULT_PAGE,
@@ -38,6 +40,7 @@ export class AgentService {
     @Inject(AgentMessageRepository) private readonly messages: AgentMessageRepository,
     @Inject(ChatModelCatalog) private readonly models: ChatModelCatalog,
     @Inject(AgentRunService) private readonly runService: AgentRunService,
+    @Inject(AgentActiveRunLock) private readonly activeRunLock: AgentActiveRunLock,
   ) {}
 
   async createThread(
@@ -135,28 +138,46 @@ export class AgentService {
       throw new BadRequestException(`会话绑定的模型 "${thread.modelId}" 当前不可用`)
     }
 
-    // 单用户全局至多一个 active run（板块 2.5 将补充 Redis 原子锁与 fail-closed）。
-    const activeCount = await this.runs.countActiveForUser(user.id)
-    if (activeCount > 0) throw new ConflictException('已有进行中的 Agent 运行，请等待其结束')
+    // PostgreSQL 真源：已有 active run 则拒绝（跨 thread 全局）。
+    const existing = await this.runs.findActiveForUser(user.id)
+    if (existing) throw this.activeRunLock.conflict(existing.id)
 
-    const run = await this.runs.create({ threadId, userId: user.id, input })
-    await this.messages.appendUserMessage(threadId, run.id, input)
-    if (thread.title === AGENT_DEFAULT_THREAD_TITLE) {
-      await this.threads.renameForOwner(threadId, user.id, deriveAgentThreadTitle(input))
+    // Redis 原子锁：快速互斥；不可用时 fail closed。
+    const lockToken = randomUUID()
+    const acquired = await this.activeRunLock.tryAcquire(user.id, lockToken)
+    if (!acquired) {
+      const raced = await this.runs.findActiveForUser(user.id)
+      throw this.activeRunLock.conflict(raced?.id)
     }
 
-    void this.runService
-      .execute({
-        runId: run.id,
-        threadId,
-        userId: user.id,
-        modelId: model.id,
-        provider: model.provider,
-        input,
-      })
-      .catch((error) => this.logger.error({ error, runId: run.id }, 'Agent run execution failed'))
+    try {
+      // 持锁后再核一次，避免与锁过期窗口竞态。
+      const stillActive = await this.runs.findActiveForUser(user.id)
+      if (stillActive) throw this.activeRunLock.conflict(stillActive.id)
 
-    return toRunSummary(run)
+      const run = await this.runs.create({ threadId, userId: user.id, input })
+      await this.messages.appendUserMessage(threadId, run.id, input)
+      if (thread.title === AGENT_DEFAULT_THREAD_TITLE) {
+        await this.threads.renameForOwner(threadId, user.id, deriveAgentThreadTitle(input))
+      }
+
+      void this.runService
+        .execute({
+          runId: run.id,
+          threadId,
+          userId: user.id,
+          modelId: model.id,
+          provider: model.provider,
+          input,
+          activeRunLockToken: lockToken,
+        })
+        .catch((error) => this.logger.error({ error, runId: run.id }, 'Agent run execution failed'))
+
+      return toRunSummary(run)
+    } catch (error) {
+      await this.activeRunLock.release(user.id, lockToken)
+      throw error
+    }
   }
 
   async assertRunOwner(user: AuthenticatedUser, runId: string): Promise<AgentRun> {

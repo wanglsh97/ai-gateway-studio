@@ -12,6 +12,7 @@ import type { ModelInvocationPort } from '../chat/model-invocation.port'
 import { PricingService } from '../billing/pricing.service'
 import { RequestLifecycleService } from '../request-lifecycle/request-lifecycle.service'
 import { createAgentModelInvocationPort } from './agent-model-invocation'
+import { AgentActiveRunLock } from './agent-active-run.lock'
 import { AgentMessageRepository } from './agent-message.repository'
 import { AgentRunEventBus } from './agent-run-event-bus'
 import { AgentRunProjector } from './agent-run.projector'
@@ -28,6 +29,8 @@ export interface ExecuteAgentRunInput {
   modelId: string
   provider: string
   input: string
+  /** createRun 持有的用户级 Redis 锁 token，终态 finally 中释放。 */
+  activeRunLockToken: string
 }
 
 const AGENT_SYSTEM_PROMPT = [
@@ -69,6 +72,7 @@ export class AgentRunService {
     @Inject(RequestLifecycleService) private readonly lifecycle: RequestLifecycleService,
     @Inject(PricingService) private readonly pricing: PricingService,
     @Inject(AgentRunEventBus) private readonly bus: AgentRunEventBus,
+    @Inject(AgentActiveRunLock) private readonly activeRunLock: AgentActiveRunLock,
   ) {}
 
   isRunning(runId: string): boolean {
@@ -170,6 +174,7 @@ export class AgentRunService {
     } finally {
       this.activeRuns.delete(input.runId)
       this.bus.close(input.runId)
+      await this.activeRunLock.release(input.userId, input.activeRunLockToken)
     }
   }
 
