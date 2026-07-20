@@ -648,8 +648,11 @@ body {
 }
 .agent-model-logo.is-qwen {
   border-color: #ddd4ff;
-  background: linear-gradient(145deg, #6c55e8, #b26bef);
-  color: #fff;
+  background-color: #fff;
+  background-image: url('https://assets.alicdn.com/g/qwenweb/qwen-chat-fe/0.2.74/static/images/ms-icon-light-150x150.png');
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
 }
 .agent-model-logo.is-glm {
   border-color: #17151e;

@@ -349,7 +349,6 @@ function ModelSelect({
 function ModelLogo({ alias }: { alias: TextModelAlias }) {
   return (
     <span className={`agent-model-logo is-${alias}`} aria-hidden="true">
-      {alias === 'qwen' && <span>Q</span>}
       {alias === 'glm' && <span>智</span>}
       {alias === 'deepseek' && (
         <svg viewBox="0 0 24 24">
