@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@aigateway/sdk": "workspace:*",
+    "@assistant-ui/react": "^0.14.27",
     "echarts": "^6.1.0",
     "next": "^16.2.10",
     "react": "^19.2.7",

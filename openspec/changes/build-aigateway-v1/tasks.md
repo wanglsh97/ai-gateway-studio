@@ -131,6 +131,7 @@
 - [x] 3.10 实现多模型对比布局，每列独立显示 delta、loading、usage/cost、error 和停止操作
 - [x] 3.11 添加对比 E2E，覆盖三路不同速度、单路失败、单路取消、全部取消和禁止 failover
 - [x] 3.12 验证窄屏、桌面、亮色和暗色主题下的 Chat 可用性与流式状态
+- [x] 3.23 使用 assistant-ui LocalRuntime 和 primitives 重构单模型 Agent 会话，保留 SDK SSE、取消、usage 与安全 Markdown 边界
 
 ### 文生图页面
 

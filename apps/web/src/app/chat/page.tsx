@@ -1,13 +1,24 @@
 'use client'
 
 import { createAIGatewayClient } from '@aigateway/sdk'
-import type { ChatMessage, TextModelAlias } from '@aigateway/sdk'
+import type { TextModelAlias, Usage } from '@aigateway/sdk'
+import {
+  ActionBarPrimitive,
+  AssistantRuntimeProvider,
+  AuiIf,
+  ComposerPrimitive,
+  ErrorPrimitive,
+  MessagePrimitive,
+  ThreadPrimitive,
+  useAui,
+  useAuiState,
+  useLocalRuntime,
+} from '@assistant-ui/react'
 import Link from 'next/link'
-import type { FormEvent, KeyboardEvent } from 'react'
-import { useEffect, useReducer, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
-import type { ChatViewMessage } from './chat-view-state'
-import { chatViewReducer, initialChatViewState, readableChatError } from './chat-view-state'
+import { createAgentChatAdapter } from './agent-chat-adapter'
+import type { AgentChatOptions, AgentMessageMetadata } from './agent-chat-adapter'
 import { AssistantMarkdown } from './assistant-markdown'
 import { ProtectedUserPage } from '../../components/protected-user-page'
 import { useAuthenticationFailure } from '../../components/use-authentication-failure'
@@ -31,7 +42,6 @@ export default function ChatPage() {
 
 function ChatContent() {
   const handleAuthenticationFailure = useAuthenticationFailure()
-  const [input, setInput] = useState('')
   const [selectedModel, setSelectedModel] = useState<TextModelAlias>('kimi')
   const [modelOptions, setModelOptions] = useState(fallbackModelOptions)
   const [modelError, setModelError] = useState('')
@@ -39,9 +49,26 @@ function ChatContent() {
   const [topP, setTopP] = useState(0.9)
   const [maxTokens, setMaxTokens] = useState(1024)
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const [state, dispatch] = useReducer(chatViewReducer, initialChatViewState)
-  const activeRequest = useRef<AbortController | null>(null)
-  const isGenerating = state.status === 'loading' || state.status === 'streaming'
+  const optionsRef = useRef<AgentChatOptions>({
+    model: selectedModel,
+    temperature,
+    topP,
+    maxTokens,
+  })
+  optionsRef.current = { model: selectedModel, temperature, topP, maxTokens }
+
+  const adapter = useMemo(
+    () =>
+      createAgentChatAdapter(
+        client,
+        () => optionsRef.current,
+        (error) => {
+          handleAuthenticationFailure(error)
+        },
+      ),
+    [handleAuthenticationFailure],
+  )
+  const runtime = useLocalRuntime(adapter)
 
   useEffect(() => {
     let active = true
@@ -69,290 +96,247 @@ function ChatContent() {
     }
   }, [])
 
-  async function submit(event?: FormEvent<HTMLFormElement>) {
-    event?.preventDefault()
-    const prompt = input.trim()
-    if (!prompt || isGenerating || modelOptions.length === 0) return
-    const messages: ChatMessage[] = [
-      ...state.messages
-        .filter(({ content }) => content.trim())
-        .map(({ role, content }) => ({ role, content })),
-      { role: 'user', content: prompt },
-    ]
-    const controller = new AbortController()
-    activeRequest.current = controller
-    setInput('')
-    dispatch({ type: 'submit', prompt })
-
-    try {
-      for await (const event of client.chat.stream(
-        {
-          model: selectedModel,
-          messages,
-          stream: true,
-          temperature,
-          topP,
-          maxTokens,
-        },
-        { signal: controller.signal },
-      )) {
-        if (event.type === 'start') {
-          dispatch({ type: 'started', requestId: event.requestId, model: event.model })
-        } else if (event.type === 'delta') {
-          dispatch({ type: 'delta', content: event.content })
-        } else if (event.type === 'usage') {
-          dispatch({ type: 'usage', usage: event.usage })
-        } else if (event.type === 'error') {
-          dispatch({ type: 'fail', message: event.error.message })
-          return
-        } else if (event.type === 'done') {
-          dispatch({ type: 'complete' })
-        }
-      }
-    } catch (error) {
-      if (!controller.signal.aborted && !handleAuthenticationFailure(error)) {
-        dispatch({ type: 'fail', message: readableChatError(error) })
-      }
-    } finally {
-      if (activeRequest.current === controller) activeRequest.current = null
-    }
-  }
-
-  function stopGeneration() {
-    activeRequest.current?.abort()
-    dispatch({ type: 'cancel' })
-  }
-
-  function newConversation() {
-    activeRequest.current?.abort()
-    activeRequest.current = null
-    setInput('')
-    dispatch({ type: 'clear' })
-  }
-
-  function handleInputKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
-    if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
-      event.preventDefault()
-      event.currentTarget.form?.requestSubmit()
-    }
-  }
-
   return (
-    <main className="px-5 py-8 sm:px-8 sm:py-12 lg:px-10">
-      <div className="mx-auto max-w-5xl">
-        <header className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
-          <div>
-            <p className="text-xs font-bold tracking-[0.2em] text-cyan-700 dark:text-cyan-300">
-              SINGLE MODEL
-            </p>
-            <h1 className="mt-3 text-4xl font-semibold tracking-tight sm:text-5xl">Chat</h1>
-            <p className="mt-3 text-slate-600 dark:text-slate-400">
-              保留上下文进行多轮对话，并实时查看流式结果。
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Link
-              href="/chat/compare"
-              className="min-h-9 rounded-full border border-slate-200 bg-white/75 px-3 py-2 text-xs font-medium dark:border-white/10 dark:bg-white/5"
-            >
-              多模型对比
-            </Link>
-            {state.messages.length > 0 && (
-              <ToolbarButton onClick={newConversation}>新会话</ToolbarButton>
-            )}
-            <ToolbarButton onClick={() => setSettingsOpen((open) => !open)}>参数</ToolbarButton>
-            <label className="flex items-center gap-2 rounded-full border border-slate-200 bg-white/75 py-1 pl-3 pr-1.5 text-xs dark:border-white/10 dark:bg-white/5">
-              模型
-              <select
-                value={selectedModel}
-                disabled={isGenerating || modelOptions.length === 0}
-                onChange={(event) => setSelectedModel(event.target.value as TextModelAlias)}
-                className="min-h-8 rounded-full border border-slate-200 bg-white px-2.5 font-semibold dark:border-white/10 dark:bg-slate-900"
-              >
-                {modelOptions.map(({ value, label }) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-        </header>
-
-        {modelError && (
-          <p role="alert" className="mt-4 text-sm text-rose-600">
-            {modelError}
-          </p>
-        )}
-
-        {settingsOpen && (
-          <section
-            aria-label="生成参数"
-            className="mt-5 grid gap-4 rounded-2xl border border-slate-200 bg-white/75 p-4 sm:grid-cols-3 dark:border-white/10 dark:bg-white/5"
-          >
-            <Parameter
-              label="Temperature"
-              value={temperature}
-              min={0}
-              max={2}
-              step={0.1}
-              onChange={setTemperature}
-            />
-            <Parameter label="Top P" value={topP} min={0} max={1} step={0.05} onChange={setTopP} />
-            <Parameter
-              label="Max tokens"
-              value={maxTokens}
-              min={1}
-              max={4096}
-              step={1}
-              onChange={setMaxTokens}
-            />
-          </section>
-        )}
-
-        <section className="mt-6 overflow-hidden rounded-3xl border border-slate-200/80 bg-white/75 shadow-xl dark:border-white/10 dark:bg-slate-950/65">
-          <div
-            className="min-h-[28rem] space-y-7 p-5 sm:p-8"
-            aria-live="polite"
-            aria-busy={isGenerating}
-          >
-            {state.messages.length === 0 ? (
-              <EmptyState onSelect={setInput} />
-            ) : (
-              state.messages.map((message) => <MessageBubble key={message.id} message={message} />)
-            )}
-          </div>
-
-          <form
-            onSubmit={submit}
-            className="border-t border-slate-200/80 bg-slate-50/80 p-4 sm:p-5 dark:border-white/10 dark:bg-white/[0.025]"
-          >
-            <div className="flex items-end gap-3 rounded-2xl border border-slate-200 bg-white p-2 shadow-sm focus-within:border-cyan-400 dark:border-white/10 dark:bg-white/5">
-              <textarea
-                aria-label="输入消息"
-                rows={1}
-                maxLength={4000}
-                value={input}
-                disabled={isGenerating}
-                onChange={(event) => setInput(event.target.value)}
-                onKeyDown={handleInputKeyDown}
-                placeholder="输入消息，Enter 发送，Shift + Enter 换行"
-                className="max-h-40 min-h-11 flex-1 resize-y bg-transparent px-3 py-2.5 text-sm outline-none disabled:opacity-60"
-              />
-              {isGenerating ? (
-                <button
-                  type="button"
-                  onClick={stopGeneration}
-                  className="h-11 rounded-xl border border-slate-300 px-4 text-sm font-semibold dark:border-white/15"
-                >
-                  停止
-                </button>
-              ) : (
-                <button
-                  type="submit"
-                  disabled={!input.trim() || modelOptions.length === 0}
-                  className="h-11 rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white disabled:opacity-40 dark:bg-white dark:text-slate-950"
-                >
-                  发送
-                </button>
-              )}
+    <AssistantRuntimeProvider runtime={runtime}>
+      <main className="agent-page px-4 py-6 sm:px-7 sm:py-9 lg:px-10">
+        <div className="mx-auto max-w-6xl">
+          <header className="agent-page-header">
+            <div>
+              <div className="agent-eyebrow">
+                <span /> AGENT WORKSPACE
+              </div>
+              <h1>对话 Agent</h1>
+              <p>选择一个国内模型，沿着同一条消息轨迹持续推演。</p>
             </div>
-            <p className="mt-2 px-1 text-xs text-slate-400">
-              当前上下文 {state.messages.length} 条消息 · 请勿提交密码或 API Key。
+            <div className="agent-header-actions">
+              <Link href="/chat/compare" className="agent-quiet-button">
+                多模型对比
+              </Link>
+              <NewThreadButton />
+              <button
+                type="button"
+                className="agent-quiet-button"
+                onClick={() => setSettingsOpen((open) => !open)}
+                aria-expanded={settingsOpen}
+              >
+                生成参数
+              </button>
+            </div>
+          </header>
+
+          {modelError && (
+            <p role="alert" className="mt-4 text-sm text-rose-600">
+              {modelError}
             </p>
-          </form>
-        </section>
-      </div>
-    </main>
+          )}
+
+          <section className="agent-console">
+            <div className="agent-console-bar">
+              <div className="agent-model-presence">
+                <span className="agent-live-mark" aria-hidden="true" />
+                <div>
+                  <strong>
+                    {modelOptions.find(({ value }) => value === selectedModel)?.label ??
+                      selectedModel}
+                  </strong>
+                  <small>READY · STREAMING SSE</small>
+                </div>
+              </div>
+              <label className="agent-model-select">
+                <span>运行模型</span>
+                <select
+                  value={selectedModel}
+                  disabled={modelOptions.length === 0}
+                  onChange={(event) => setSelectedModel(event.target.value as TextModelAlias)}
+                >
+                  {modelOptions.map(({ value, label }) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            {settingsOpen && (
+              <section aria-label="生成参数" className="agent-parameters">
+                <Parameter
+                  label="Temperature"
+                  value={temperature}
+                  min={0}
+                  max={2}
+                  step={0.1}
+                  onChange={setTemperature}
+                />
+                <Parameter
+                  label="Top P"
+                  value={topP}
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  onChange={setTopP}
+                />
+                <Parameter
+                  label="Max tokens"
+                  value={maxTokens}
+                  min={1}
+                  max={4096}
+                  step={1}
+                  onChange={setMaxTokens}
+                />
+              </section>
+            )}
+
+            <AgentThread modelDisabled={modelOptions.length === 0} />
+          </section>
+        </div>
+      </main>
+    </AssistantRuntimeProvider>
   )
+}
+
+function AgentThread({ modelDisabled }: { modelDisabled: boolean }) {
+  return (
+    <ThreadPrimitive.Root className="agent-thread">
+      <ThreadPrimitive.Viewport className="agent-thread-viewport">
+        <ThreadPrimitive.Empty>
+          <AgentEmptyState />
+        </ThreadPrimitive.Empty>
+        <ThreadPrimitive.Messages>
+          {({ message }) => (message.role === 'user' ? <UserMessage /> : <AssistantMessage />)}
+        </ThreadPrimitive.Messages>
+      </ThreadPrimitive.Viewport>
+      <ThreadPrimitive.ScrollToBottom className="agent-scroll-button" aria-label="滚动到底部">
+        ↓
+      </ThreadPrimitive.ScrollToBottom>
+      <div className="agent-composer-dock">
+        <ComposerPrimitive.Root className="agent-composer">
+          <ComposerPrimitive.Input
+            aria-label="输入消息"
+            rows={1}
+            maxLength={4000}
+            disabled={modelDisabled}
+            placeholder="交给 Agent 一个任务…"
+          />
+          <div className="agent-composer-footer">
+            <span>Enter 发送 · Shift + Enter 换行</span>
+            <AuiIf condition={({ thread }) => thread.isRunning}>
+              <ComposerPrimitive.Cancel className="agent-send-button is-cancel">
+                停止
+              </ComposerPrimitive.Cancel>
+            </AuiIf>
+            <AuiIf condition={({ thread }) => !thread.isRunning}>
+              <ComposerPrimitive.Send className="agent-send-button" disabled={modelDisabled}>
+                发送 <span aria-hidden="true">↗</span>
+              </ComposerPrimitive.Send>
+            </AuiIf>
+          </div>
+        </ComposerPrimitive.Root>
+        <p className="agent-privacy-note">上下文仅保留在当前页面 · 请勿提交密码或 API Key</p>
+      </div>
+    </ThreadPrimitive.Root>
+  )
+}
+
+function AgentEmptyState() {
+  const api = useAui()
+  return (
+    <div className="agent-empty-state">
+      <div className="agent-orbit" aria-hidden="true">
+        <span>AI</span>
+      </div>
+      <p className="agent-empty-kicker">CURRENT THREAD · EMPTY</p>
+      <h2>从一个清晰的问题开始</h2>
+      <p>Agent 会携带这条会话中的上下文，持续给出流式回应。</p>
+      <div className="agent-suggestions">
+        {examples.map((example) => (
+          <button key={example} type="button" onClick={() => api.composer().setText(example)}>
+            {example}
+            <span aria-hidden="true">↗</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function UserMessage() {
+  return (
+    <MessagePrimitive.Root className="agent-message is-user">
+      <div className="agent-message-label">YOU</div>
+      <div className="agent-user-bubble">
+        <MessagePrimitive.Parts />
+      </div>
+    </MessagePrimitive.Root>
+  )
+}
+
+function AssistantMessage() {
+  return (
+    <MessagePrimitive.Root className="agent-message is-assistant">
+      <div className="agent-assistant-rail" aria-hidden="true">
+        <span>AI</span>
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="agent-message-label">AI GATEWAY · AGENT RESPONSE</div>
+        <div className="agent-assistant-content">
+          <MessagePrimitive.Parts>
+            {({ part }) =>
+              part.type === 'text' ? <AssistantMarkdown>{part.text}</AssistantMarkdown> : null
+            }
+          </MessagePrimitive.Parts>
+          <AuiIf condition={({ message }) => message.status?.type === 'running'}>
+            <span className="agent-stream-caret" aria-label="正在生成" />
+          </AuiIf>
+        </div>
+        <MessagePrimitive.Error>
+          <ErrorPrimitive.Root className="agent-message-error" role="alert">
+            请求失败：
+            <ErrorPrimitive.Message />
+          </ErrorPrimitive.Root>
+        </MessagePrimitive.Error>
+        <div className="agent-message-foot">
+          <MessageMetadata />
+          <ActionBarPrimitive.Root className="agent-message-actions">
+            <ActionBarPrimitive.Copy className="agent-copy-button">复制</ActionBarPrimitive.Copy>
+          </ActionBarPrimitive.Root>
+        </div>
+      </div>
+    </MessagePrimitive.Root>
+  )
+}
+
+function MessageMetadata() {
+  const custom = useAuiState(({ message }) => message.metadata.custom) as AgentMessageMetadata
+  const status = useAuiState(({ message }) => message.status)
+  const usage = custom.usage
+  return (
+    <p>
+      {custom.model ?? '模型'} · {status?.type === 'running' ? '生成中' : usageLabel(usage)}
+      {usage?.estimatedCostCny ? ` · ¥${usage.estimatedCostCny}` : ''}
+      {custom.requestId ? ` · ${custom.requestId}` : ''}
+    </p>
+  )
+}
+
+function NewThreadButton() {
+  const api = useAui()
+  const hasMessages = useAuiState(({ thread }) => thread.messages.length > 0)
+  if (!hasMessages) return null
+  return (
+    <button type="button" className="agent-quiet-button" onClick={() => api.thread().reset()}>
+      新会话
+    </button>
+  )
+}
+
+function usageLabel(usage?: Usage): string {
+  if (!usage) return '等待用量'
+  return usage.usageUnknown ? 'Token 未知' : `${usage.totalTokens} tokens`
 }
 
 function isTextModelAlias(value: string): value is TextModelAlias {
   return ['qwen', 'glm', 'deepseek', 'kimi'].includes(value)
-}
-
-function MessageBubble({ message }: { message: ChatViewMessage }) {
-  const assistant = message.role === 'assistant'
-  return (
-    <div
-      className={assistant ? 'max-w-[92%] sm:max-w-[80%]' : 'ml-auto max-w-[88%] sm:max-w-[75%]'}
-    >
-      <p className={`mb-2 text-xs font-medium text-slate-400 ${assistant ? '' : 'text-right'}`}>
-        {assistant ? 'AI Gateway' : '你'}
-      </p>
-      <div
-        className={
-          assistant
-            ? 'rounded-2xl rounded-bl-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-7 dark:border-white/10 dark:bg-white/5'
-            : 'rounded-2xl rounded-br-md bg-slate-950 px-4 py-3 text-sm leading-7 text-white dark:bg-white dark:text-slate-950'
-        }
-      >
-        {assistant && message.status === 'loading' ? (
-          '正在连接模型…'
-        ) : (
-          <span>
-            <AssistantMarkdown>{message.content || '尚未返回内容'}</AssistantMarkdown>
-            {message.status === 'streaming' && (
-              <span className="ml-1 inline-block h-4 w-0.5 animate-pulse bg-cyan-500" />
-            )}
-          </span>
-        )}
-      </div>
-      {assistant && message.status === 'cancelled' && (
-        <p className="mt-2 text-xs text-amber-600">已停止生成</p>
-      )}
-      {assistant && message.error && (
-        <p role="alert" className="mt-2 text-xs text-rose-600">
-          请求失败：{message.error}
-        </p>
-      )}
-      {assistant && message.status === 'success' && (
-        <p className="mt-2 break-all text-xs text-slate-400">
-          {message.model} ·{' '}
-          {message.usage?.usageUnknown
-            ? 'Token 未知'
-            : `${message.usage?.totalTokens ?? '—'} tokens`}
-          {message.usage?.estimatedCostCny ? ` · ¥${message.usage.estimatedCostCny}` : ''}
-          {message.requestId ? ` · ${message.requestId}` : ''}
-        </p>
-      )}
-    </div>
-  )
-}
-
-function EmptyState({ onSelect }: { onSelect: (value: string) => void }) {
-  return (
-    <div className="grid min-h-[24rem] place-items-center text-center">
-      <div>
-        <h2 className="text-xl font-semibold">从一个问题开始</h2>
-        <p className="mt-2 text-sm text-slate-500">后续问题会自动携带当前会话历史。</p>
-        <div className="mt-6 flex flex-wrap justify-center gap-2">
-          {examples.map((example) => (
-            <button
-              key={example}
-              type="button"
-              onClick={() => onSelect(example)}
-              className="rounded-full border border-slate-200 px-3 py-2 text-xs dark:border-white/10"
-            >
-              {example}
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function ToolbarButton({ children, onClick }: { children: string; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="min-h-9 rounded-full border border-slate-200 bg-white/75 px-3 text-xs font-medium dark:border-white/10 dark:bg-white/5"
-    >
-      {children}
-    </button>
-  )
 }
 
 function Parameter({
@@ -371,9 +355,9 @@ function Parameter({
   onChange: (value: number) => void
 }) {
   return (
-    <label className="text-xs font-medium text-slate-600 dark:text-slate-300">
-      <span className="flex justify-between">
-        <span>{label}</span>
+    <label>
+      <span>
+        <b>{label}</b>
         <output>{value}</output>
       </span>
       <input
@@ -382,9 +366,7 @@ function Parameter({
         min={min}
         max={max}
         step={step}
-        disabled={false}
         onChange={(event) => onChange(Number(event.target.value))}
-        className="mt-2 w-full accent-cyan-600"
       />
     </label>
   )
