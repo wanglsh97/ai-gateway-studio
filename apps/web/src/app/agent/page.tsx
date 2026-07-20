@@ -75,9 +75,9 @@ function AgentConsole() {
   const contextRef = useRef({
     threadId: activeThreadId as string | null,
     model: selectedModel,
-    onThreadCreated: (_thread: Parameters<typeof prependThread>[0]) => undefined as void,
-    onRunCreated: (_run: { id: string; threadId: string }) => undefined as void,
-    onRunFinished: () => undefined as void,
+    onThreadCreated: (() => undefined) as (thread: Parameters<typeof prependThread>[0]) => void,
+    onRunCreated: (() => undefined) as (run: { id: string; threadId: string }) => void,
+    onRunFinished: () => undefined,
   })
 
   contextRef.current.threadId = activeThreadId
@@ -260,8 +260,6 @@ function ThreadHydrator({
       // 仅断开补读 SSE；不得 cancel 服务端 run
       resumeAbort.abort()
     }
-    // api 引用不稳定，只按会话 ID 水合
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- hydrate on thread change only
   }, [activeThreadId])
 
   if (interruptedNotice) {

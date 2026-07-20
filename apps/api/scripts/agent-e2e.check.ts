@@ -59,6 +59,10 @@ async function main(): Promise<void> {
 
   let threadId: string | undefined
   try {
+    // 认证边界：无会话 Cookie 不得访问 Agent API
+    const unauth = await globalThis.fetch(`${baseUrl}/api/v1/agent/threads`)
+    assert.equal(unauth.status, 401, '未登录访问 Agent threads 应返回 401')
+
     const models = await client.models.list()
     const model = models.find(
       (candidate) => candidate.enabled && candidate.capabilities.includes('agent'),
@@ -150,7 +154,7 @@ async function main(): Promise<void> {
     }
 
     console.log(
-      'agent-e2e.check PASS: Web→SDK→API→Pi→Mock→web_fetch→follow-up→SSE→PostgreSQL，含 rename/delete 级联与账单保留',
+      'agent-e2e.check PASS: Web→SDK→API→Pi→Mock→web_fetch→follow-up→SSE→PostgreSQL，含认证边界、rename/delete 级联与账单保留',
     )
   } finally {
     if (threadId) await prisma.agentThread.delete({ where: { id: threadId } }).catch(() => undefined)
