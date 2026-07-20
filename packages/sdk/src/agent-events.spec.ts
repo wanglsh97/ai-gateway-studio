@@ -62,7 +62,7 @@ describe('agent event wire codec', () => {
   it('round-trips every event type through encode/decode with matching runId', () => {
     for (const event of events) {
       const wire = encodeAgentEvent(event)
-      assert.equal(wire.run_id, runId)
+      assert.equal(wire.runId, runId)
       assert.equal(wire.type, event.type)
       const decoded = decodeAgentEvent(JSON.parse(JSON.stringify(wire)), runId)
       assert.deepEqual(decoded, event)
@@ -94,7 +94,7 @@ describe('agent event wire codec', () => {
       {
         type: 'error',
         sequence: 3,
-        run_id: runId,
+        runId,
         error: { requestId: 'r1', code: 'AGENT_STREAM_ERROR', message: '失败', retryable: true },
       },
       runId,
@@ -107,31 +107,31 @@ describe('agent event wire codec', () => {
     })
   })
 
-  it('rejects a run_id that does not match the subscribed run', () => {
+  it('rejects a runId that does not match the subscribed run', () => {
     assert.throws(
-      () => decodeAgentEvent({ type: 'run-status', sequence: 0, run_id: 'other', status: 'running' }, runId),
+      () => decodeAgentEvent({ type: 'run-status', sequence: 0, runId: 'other', status: 'running' }, runId),
       AIGatewayProtocolError,
     )
   })
 
   it('rejects negative or non-integer sequences', () => {
     assert.throws(
-      () => decodeAgentEvent({ type: 'run-status', sequence: -1, run_id: runId, status: 'running' }),
+      () => decodeAgentEvent({ type: 'run-status', sequence: -1, runId, status: 'running' }),
       AIGatewayProtocolError,
     )
     assert.throws(
-      () => decodeAgentEvent({ type: 'run-status', sequence: 1.5, run_id: runId, status: 'running' }),
+      () => decodeAgentEvent({ type: 'run-status', sequence: 1.5, runId, status: 'running' }),
       AIGatewayProtocolError,
     )
   })
 
   it('rejects unknown event types and invalid enums', () => {
     assert.throws(
-      () => decodeAgentEvent({ type: 'nope', sequence: 0, run_id: runId }),
+      () => decodeAgentEvent({ type: 'nope', sequence: 0, runId }),
       AIGatewayProtocolError,
     )
     assert.throws(
-      () => decodeAgentEvent({ type: 'run-status', sequence: 0, run_id: runId, status: 'weird' }),
+      () => decodeAgentEvent({ type: 'run-status', sequence: 0, runId, status: 'weird' }),
       AIGatewayProtocolError,
     )
   })

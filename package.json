@@ -23,6 +23,7 @@
     "test:smoke:cogview": "corepack pnpm --filter @aigateway/api test:smoke:cogview",
     "test:smoke:wanxiang": "corepack pnpm --filter @aigateway/api test:smoke:wanxiang",
     "test:agent-harness": "corepack pnpm --filter @aigateway/api test:agent-harness",
+    "test:agent-run": "corepack pnpm --filter @aigateway/api test:agent-run",
     "test:mock-chat": "sh infra/scripts/run-mock-chat-regression.sh",
     "test:user-regression": "sh infra/scripts/run-user-regression.sh",
     "test:web-same-origin": "sh infra/scripts/verify-web-same-origin.sh",

@@ -1,12 +1,44 @@
+import type { AgentStreamEvent } from '@aigateway/sdk'
 import { Inject, Injectable } from '@nestjs/common'
 
-import type { AgentRun, AgentRunStatus, Prisma } from '../generated/prisma/client'
+import { Prisma } from '../generated/prisma/client'
+import type {
+  AgentRun,
+  AgentRunLimitReason,
+  AgentRunStatus,
+  AgentToolCallStatus,
+} from '../generated/prisma/client'
 import { PrismaService } from '../database/prisma.service'
+import type { ProjectedToolCall } from './agent-run.projector'
+
+const TOOL_CALL_STATUS_MAP: Record<ProjectedToolCall['status'], AgentToolCallStatus> = {
+  running: 'RUNNING',
+  succeeded: 'SUCCEEDED',
+  failed: 'FAILED',
+  cancelled: 'CANCELLED',
+}
 
 export interface CreateAgentRunInput {
   threadId: string
   userId: string
   input: string
+}
+
+export interface FinalizeAgentRunInput {
+  status: AgentRunStatus
+  limitReason?: AgentRunLimitReason | null
+  lastSequence: number
+  modelCallCount: number
+  toolCallCount: number
+  webFetchCount: number
+  inputTokens: number
+  outputTokens: number
+  totalTokens: number
+  usageUnknown: boolean
+  estimatedCostCny?: string | null
+  errorCode?: string | null
+  errorMessage?: string | null
+  completedAt?: Date
 }
 
 /** 未终结（进行中）的 run 状态。 */
@@ -48,10 +80,84 @@ export class AgentRunRepository {
     })
   }
 
-  async updateStatus(
-    runId: string,
-    data: Prisma.AgentRunUpdateInput,
-  ): Promise<void> {
+  async updateStatus(runId: string, data: Prisma.AgentRunUpdateInput): Promise<void> {
     await this.prisma.agentRun.update({ where: { id: runId }, data })
+  }
+
+  async markStarted(runId: string, startedAt = new Date()): Promise<void> {
+    await this.prisma.agentRun.update({ where: { id: runId }, data: { startedAt } })
+  }
+
+  /** 追加事件（幂等按 (runId, sequence) 唯一约束跳过重复），并推进 lastSequence。 */
+  async appendEvents(runId: string, events: readonly AgentStreamEvent[]): Promise<void> {
+    if (events.length === 0) return
+    await this.prisma.agentEvent.createMany({
+      data: events.map((event) => ({
+        runId,
+        sequence: event.sequence,
+        type: event.type,
+        // Agent 事件线协议即 AgentStreamEvent 的 camelCase JSON，直接落库无需运行时依赖 SDK 编解码。
+        payload: event as unknown as Prisma.InputJsonValue,
+      })),
+      skipDuplicates: true,
+    })
+    const lastSequence = events.reduce((max, event) => Math.max(max, event.sequence), -1)
+    await this.prisma.agentRun.updateMany({
+      where: { id: runId, lastSequence: { lt: lastSequence } },
+      data: { lastSequence },
+    })
+  }
+
+  async saveToolCalls(runId: string, records: readonly ProjectedToolCall[]): Promise<void> {
+    for (const record of records) {
+      const data = {
+        status: TOOL_CALL_STATUS_MAP[record.status],
+        summary: record.summary,
+        audit: (record.audit ?? Prisma.JsonNull) as Prisma.InputJsonValue,
+        completedAt: new Date(),
+      }
+      await this.prisma.agentToolCall.upsert({
+        where: { runId_toolCallId: { runId, toolCallId: record.toolCallId } },
+        create: {
+          runId,
+          toolCallId: record.toolCallId,
+          toolName: record.toolName,
+          args: record.args as Prisma.InputJsonValue,
+          ...data,
+        },
+        update: data,
+      })
+    }
+  }
+
+  async finalize(runId: string, input: FinalizeAgentRunInput): Promise<void> {
+    await this.prisma.agentRun.update({
+      where: { id: runId },
+      data: {
+        status: input.status,
+        limitReason: input.limitReason ?? null,
+        lastSequence: input.lastSequence,
+        modelCallCount: input.modelCallCount,
+        toolCallCount: input.toolCallCount,
+        webFetchCount: input.webFetchCount,
+        inputTokens: input.inputTokens,
+        outputTokens: input.outputTokens,
+        totalTokens: input.totalTokens,
+        usageUnknown: input.usageUnknown,
+        estimatedCostCny: input.estimatedCostCny ?? null,
+        errorCode: input.errorCode ?? null,
+        errorMessage: input.errorMessage ?? null,
+        completedAt: input.completedAt ?? new Date(),
+      },
+    })
+  }
+
+  /** API 启动清理：把遗留 running/cancelling run 标记为 interrupted。 */
+  async markAbandonedAsInterrupted(): Promise<number> {
+    const result = await this.prisma.agentRun.updateMany({
+      where: { status: { in: [...ACTIVE_AGENT_RUN_STATUSES] } },
+      data: { status: 'INTERRUPTED', completedAt: new Date() },
+    })
+    return result.count
   }
 }

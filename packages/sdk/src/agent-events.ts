@@ -18,64 +18,14 @@ import type { GatewayError } from './types.js'
 /**
  * Agent 事件线协议（wire）。
  *
- * API 与 SDK 共享同一套编解码，保证持久化事件、SSE 投影与客户端解析对齐。
- * wire 使用 snake_case 字段，`type` 保留连字符事件名。
+ * 为保持 API 与浏览器之间只有类型边界（服务端无需在运行时依赖 SDK 编解码），Agent 事件线
+ * 直接采用 `AgentStreamEvent` 的 camelCase JSON。`encodeAgentEvent` 返回可序列化对象；
+ * `decodeAgentEvent` 对收到的对象做严格校验与归一化，保证客户端只信任合法事件。
  */
-export type AgentEventWire = Record<string, unknown> & {
-  type: string
-  sequence: number
-  run_id: string
-}
+export type AgentEventWire = Record<string, unknown>
 
 export function encodeAgentEvent(event: AgentStreamEvent): AgentEventWire {
-  const base = { type: event.type, sequence: event.sequence, run_id: event.runId }
-  switch (event.type) {
-    case 'run-status':
-      return { ...base, status: event.status }
-    case 'run-terminal':
-      return { ...base, status: event.status, limit_reason: event.limitReason }
-    case 'message-start':
-      return { ...base, message_id: event.messageId, role: event.role }
-    case 'text-delta':
-      return { ...base, message_id: event.messageId, delta: event.delta }
-    case 'reasoning-delta':
-      return { ...base, message_id: event.messageId, delta: event.delta }
-    case 'message-end':
-      return { ...base, message_id: event.messageId }
-    case 'tool-call':
-      return {
-        ...base,
-        message_id: event.messageId,
-        tool_call_id: event.toolCallId,
-        tool_name: event.toolName,
-        args: event.args,
-      }
-    case 'tool-status':
-      return {
-        ...base,
-        tool_call_id: event.toolCallId,
-        tool_name: event.toolName,
-        status: event.status,
-      }
-    case 'tool-result':
-      return {
-        ...base,
-        tool_call_id: event.toolCallId,
-        tool_name: event.toolName,
-        status: event.status,
-        is_error: event.isError,
-        summary: event.summary,
-        ...(event.audit === undefined ? {} : { audit: event.audit }),
-      }
-    case 'usage':
-      return { ...base, usage: encodeUsage(event.usage) }
-    case 'error':
-      return { ...base, error: event.error }
-    default: {
-      const exhaustive: never = event
-      throw new TypeError(`Unknown agent event: ${JSON.stringify(exhaustive)}`)
-    }
-  }
+  return { ...(event as unknown as Record<string, unknown>) }
 }
 
 export function decodeAgentEvent(value: unknown, expectedRunId?: string): AgentStreamEvent {
@@ -84,14 +34,14 @@ export function decodeAgentEvent(value: unknown, expectedRunId?: string): AgentS
 
   const type = stringValue(record.type)
   const sequence = record.sequence
-  const runId = stringValue(record.run_id)
+  const runId = stringValue(record.runId)
   if (!type) throw protocol('Agent event type is invalid')
   if (typeof sequence !== 'number' || !Number.isInteger(sequence) || sequence < 0) {
     throw protocol('Agent event sequence must be a non-negative integer')
   }
-  if (!runId) throw protocol('Agent event run_id is invalid')
+  if (!runId) throw protocol('Agent event runId is invalid')
   if (expectedRunId !== undefined && runId !== expectedRunId) {
-    throw protocol('Agent event run_id does not match the subscribed run')
+    throw protocol('Agent event runId does not match the subscribed run')
   }
 
   const base = { sequence, runId }
@@ -104,31 +54,31 @@ export function decodeAgentEvent(value: unknown, expectedRunId?: string): AgentS
         type,
         ...base,
         status: terminalStatus(record.status),
-        limitReason: limitReason(record.limit_reason),
+        limitReason: limitReason(record.limitReason),
       }
     case 'message-start':
-      return { type, ...base, messageId: id(record.message_id), role: role(record.role) }
+      return { type, ...base, messageId: id(record.messageId), role: role(record.role) }
     case 'text-delta':
-      return { type, ...base, messageId: id(record.message_id), delta: text(record.delta) }
+      return { type, ...base, messageId: id(record.messageId), delta: text(record.delta) }
     case 'reasoning-delta':
-      return { type, ...base, messageId: id(record.message_id), delta: text(record.delta) }
+      return { type, ...base, messageId: id(record.messageId), delta: text(record.delta) }
     case 'message-end':
-      return { type, ...base, messageId: id(record.message_id) }
+      return { type, ...base, messageId: id(record.messageId) }
     case 'tool-call':
       return {
         type,
         ...base,
-        messageId: id(record.message_id),
-        toolCallId: id(record.tool_call_id),
-        toolName: id(record.tool_name),
+        messageId: id(record.messageId),
+        toolCallId: id(record.toolCallId),
+        toolName: id(record.toolName),
         args: argsRecord(record.args),
       }
     case 'tool-status':
       return {
         type,
         ...base,
-        toolCallId: id(record.tool_call_id),
-        toolName: id(record.tool_name),
+        toolCallId: id(record.toolCallId),
+        toolName: id(record.toolName),
         status: toolStatus(record.status),
       }
     case 'tool-result': {
@@ -136,10 +86,10 @@ export function decodeAgentEvent(value: unknown, expectedRunId?: string): AgentS
       return {
         type,
         ...base,
-        toolCallId: id(record.tool_call_id),
-        toolName: id(record.tool_name),
+        toolCallId: id(record.toolCallId),
+        toolName: id(record.toolName),
         status: toolStatus(record.status),
-        isError: bool(record.is_error),
+        isError: bool(record.isError),
         summary: text(record.summary),
         ...(audit === undefined ? {} : { audit }),
       }
@@ -153,31 +103,18 @@ export function decodeAgentEvent(value: unknown, expectedRunId?: string): AgentS
   }
 }
 
-function encodeUsage(usage: AgentRunUsage): Record<string, unknown> {
-  return {
-    input_tokens: usage.inputTokens,
-    output_tokens: usage.outputTokens,
-    total_tokens: usage.totalTokens,
-    estimated_cost_cny: usage.estimatedCostCny,
-    usage_unknown: usage.usageUnknown,
-    model_calls: usage.modelCalls,
-    tool_calls: usage.toolCalls,
-    web_fetch_calls: usage.webFetchCalls,
-  }
-}
-
 function decodeUsage(value: unknown): AgentRunUsage {
   const usage = asRecord(value)
   if (!usage) throw protocol('Agent usage payload is invalid')
   return {
-    inputTokens: nullableNumber(usage.input_tokens),
-    outputTokens: nullableNumber(usage.output_tokens),
-    totalTokens: nullableNumber(usage.total_tokens),
-    estimatedCostCny: nullableString(usage.estimated_cost_cny),
-    usageUnknown: bool(usage.usage_unknown),
-    modelCalls: count(usage.model_calls),
-    toolCalls: count(usage.tool_calls),
-    webFetchCalls: count(usage.web_fetch_calls),
+    inputTokens: nullableNumber(usage.inputTokens),
+    outputTokens: nullableNumber(usage.outputTokens),
+    totalTokens: nullableNumber(usage.totalTokens),
+    estimatedCostCny: nullableString(usage.estimatedCostCny),
+    usageUnknown: bool(usage.usageUnknown),
+    modelCalls: count(usage.modelCalls),
+    toolCalls: count(usage.toolCalls),
+    webFetchCalls: count(usage.webFetchCalls),
   }
 }
 
@@ -226,11 +163,11 @@ function limitReason(value: unknown): AgentRunLimitReason | null {
 }
 
 function role(value: unknown): AgentMessageRole {
-  const role = stringValue(value)
-  if (!role || !(AGENT_MESSAGE_ROLES as readonly string[]).includes(role)) {
+  const parsed = stringValue(value)
+  if (!parsed || !(AGENT_MESSAGE_ROLES as readonly string[]).includes(parsed)) {
     throw protocol('Agent message role is invalid')
   }
-  return role as AgentMessageRole
+  return parsed as AgentMessageRole
 }
 
 function toolStatus(value: unknown): AgentToolCallStatus {
