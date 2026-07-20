@@ -1,7 +1,7 @@
 'use client'
 
 import { createAIGatewayClient } from '@aigateway/sdk'
-import type { TextModelAlias, Usage } from '@aigateway/sdk'
+import type { TextModelAlias, TextModelId, Usage } from '@aigateway/sdk'
 import {
   ActionBarPrimitive,
   AssistantRuntimeProvider,
@@ -26,14 +26,15 @@ import { useAuthenticationFailure } from '../../components/use-authentication-fa
 const client = createAIGatewayClient()
 const examples = ['解释什么是 API 网关', '为周末杭州之旅列一个计划', '用简单比喻介绍大语言模型']
 interface ModelOption {
-  value: TextModelAlias
+  value: TextModelId
   label: string
+  provider: TextModelAlias
 }
 const fallbackModelOptions: ReadonlyArray<ModelOption> = [
-  { value: 'kimi', label: 'Kimi K2.6' },
-  { value: 'qwen', label: 'Qwen Plus' },
-  { value: 'glm', label: 'GLM 4.7 Flash' },
-  { value: 'deepseek', label: 'DeepSeek V4 Flash' },
+  { value: 'kimi', label: 'Kimi K2.6', provider: 'kimi' },
+  { value: 'qwen', label: 'Qwen Plus', provider: 'qwen' },
+  { value: 'glm', label: 'GLM 4.7 Flash', provider: 'glm' },
+  { value: 'deepseek', label: 'DeepSeek V4 Flash', provider: 'deepseek' },
 ]
 
 export default function ChatPage() {
@@ -46,7 +47,7 @@ export default function ChatPage() {
 
 function ChatContent() {
   const handleAuthenticationFailure = useAuthenticationFailure()
-  const [selectedModel, setSelectedModel] = useState<TextModelAlias>('kimi')
+  const [selectedModel, setSelectedModel] = useState<TextModelId>('kimi')
   const [modelOptions, setModelOptions] = useState(fallbackModelOptions)
   const [modelError, setModelError] = useState('')
   const [temperature, setTemperature] = useState(0.7)
@@ -55,11 +56,18 @@ function ChatContent() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const optionsRef = useRef<AgentChatOptions>({
     model: selectedModel,
+    modelName: modelOptions.find(({ value }) => value === selectedModel)?.label ?? selectedModel,
     temperature,
     topP,
     maxTokens,
   })
-  optionsRef.current = { model: selectedModel, temperature, topP, maxTokens }
+  optionsRef.current = {
+    model: selectedModel,
+    modelName: modelOptions.find(({ value }) => value === selectedModel)?.label ?? selectedModel,
+    temperature,
+    topP,
+    maxTokens,
+  }
 
   const adapter = useMemo(
     () =>
@@ -82,7 +90,7 @@ function ChatContent() {
         if (!active) return
         const enabled = models.flatMap((model) =>
           model.enabled && model.capabilities.includes('chat') && isTextModelAlias(model.alias)
-            ? [{ value: model.alias, label: formatModelName(model.modelId ?? model.displayName) }]
+            ? [{ value: model.id, label: model.displayName, provider: model.alias }]
             : [],
         )
         setModelOptions(enabled)
@@ -129,8 +137,8 @@ interface AgentThreadProps {
   modelDisabled: boolean
   modelError: string
   modelOptions: ReadonlyArray<ModelOption>
-  selectedModel: TextModelAlias
-  onModelChange: (model: TextModelAlias) => void
+  selectedModel: TextModelId
+  onModelChange: (model: TextModelId) => void
   settingsOpen: boolean
   onSettingsToggle: () => void
   temperature: number
@@ -265,14 +273,15 @@ function ModelSelect({
   disabled,
   onChange,
 }: {
-  value: TextModelAlias
+  value: TextModelId
   options: ReadonlyArray<ModelOption>
   disabled: boolean
-  onChange: (value: TextModelAlias) => void
+  onChange: (value: TextModelId) => void
 }) {
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
   const selectedLabel = options.find((option) => option.value === value)?.label ?? value
+  const selectedProvider = options.find((option) => option.value === value)?.provider ?? 'qwen'
 
   useEffect(() => {
     if (!open) return
@@ -284,9 +293,13 @@ function ModelSelect({
   }, [open])
 
   return (
-    <div className="agent-model-picker" ref={rootRef} onKeyDown={(event) => {
-      if (event.key === 'Escape') setOpen(false)
-    }}>
+    <div
+      className="agent-model-picker"
+      ref={rootRef}
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') setOpen(false)
+      }}
+    >
       <button
         type="button"
         className="agent-model-trigger"
@@ -296,7 +309,7 @@ function ModelSelect({
         aria-expanded={open}
         onClick={() => setOpen((current) => !current)}
       >
-        <ModelLogo alias={value} />
+        <ModelLogo alias={selectedProvider} />
         <span className="agent-model-trigger-label">{selectedLabel}</span>
         <svg aria-hidden="true" viewBox="0 0 16 16">
           <path d="m5 6 3 3 3-3" />
@@ -320,7 +333,7 @@ function ModelSelect({
                 }}
               >
                 <span className="agent-model-option-main">
-                  <ModelLogo alias={option.value} />
+                  <ModelLogo alias={option.provider} />
                   <span>{option.label}</span>
                 </span>
                 {selected && <span aria-hidden="true">✓</span>}
@@ -339,27 +352,14 @@ function ModelLogo({ alias }: { alias: TextModelAlias }) {
       {alias === 'qwen' && <span>Q</span>}
       {alias === 'glm' && <span>智</span>}
       {alias === 'deepseek' && (
-        <svg viewBox="0 0 24 24"><path d="M4 13.5c2.8-5.3 8.6-7 15.8-4.3-1 5.9-5.3 9.6-11.2 8.8-1.7-.2-3.2-1.2-4.6-2.7 1.9.3 3.7 0 5.2-.9-2 .3-3.7 0-5.2-.9Z" /><circle cx="16.7" cy="10.6" r="1" /></svg>
+        <svg viewBox="0 0 24 24">
+          <path d="M4 13.5c2.8-5.3 8.6-7 15.8-4.3-1 5.9-5.3 9.6-11.2 8.8-1.7-.2-3.2-1.2-4.6-2.7 1.9.3 3.7 0 5.2-.9-2 .3-3.7 0-5.2-.9Z" />
+          <circle cx="16.7" cy="10.6" r="1" />
+        </svg>
       )}
       {alias === 'kimi' && <span>K</span>}
     </span>
   )
-}
-
-function formatModelName(modelId: string): string {
-  return modelId
-    .split('-')
-    .filter(Boolean)
-    .map((part) => {
-      const lower = part.toLowerCase()
-      if (lower === 'qwen') return 'Qwen'
-      if (lower === 'glm') return 'GLM'
-      if (lower === 'kimi') return 'Kimi'
-      if (lower === 'deepseek') return 'DeepSeek'
-      if (/^\d+(?:\.\d+)*$/.test(part)) return part
-      return part.charAt(0).toUpperCase() + part.slice(1)
-    })
-    .join(' ')
 }
 
 function AgentEmptyState() {

@@ -1,9 +1,9 @@
-import type { ChatEvent, TextModelAlias, Usage } from '@aigateway/sdk'
+import type { ChatEvent, TextModelId, Usage } from '@aigateway/sdk'
 
 export type CompareStatus = 'loading' | 'streaming' | 'success' | 'error' | 'cancelled'
 
 export interface CompareColumn {
-  model: TextModelAlias
+  model: TextModelId
   status: CompareStatus
   content: string
   requestId?: string
@@ -17,10 +17,10 @@ export interface CompareState {
 }
 
 export type CompareAction =
-  | { type: 'start'; models: readonly TextModelAlias[] }
-  | { type: 'event'; model: TextModelAlias; event: ChatEvent }
-  | { type: 'fail'; model: TextModelAlias; message: string }
-  | { type: 'cancel'; model: TextModelAlias }
+  | { type: 'start'; models: readonly TextModelId[] }
+  | { type: 'event'; model: TextModelId; event: ChatEvent }
+  | { type: 'fail'; model: TextModelId; message: string }
+  | { type: 'cancel'; model: TextModelId }
   | { type: 'cancelAll' }
 
 export const initialCompareState: CompareState = { columns: [], active: false }
@@ -73,7 +73,7 @@ function applyEvent(column: CompareColumn, event: ChatEvent): CompareColumn {
 
 function updateColumn(
   state: CompareState,
-  model: TextModelAlias,
+  model: TextModelId,
   update: (column: CompareColumn) => CompareColumn,
 ): CompareState {
   return finishIfSettled({

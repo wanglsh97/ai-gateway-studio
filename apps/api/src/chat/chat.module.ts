@@ -18,6 +18,7 @@ import {
 } from './adapters/mock-chat-adapter'
 import { QwenChatAdapter } from './adapters/qwen-chat-adapter'
 import { ChatController } from './chat.controller'
+import { ChatModelCatalog } from './chat-model-catalog'
 import { ChatFailoverService } from './chat-failover.service'
 import { ModelsController } from './models.controller'
 import { ProviderHealthService } from './provider-health.service'
@@ -90,11 +91,12 @@ import { OpenAICompatibleChatTransport } from './transports/openai-compatible-ch
       },
     },
     ChatAdapterRegistry,
+    ChatModelCatalog,
     ChatFailoverService,
     ProviderHealthService,
     PricingService,
   ],
   controllers: [ChatController, ModelsController],
-  exports: [ChatAdapterRegistry, ProviderHealthService],
+  exports: [ChatAdapterRegistry, ChatModelCatalog, ProviderHealthService],
 })
 export class ChatModule {}

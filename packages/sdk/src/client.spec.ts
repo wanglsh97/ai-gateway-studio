@@ -244,6 +244,7 @@ describe('createAIGatewayClient models.list', () => {
     const calls: Array<{ input: string; init?: RequestInit }> = []
     const models = [
       {
+        id: 'qwen-plus',
         alias: 'qwen',
         modelId: 'qwen-plus',
         capabilities: ['chat', 'prompt'],

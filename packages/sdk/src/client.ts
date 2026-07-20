@@ -8,7 +8,7 @@ import type {
   ModelSummary,
   OptimizePromptRequest,
   OptimizePromptResult,
-  TextModelAlias,
+  TextModelId,
 } from './types.js'
 import {
   AIGatewayAuthenticationError,
@@ -35,7 +35,7 @@ export interface CreateAIGatewayClientOptions {
 }
 
 export interface ChatCompareRequest {
-  models: readonly TextModelAlias[]
+  models: readonly TextModelId[]
   messages: ChatMessage[]
   temperature?: number
   topP?: number
@@ -43,7 +43,7 @@ export interface ChatCompareRequest {
 }
 
 export interface ChatCompareRun {
-  model: TextModelAlias
+  model: TextModelId
   events: AsyncIterable<ChatEvent>
   cancel(reason?: unknown): void
 }
@@ -375,6 +375,7 @@ async function listModels(
 
 function parseModelSummary(value: unknown, requestId: string): ModelSummary {
   const model = asRecord(value)
+  const id = stringValue(model?.id)
   const alias = stringValue(model?.alias)
   const modelId = model?.modelId === undefined ? undefined : stringValue(model.modelId)
   const displayName = stringValue(model?.displayName)
@@ -385,6 +386,7 @@ function parseModelSummary(value: unknown, requestId: string): ModelSummary {
 
   if (
     !model ||
+    !id ||
     !alias ||
     !['qwen', 'glm', 'deepseek', 'kimi', 'wanxiang', 'cogview'].includes(alias) ||
     !displayName ||

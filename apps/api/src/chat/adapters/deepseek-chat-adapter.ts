@@ -51,7 +51,7 @@ export class DeepSeekChatAdapter implements ChatAdapter {
         url: this.endpoint,
         headers: { authorization: `Bearer ${this.apiKey}` },
         body: {
-          model: this.resolvedModel,
+          model: request.resolvedModel,
           messages: request.messages.map(({ role, content }) => ({ role, content })),
           stream: true,
           stream_options: { include_usage: true },

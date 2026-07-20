@@ -46,14 +46,14 @@ export class KimiChatAdapter implements ChatAdapter {
     let finishReason: ChatFinishReason | undefined
     let usage: ChatAdapterUsage | undefined
     let providerRequestId: string | undefined
-    const useK2Defaults = usesK2FixedSampling(this.resolvedModel)
+    const useK2Defaults = usesK2FixedSampling(request.resolvedModel)
 
     try {
       for await (const event of this.transport.stream({
         url: this.endpoint,
         headers: { authorization: `Bearer ${this.apiKey}` },
         body: {
-          model: this.resolvedModel,
+          model: request.resolvedModel,
           messages: request.messages.map(({ role, content }) => ({ role, content })),
           stream: true,
           stream_options: { include_usage: true },

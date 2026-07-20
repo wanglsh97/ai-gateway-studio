@@ -15,6 +15,7 @@ function dto(overrides: Record<string, unknown> = {}) {
 describe('ChatCompletionRequestDto', () => {
   it('accepts the minimum streamed chat request', async () => {
     await expect(validate(dto())).resolves.toEqual([])
+    await expect(validate(dto({ model: 'kimi-k3' }))).resolves.toEqual([])
   })
 
   it('requires stream to be exactly true', async () => {
@@ -22,8 +23,8 @@ describe('ChatCompletionRequestDto', () => {
     await expect(validate(dto({ stream: undefined }))).resolves.not.toEqual([])
   })
 
-  it('rejects unsupported aliases and invalid messages', async () => {
-    await expect(validate(dto({ model: 'mock' }))).resolves.not.toEqual([])
+  it('rejects malformed model ids and invalid messages', async () => {
+    await expect(validate(dto({ model: 'Kimi K3' }))).resolves.not.toEqual([])
     await expect(validate(dto({ messages: [] }))).resolves.not.toEqual([])
     await expect(validate(dto({ messages: [{ role: 'user', content: '' }] }))).resolves.not.toEqual(
       [],

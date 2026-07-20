@@ -6,6 +6,23 @@ const requiredEnvironment = {
 }
 
 describe('validateEnvironment', () => {
+  it('accepts multiple catalog models for the same provider and rejects duplicate ids', () => {
+    const entries = [
+      { id: 'kimi-k2.6', displayName: 'Kimi K2.6', provider: 'kimi', upstreamModelId: 'kimi-k2.6' },
+      { id: 'kimi-k3', displayName: 'Kimi K3', provider: 'kimi', upstreamModelId: 'kimi-k3' },
+    ]
+    expect(
+      validateEnvironment({ ...requiredEnvironment, CHAT_MODELS: JSON.stringify(entries) })
+        .CHAT_MODELS,
+    ).toBe(JSON.stringify(entries))
+    expect(() =>
+      validateEnvironment({
+        ...requiredEnvironment,
+        CHAT_MODELS: JSON.stringify([entries[0], { ...entries[1], id: entries[0]!.id }]),
+      }),
+    ).toThrow(/CHAT_MODELS/)
+  })
+
   it('applies safe defaults for a Mock-only environment', () => {
     const environment = validateEnvironment(requiredEnvironment)
 

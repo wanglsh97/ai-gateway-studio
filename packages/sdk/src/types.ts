@@ -2,6 +2,7 @@ export const TEXT_MODEL_ALIASES = ['qwen', 'glm', 'deepseek', 'kimi'] as const
 export const IMAGE_MODEL_ALIASES = ['wanxiang', 'cogview'] as const
 
 export type TextModelAlias = (typeof TEXT_MODEL_ALIASES)[number]
+export type TextModelId = string
 export type ImageModelAlias = (typeof IMAGE_MODEL_ALIASES)[number]
 export type ModelAlias = TextModelAlias | ImageModelAlias
 
@@ -29,7 +30,7 @@ export interface ChatMessage {
 }
 
 export interface ChatRequest {
-  model: TextModelAlias
+  model: TextModelId
   messages: ChatMessage[]
   stream: true
   temperature?: number
@@ -44,7 +45,7 @@ export interface ChatSseDeltaPayload {
   id: string
   object: 'chat.completion.chunk'
   created: number
-  model: TextModelAlias
+  model: TextModelId
   request_id: string
   choices: Array<{
     index: number
@@ -60,7 +61,7 @@ export interface ChatSseUsagePayload {
   id: string
   object: 'chat.completion.usage'
   created: number
-  model: TextModelAlias
+  model: TextModelId
   request_id: string
   choices: []
   usage: {
@@ -85,7 +86,7 @@ export type ChatSsePayload = ChatSseDeltaPayload | ChatSseUsagePayload | ChatSse
 export const CHAT_SSE_DONE = '[DONE]' as const
 
 export type ChatEvent =
-  | { type: 'start'; requestId: string; model: TextModelAlias }
+  | { type: 'start'; requestId: string; model: TextModelId }
   | { type: 'delta'; requestId: string; content: string }
   | { type: 'usage'; requestId: string; usage: Usage }
   | { type: 'error'; requestId: string; error: GatewayError }
@@ -134,6 +135,7 @@ export interface OptimizePromptResult {
 }
 
 export interface ModelSummary {
+  id: string
   alias: ModelAlias
   modelId?: string
   capabilities: Capability[]

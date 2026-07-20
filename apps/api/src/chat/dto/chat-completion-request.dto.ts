@@ -1,4 +1,4 @@
-import type { ChatMessage, TextModelAlias } from '@aigateway/sdk'
+import type { ChatMessage, TextModelId } from '@aigateway/sdk'
 import { Type } from 'class-transformer'
 import {
   ArrayMinSize,
@@ -15,10 +15,9 @@ import {
   MaxLength,
   Min,
   MinLength,
+  Matches,
   ValidateNested,
 } from 'class-validator'
-
-import { TEXT_MODEL_ALIASES } from '../chat.constants'
 
 export class ChatMessageDto implements ChatMessage {
   @IsIn(['system', 'user', 'assistant'])
@@ -31,8 +30,11 @@ export class ChatMessageDto implements ChatMessage {
 }
 
 export class ChatCompletionRequestDto {
-  @IsIn(TEXT_MODEL_ALIASES)
-  declare model: TextModelAlias
+  @IsString()
+  @MinLength(1)
+  @MaxLength(64)
+  @Matches(/^[a-z0-9][a-z0-9._-]*$/)
+  declare model: TextModelId
 
   @IsArray()
   @ArrayMinSize(1)

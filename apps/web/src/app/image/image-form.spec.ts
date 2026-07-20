@@ -90,6 +90,7 @@ describe('image form contract', () => {
 
 function model(alias: ModelSummary['alias'], capabilities: ModelSummary['capabilities']) {
   return {
+    id: alias,
     alias,
     capabilities,
     displayName: alias,

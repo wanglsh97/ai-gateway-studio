@@ -1,7 +1,7 @@
 'use client'
 
 import { createAIGatewayClient } from '@aigateway/sdk'
-import type { ChatCompareSession, ChatEvent, ModelSummary, TextModelAlias } from '@aigateway/sdk'
+import type { ChatCompareSession, ChatEvent, ModelSummary, TextModelId } from '@aigateway/sdk'
 import Link from 'next/link'
 import type { FormEvent } from 'react'
 import { useEffect, useReducer, useRef, useState } from 'react'
@@ -26,7 +26,7 @@ function ChatCompareContent() {
   const handleAuthenticationFailure = useAuthenticationFailure()
   const [prompt, setPrompt] = useState('')
   const [models, setModels] = useState<ModelSummary[]>([])
-  const [selected, setSelected] = useState<TextModelAlias[]>([])
+  const [selected, setSelected] = useState<TextModelId[]>([])
   const [loadError, setLoadError] = useState('')
   const [state, dispatch] = useReducer(compareReducer, initialCompareState)
   const sessionRef = useRef<ChatCompareSession | null>(null)
@@ -38,15 +38,10 @@ function ChatCompareContent() {
       .then((items) => {
         if (!active) return
         const chatModels = items.filter(
-          (model) =>
-            model.enabled && model.capabilities.includes('chat') && isTextAlias(model.alias),
+          (model) => model.enabled && model.capabilities.includes('chat'),
         )
         setModels(chatModels)
-        setSelected(
-          chatModels
-            .slice(0, Math.min(3, chatModels.length))
-            .map(({ alias }) => alias as TextModelAlias),
-        )
+        setSelected(chatModels.slice(0, Math.min(3, chatModels.length)).map(({ id }) => id))
       })
       .catch(() => {
         if (active) setLoadError('模型列表加载失败')
@@ -57,7 +52,7 @@ function ChatCompareContent() {
     }
   }, [])
 
-  function toggleModel(model: TextModelAlias) {
+  function toggleModel(model: TextModelId) {
     if (state.active) return
     setSelected((current) =>
       current.includes(model)
@@ -83,7 +78,7 @@ function ChatCompareContent() {
     }
   }
 
-  async function consumeRun(model: TextModelAlias, events: AsyncIterable<ChatEvent>) {
+  async function consumeRun(model: TextModelId, events: AsyncIterable<ChatEvent>) {
     try {
       for await (const event of events) dispatch({ type: 'event', model, event })
     } catch (error) {
@@ -97,7 +92,7 @@ function ChatCompareContent() {
     }
   }
 
-  function stop(model: TextModelAlias) {
+  function stop(model: TextModelId) {
     sessionRef.current?.runs.find((run) => run.model === model)?.cancel()
     dispatch({ type: 'cancel', model })
   }
@@ -137,13 +132,13 @@ function ChatCompareContent() {
             <div className="mt-3 flex flex-wrap gap-2">
               {models.map((model) => (
                 <label
-                  key={model.alias}
+                  key={model.id}
                   className="flex items-center gap-2 rounded-full border border-slate-200 px-3 py-2 text-sm dark:border-white/10"
                 >
                   <input
                     type="checkbox"
-                    checked={selected.includes(model.alias as TextModelAlias)}
-                    onChange={() => toggleModel(model.alias as TextModelAlias)}
+                    checked={selected.includes(model.id)}
+                    onChange={() => toggleModel(model.id)}
                   />
                   {model.displayName}
                 </label>
@@ -189,7 +184,14 @@ function ChatCompareContent() {
             className={`mt-6 grid gap-4 ${state.columns.length === 2 ? 'lg:grid-cols-2' : 'lg:grid-cols-3'}`}
           >
             {state.columns.map((column) => (
-              <CompareCard key={column.model} column={column} onStop={() => stop(column.model)} />
+              <CompareCard
+                key={column.model}
+                column={column}
+                displayName={
+                  models.find(({ id }) => id === column.model)?.displayName ?? column.model
+                }
+                onStop={() => stop(column.model)}
+              />
             ))}
           </section>
         )}
@@ -198,13 +200,21 @@ function ChatCompareContent() {
   )
 }
 
-function CompareCard({ column, onStop }: { column: CompareColumn; onStop: () => void }) {
+function CompareCard({
+  column,
+  displayName,
+  onStop,
+}: {
+  column: CompareColumn
+  displayName: string
+  onStop: () => void
+}) {
   const active = column.status === 'loading' || column.status === 'streaming'
   return (
     <article className="min-w-0 rounded-2xl border border-slate-200 bg-white/80 p-5 dark:border-white/10 dark:bg-white/5">
       <header className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="font-semibold">{column.model}</h2>
+          <h2 className="font-semibold">{displayName}</h2>
           <p className="mt-1 text-xs text-slate-400">{statusLabel(column.status)}</p>
         </div>
         {active && (
@@ -246,8 +256,4 @@ function statusLabel(status: CompareColumn['status']): string {
     error: '失败',
     cancelled: '已停止',
   }[status]
-}
-
-function isTextAlias(value: string): value is TextModelAlias {
-  return ['qwen', 'glm', 'deepseek', 'kimi'].includes(value)
 }

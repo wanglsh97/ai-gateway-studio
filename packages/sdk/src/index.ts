@@ -43,5 +43,6 @@ export type {
   OptimizePromptResult,
   PromptOptimizationMode,
   TextModelAlias,
+  TextModelId,
   Usage,
 } from './types.js'

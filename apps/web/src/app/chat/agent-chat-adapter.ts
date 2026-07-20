@@ -1,15 +1,16 @@
-import type { AIGatewayClient, ChatMessage, TextModelAlias, Usage } from '@aigateway/sdk'
+import type { AIGatewayClient, ChatMessage, TextModelId, Usage } from '@aigateway/sdk'
 import type { ChatModelAdapter, ThreadMessage } from '@assistant-ui/react'
 
 export interface AgentChatOptions {
-  model: TextModelAlias
+  model: TextModelId
+  modelName: string
   temperature: number
   topP: number
   maxTokens: number
 }
 
 export interface AgentMessageMetadata extends Record<string, unknown> {
-  model?: TextModelAlias
+  model?: string
   requestId?: string
   usage?: Usage
 }
@@ -23,7 +24,7 @@ export function createAgentChatAdapter(
     async *run({ messages, abortSignal }) {
       const options = getOptions()
       let content = ''
-      let metadata: AgentMessageMetadata = { model: options.model }
+      let metadata: AgentMessageMetadata = { model: options.modelName }
 
       try {
         for await (const event of client.chat.stream(
@@ -38,7 +39,7 @@ export function createAgentChatAdapter(
           { signal: abortSignal },
         )) {
           if (event.type === 'start') {
-            metadata = { ...metadata, model: event.model, requestId: event.requestId }
+            metadata = { ...metadata, requestId: event.requestId }
           } else if (event.type === 'delta') {
             content += event.content
           } else if (event.type === 'usage') {

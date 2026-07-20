@@ -59,7 +59,7 @@ function request(): ChatAdapterRequest {
 describeChatAdapterContract({
   name: 'Qwen',
   adapterId: 'qwen',
-  requestOverrides: { modelAlias: 'qwen', resolvedModel: 'qwen-plus-fixture' },
+  requestOverrides: { modelAlias: 'qwen', resolvedModel: 'qwen3.7-max' },
   createSuccessCase: () => {
     const calls: FetchCall[] = []
     const adapter = adapterWith(async (input, init) => {
@@ -84,7 +84,7 @@ describeChatAdapterContract({
             authorization: 'Bearer sanitized-qwen-key',
           },
           body: JSON.stringify({
-            model: 'qwen-plus-fixture',
+            model: 'qwen3.7-max',
             messages: [
               { role: 'system', content: 'You are concise.' },
               { role: 'user', content: 'Reply with a short greeting.' },

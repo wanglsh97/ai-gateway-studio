@@ -13,6 +13,7 @@ import type { ChatAdapter, ChatAdapterEvent } from './adapters/chat-adapter'
 import { ChatAdapterError } from './adapters/chat-adapter'
 import { ChatAdapterRegistry } from './adapters/chat-adapter.registry'
 import { ChatController } from './chat.controller'
+import type { ChatModelCatalog } from './chat-model-catalog'
 import type { ChatCompletionRequestDto } from './dto/chat-completion-request.dto'
 
 const requestId = '00000000-0000-4000-8000-000000000003'
@@ -80,6 +81,7 @@ function failingAdapter(id: ChatAdapter['id'], error: Error): ChatAdapter {
 }
 
 function controllerFor(adapter: ChatAdapter, additionalAdapters: readonly ChatAdapter[] = []) {
+  const registry = new ChatAdapterRegistry([adapter, ...additionalAdapters])
   const consumeChat = jest.fn().mockResolvedValue(undefined)
   const start = jest.fn().mockResolvedValue({
     id: 'log-1',
@@ -101,7 +103,21 @@ function controllerFor(adapter: ChatAdapter, additionalAdapters: readonly ChatAd
     calculate: jest.fn((_provider, usage) => usage),
   } as unknown as PricingService
   const controller = new ChatController(
-    new ChatAdapterRegistry([adapter, ...additionalAdapters]),
+    registry,
+    {
+      resolve: jest.fn((id: string) => {
+        const provider = ['qwen', 'glm', 'deepseek', 'kimi'].includes(id) ? id : 'qwen'
+        const selected = registry.has(provider as ChatAdapter['id'])
+          ? registry.get(provider as ChatAdapter['id'])
+          : adapter
+        return {
+          id,
+          displayName: `${provider} Test`,
+          provider,
+          upstreamModelId: selected.resolvedModel,
+        }
+      }),
+    } as unknown as ChatModelCatalog,
     lifecycle,
     rateLimit,
     providerHealth,
@@ -159,7 +175,7 @@ describe('ChatController', () => {
         userId: authenticatedUser.id,
         requestId,
         prompt: { messages: [{ role: 'user', content: '完整消息' }] },
-        provider: 'mock',
+        provider: 'qwen',
         resolvedModel: 'mock-chat-v1',
       }),
     )

@@ -100,7 +100,7 @@ export class QwenChatAdapter implements ChatAdapter {
 
   private requestBody(request: ChatAdapterRequest): Record<string, unknown> {
     return {
-      model: this.resolvedModel,
+      model: request.resolvedModel,
       messages: request.messages.map(({ role, content }) => ({ role, content })),
       stream: true,
       stream_options: { include_usage: true },

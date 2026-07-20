@@ -34,6 +34,30 @@ const optionalTextModelAlias = z.preprocess(
   z.enum(['qwen', 'glm', 'deepseek', 'kimi']).optional(),
 )
 
+const chatModelCatalogEntrySchema = z.object({
+  id: z.string().regex(/^[a-z0-9][a-z0-9._-]{0,63}$/),
+  displayName: z.string().min(1).max(80),
+  provider: z.enum(['qwen', 'glm', 'deepseek', 'kimi']),
+  upstreamModelId: z.string().min(1).max(160),
+})
+
+const optionalChatModels = z.preprocess(
+  (value) => (value === '' ? undefined : value),
+  z
+    .string()
+    .superRefine((value, context) => {
+      try {
+        const entries = z.array(chatModelCatalogEntrySchema).min(1).parse(JSON.parse(value))
+        if (new Set(entries.map(({ id }) => id)).size !== entries.length) {
+          context.addIssue({ code: 'custom', message: 'CHAT_MODELS 中的 id 不得重复' })
+        }
+      } catch {
+        context.addIssue({ code: 'custom', message: 'CHAT_MODELS 必须是合法的模型目录 JSON' })
+      }
+    })
+    .optional(),
+)
+
 const optionalNonNegativeDecimal = z.preprocess(
   (value) => (value === '' ? undefined : value),
   z
@@ -85,6 +109,7 @@ const environmentSchema = z
     GLM_MODEL_ID: optionalModelId,
     DEEPSEEK_MODEL_ID: optionalModelId,
     KIMI_MODEL_ID: optionalModelId,
+    CHAT_MODELS: optionalChatModels,
     QWEN_FALLBACK_ALIAS: optionalTextModelAlias,
     GLM_FALLBACK_ALIAS: optionalTextModelAlias,
     DEEPSEEK_FALLBACK_ALIAS: optionalTextModelAlias,

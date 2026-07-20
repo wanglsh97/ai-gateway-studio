@@ -1,4 +1,4 @@
-import type { Capability, ModelAlias } from '@aigateway/sdk'
+import type { Capability } from '@aigateway/sdk'
 import { Inject, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common'
 
 import { Prisma, RequestCapability, RequestStatus } from '../generated/prisma/client'
@@ -16,7 +16,7 @@ export interface StartRequestLifecycleInput {
   requestId: string
   capability: Capability
   prompt: Prisma.InputJsonValue
-  modelAlias: ModelAlias
+  modelAlias: string
   stream: boolean
   provider?: string
   resolvedModel?: string

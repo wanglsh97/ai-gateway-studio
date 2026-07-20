@@ -8,6 +8,7 @@ import type {
   TextModelAlias,
 } from '@aigateway/sdk'
 import {
+  BadRequestException,
   Body,
   Controller,
   Inject,
@@ -36,6 +37,7 @@ import { ChatAdapterError } from './adapters/chat-adapter'
 import type { ChatAdapter, ChatAdapterUsage } from './adapters/chat-adapter'
 import { ChatAdapterRegistry } from './adapters/chat-adapter.registry'
 import { ChatFailoverService } from './chat-failover.service'
+import { ChatModelCatalog } from './chat-model-catalog'
 import { writeChatSseDone, writeChatSsePayload } from './chat-sse.writer'
 import { ChatCompletionRequestDto } from './dto/chat-completion-request.dto'
 import { ProviderHealthService } from './provider-health.service'
@@ -56,6 +58,7 @@ interface ChatStreamCompletion {
 interface ChatExecutionResult {
   completion: ChatStreamCompletion
   adapter: ChatAdapter
+  resolvedModel: string
   failover?: { from: string; to: string; reason: string }
 }
 
@@ -64,6 +67,7 @@ interface ChatExecutionResult {
 export class ChatController {
   constructor(
     @Inject(ChatAdapterRegistry) private readonly adapters: ChatAdapterRegistry,
+    @Inject(ChatModelCatalog) private readonly models: ChatModelCatalog,
     @Inject(RequestLifecycleService) private readonly lifecycle: RequestLifecycleService,
     @Inject(RateLimitService) private readonly rateLimit: RateLimitService,
     @Inject(ProviderHealthService) private readonly providerHealth: ProviderHealthService,
@@ -82,7 +86,9 @@ export class ChatController {
   ): Promise<void> {
     const requestId = request.id ?? randomUUID()
     await this.rateLimit.consumeChat(request.ip)
-    const adapter = this.resolveAdapter(input.model)
+    const model = this.models.resolve(input.model)
+    if (!model) throw new BadRequestException(`未知或未启用的 Chat 模型 "${input.model}"`)
+    const adapter = this.resolveAdapter(model.provider)
 
     const started = await this.lifecycle.start({
       userId: user.id,
@@ -92,8 +98,8 @@ export class ChatController {
         messages: input.messages.map(({ role, content }) => ({ role, content })),
       },
       modelAlias: input.model,
-      provider: adapter.id,
-      resolvedModel: adapter.resolvedModel,
+      provider: model.provider,
+      resolvedModel: model.upstreamModelId,
       stream: true,
       ...(input.comparison === undefined ? {} : { metadata: { comparison: input.comparison } }),
       ...(request.ip === undefined ? {} : { clientIp: request.ip }),
@@ -116,6 +122,8 @@ export class ChatController {
       const execution = await this.executeWithFailover(
         input,
         adapter,
+        model.provider,
+        model.upstreamModelId,
         requestId,
         abortController.signal,
         response,
@@ -135,7 +143,7 @@ export class ChatController {
           ? {}
           : { providerRequestId: state.providerRequestId }),
         provider: execution.adapter.id,
-        resolvedModel: execution.adapter.resolvedModel,
+        resolvedModel: execution.resolvedModel,
         ...(execution.failover === undefined ? {} : { failover: execution.failover }),
         usage: pricedUsage,
       })
@@ -199,6 +207,8 @@ export class ChatController {
   private async pipeAdapterStream(
     input: ChatCompletionRequestDto,
     adapter: ChatAdapter,
+    provider: TextModelAlias,
+    resolvedModel: string,
     requestId: string,
     signal: AbortSignal,
     response: Response,
@@ -211,8 +221,8 @@ export class ChatController {
 
     for await (const event of adapter.stream({
       requestId,
-      modelAlias: input.model,
-      resolvedModel: adapter.resolvedModel,
+      modelAlias: provider,
+      resolvedModel,
       messages: input.messages,
       signal,
       ...(input.temperature === undefined ? {} : { temperature: input.temperature }),
@@ -264,6 +274,8 @@ export class ChatController {
   private async pipeAdapterStreamWithHealth(
     input: ChatCompletionRequestDto,
     adapter: ChatAdapter,
+    provider: TextModelAlias,
+    resolvedModel: string,
     requestId: string,
     signal: AbortSignal,
     response: Response,
@@ -275,6 +287,8 @@ export class ChatController {
       const completion = await this.pipeAdapterStream(
         input,
         adapter,
+        provider,
+        resolvedModel,
         requestId,
         signal,
         response,
@@ -300,6 +314,8 @@ export class ChatController {
   private async executeWithFailover(
     input: ChatCompletionRequestDto,
     primary: ChatAdapter,
+    primaryProvider: TextModelAlias,
+    primaryResolvedModel: string,
     requestId: string,
     signal: AbortSignal,
     response: Response,
@@ -309,16 +325,18 @@ export class ChatController {
       const completion = await this.pipeAdapterStreamWithHealth(
         input,
         primary,
+        primaryProvider,
+        primaryResolvedModel,
         requestId,
         signal,
         response,
         state,
       )
-      return { completion, adapter: primary }
+      return { completion, adapter: primary, resolvedModel: primaryResolvedModel }
     } catch (error) {
       if (state.firstTokenAt !== undefined || signal.aborted) throw error
 
-      const fallback = this.failover.resolve(input.model, error, input.comparison === true)
+      const fallback = this.failover.resolve(primaryProvider, error, input.comparison === true)
       if (!fallback) throw error
 
       delete state.providerRequestId
@@ -326,6 +344,8 @@ export class ChatController {
       const completion = await this.pipeAdapterStreamWithHealth(
         input,
         fallback,
+        fallback.id as TextModelAlias,
+        fallback.resolvedModel,
         requestId,
         signal,
         response,
@@ -334,6 +354,7 @@ export class ChatController {
       return {
         completion,
         adapter: fallback,
+        resolvedModel: fallback.resolvedModel,
         failover: {
           from: primary.id,
           to: fallback.id,

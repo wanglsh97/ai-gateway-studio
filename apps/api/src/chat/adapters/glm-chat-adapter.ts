@@ -52,7 +52,7 @@ export class GlmChatAdapter implements ChatAdapter {
         url: this.endpoint,
         headers: { authorization: `Bearer ${this.apiKey}` },
         body: {
-          model: this.resolvedModel,
+          model: request.resolvedModel,
           messages: request.messages.map(({ role, content }) => ({ role, content })),
           stream: true,
           ...(request.temperature === undefined ? {} : { temperature: request.temperature }),

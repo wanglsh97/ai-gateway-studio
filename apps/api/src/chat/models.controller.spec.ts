@@ -3,6 +3,7 @@ import { ChatAdapterRegistry } from './adapters/chat-adapter.registry'
 import type { ImageAdapter } from '../image/adapters/image-adapter'
 import { ImageAdapterRegistry } from '../image/adapters/image-adapter.registry'
 import { ModelsController } from './models.controller'
+import type { ChatModelCatalog } from './chat-model-catalog'
 import type { ProviderHealthService } from './provider-health.service'
 
 function adapter(id: ChatAdapter['id']): ChatAdapter {
@@ -33,30 +34,49 @@ describe('ModelsController', () => {
   it('returns only enabled public aliases with their passive health summary', async () => {
     const controller = new ModelsController(
       new ChatAdapterRegistry([adapter('mock'), adapter('qwen'), adapter('deepseek')]),
+      {
+        list: () => [
+          {
+            id: 'qwen-plus',
+            provider: 'qwen',
+            upstreamModelId: 'qwen-plus',
+            displayName: 'Qwen Plus',
+          },
+          {
+            id: 'deepseek-v4',
+            provider: 'deepseek',
+            upstreamModelId: 'deepseek-v4',
+            displayName: 'DeepSeek V4',
+          },
+        ],
+      } as unknown as ChatModelCatalog,
       providerHealth,
       new ImageAdapterRegistry([imageAdapter('wanxiang'), imageAdapter('cogview')]),
     )
 
     await expect(controller.list()).resolves.toEqual([
       {
+        id: 'qwen-plus',
         alias: 'qwen',
-        modelId: 'qwen-model',
+        modelId: 'qwen-plus',
         capabilities: ['chat', 'prompt'],
-        displayName: '通义千问',
+        displayName: 'Qwen Plus',
         enabled: true,
         configured: true,
         health: 'healthy',
       },
       {
+        id: 'deepseek-v4',
         alias: 'deepseek',
-        modelId: 'deepseek-model',
+        modelId: 'deepseek-v4',
         capabilities: ['chat', 'prompt'],
-        displayName: 'DeepSeek',
+        displayName: 'DeepSeek V4',
         enabled: true,
         configured: true,
         health: 'unhealthy',
       },
       {
+        id: 'wanxiang',
         alias: 'wanxiang',
         modelId: 'wanxiang-image-model',
         capabilities: ['image'],
@@ -66,6 +86,7 @@ describe('ModelsController', () => {
         health: 'unknown',
       },
       {
+        id: 'cogview',
         alias: 'cogview',
         modelId: 'cogview-image-model',
         capabilities: ['image'],
@@ -80,21 +101,28 @@ describe('ModelsController', () => {
   it('exposes a stable public alias without querying health in a Mock-only environment', async () => {
     const controller = new ModelsController(
       new ChatAdapterRegistry([adapter('mock')]),
+      {
+        list: () => [
+          { id: 'qwen', provider: 'qwen', upstreamModelId: 'mock-chat', displayName: 'Qwen Mock' },
+        ],
+      } as unknown as ChatModelCatalog,
       providerHealth,
       new ImageAdapterRegistry([imageAdapter('mock')]),
     )
 
     await expect(controller.list()).resolves.toEqual([
       {
+        id: 'qwen',
         alias: 'qwen',
         modelId: 'mock-chat',
         capabilities: ['chat', 'prompt'],
-        displayName: '通义千问（Mock）',
+        displayName: 'Qwen Mock',
         enabled: true,
         configured: false,
         health: 'unknown',
       },
       {
+        id: 'wanxiang',
         alias: 'wanxiang',
         modelId: 'mock-image',
         capabilities: ['image'],
