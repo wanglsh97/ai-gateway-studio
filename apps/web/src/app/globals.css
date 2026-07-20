@@ -121,8 +121,7 @@ body {
 .agent-suggestions button:focus-visible,
 .agent-send-button:focus-visible,
 .agent-copy-button:focus-visible,
-.agent-scroll-button:focus-visible,
-.agent-composer textarea:focus-visible {
+.agent-scroll-button:focus-visible {
   outline: 3px solid #8b76f0;
   outline-offset: 3px;
 }
