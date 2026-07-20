@@ -116,7 +116,7 @@ export class AgentRunService {
         initialState: {
           systemPrompt: AGENT_SYSTEM_PROMPT,
           model: createPiModel(input.modelId, input.provider),
-          tools: this.tools.list().map((tool) => toPiAgentTool(tool)),
+          tools: this.tools.list().map((tool) => toPiAgentTool(tool, this.tools)),
         },
         streamFn: createPiStreamFn({
           port: boundPort,

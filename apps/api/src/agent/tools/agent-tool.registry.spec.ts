@@ -1,20 +1,78 @@
 import type { AgentToolDefinition } from './agent-tool'
+import { AgentToolExecutionError } from './agent-tool'
 import {
   AgentToolNotRegisteredError,
   AgentToolRegistry,
   DuplicateAgentToolError,
 } from './agent-tool.registry'
+import { validateToolArguments } from './tool-args.validation'
+import {
+  WEB_FETCH_TOOL_PARAMETERS,
+  createWebFetchErrorResult,
+  createWebFetchSuccessResult,
+  sanitizeWebFetchAudit,
+} from './web-fetch.contract'
 import { webFetchFixtureTool } from './web-fetch-fixture.tool'
 
-function fakeTool(name: string): AgentToolDefinition {
+function fakeTool(name: string, execute?: AgentToolDefinition['execute']): AgentToolDefinition {
   return {
     name,
     description: name,
     label: name,
-    parameters: { type: 'object' },
-    execute: async () => ({ content: '', summary: '', isError: false }),
+    parameters: { type: 'object', additionalProperties: true },
+    execute:
+      execute ??
+      (async () => ({ content: '', summary: '', isError: false })),
   }
 }
+
+describe('validateToolArguments', () => {
+  it('accepts schema-valid web_fetch args', () => {
+    const result = validateToolArguments(WEB_FETCH_TOOL_PARAMETERS, {
+      url: 'https://example.com/',
+    })
+    expect(result).toEqual({ ok: true, args: { url: 'https://example.com/' } })
+  })
+
+  it('rejects missing url, wrong types and extra properties', () => {
+    expect(validateToolArguments(WEB_FETCH_TOOL_PARAMETERS, {}).ok).toBe(false)
+    expect(validateToolArguments(WEB_FETCH_TOOL_PARAMETERS, { url: 1 }).ok).toBe(false)
+    expect(validateToolArguments(WEB_FETCH_TOOL_PARAMETERS, { url: '' }).ok).toBe(false)
+    expect(
+      validateToolArguments(WEB_FETCH_TOOL_PARAMETERS, {
+        url: 'https://example.com/',
+        headers: { Authorization: 'secret' },
+      }).ok,
+    ).toBe(false)
+  })
+})
+
+describe('web_fetch contract helpers', () => {
+  it('builds success/error results and strips sensitive audit keys', () => {
+    const ok = createWebFetchSuccessResult({
+      content: 'body',
+      summary: 'ok',
+      audit: { requestedUrl: 'https://a.test', status: 200, truncated: false },
+    })
+    expect(ok.isError).toBe(false)
+    expect(ok.audit?.status).toBe(200)
+
+    const failed = createWebFetchErrorResult({
+      code: 'WEB_FETCH_INVALID_ARGS',
+      message: 'bad',
+    })
+    expect(failed.isError).toBe(true)
+    expect(failed.audit?.errorCode).toBe('WEB_FETCH_INVALID_ARGS')
+
+    expect(
+      sanitizeWebFetchAudit({
+        requestedUrl: 'https://a.test',
+        cookie: 'session=1',
+        Authorization: 'Bearer x',
+      } as never),
+    ).toEqual({ requestedUrl: 'https://a.test' })
+  })
+})
 
 describe('AgentToolRegistry', () => {
   it('resolves registered tools and rejects unknown ones', () => {
@@ -34,6 +92,50 @@ describe('AgentToolRegistry', () => {
   it('lists registered tools', () => {
     const registry = new AgentToolRegistry([fakeTool('a'), fakeTool('b')])
     expect(registry.list().map((tool) => tool.name)).toEqual(['a', 'b'])
+  })
+
+  it('execute rejects unknown tools and invalid args without calling tool execute', async () => {
+    let called = 0
+    const tool = fakeTool('probe', async () => {
+      called += 1
+      return { content: 'ran', summary: 'ran', isError: false }
+    })
+    tool.parameters = WEB_FETCH_TOOL_PARAMETERS
+    const registry = new AgentToolRegistry([tool])
+    const context = { toolCallId: 't1', signal: new AbortController().signal }
+
+    await expect(registry.execute('missing', { url: 'https://a.test' }, context)).rejects.toThrow(
+      AgentToolNotRegisteredError,
+    )
+    expect(called).toBe(0)
+
+    const invalid = await registry.execute('probe', { url: '' }, context)
+    expect(invalid.isError).toBe(true)
+    expect(invalid.audit).toMatchObject({ code: 'AGENT_TOOL_INVALID_ARGS' })
+    expect(called).toBe(0)
+
+    const extra = await registry.execute(
+      'probe',
+      { url: 'https://a.test', Authorization: 'nope' },
+      context,
+    )
+    expect(extra.isError).toBe(true)
+    expect(called).toBe(0)
+  })
+
+  it('execute propagates AbortSignal before invoking the tool', async () => {
+    let called = 0
+    const tool = fakeTool('probe', async () => {
+      called += 1
+      return { content: 'ran', summary: 'ran', isError: false }
+    })
+    const registry = new AgentToolRegistry([tool])
+    const controller = new AbortController()
+    controller.abort()
+    await expect(
+      registry.execute('probe', {}, { toolCallId: 't1', signal: controller.signal }),
+    ).rejects.toMatchObject({ name: 'AgentToolExecutionError', code: 'AGENT_TOOL_ABORTED' })
+    expect(called).toBe(0)
   })
 })
 
@@ -63,5 +165,15 @@ describe('webFetchFixtureTool', () => {
     await expect(
       webFetchFixtureTool.execute({ url: 'ftp://example.com' }, context),
     ).rejects.toMatchObject({ code: 'WEB_FETCH_UNSUPPORTED_PROTOCOL' })
+  })
+
+  it('honors AbortSignal during slow.test delay', async () => {
+    const controller = new AbortController()
+    const pending = webFetchFixtureTool.execute(
+      { url: 'https://slow.test/page' },
+      { toolCallId: 't1', signal: controller.signal },
+    )
+    controller.abort()
+    await expect(pending).rejects.toBeInstanceOf(AgentToolExecutionError)
   })
 })
