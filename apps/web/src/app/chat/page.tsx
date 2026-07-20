@@ -32,10 +32,10 @@ interface ModelOption {
   provider: TextModelAlias
 }
 const fallbackModelOptions: ReadonlyArray<ModelOption> = [
-  { value: 'kimi', label: 'Kimi K2.6', provider: 'kimi' },
-  { value: 'qwen', label: 'Qwen Plus', provider: 'qwen' },
-  { value: 'glm', label: 'GLM 4.7 Flash', provider: 'glm' },
-  { value: 'deepseek', label: 'DeepSeek V4 Flash', provider: 'deepseek' },
+  { value: 'kimi-k3', label: 'Kimi K3', provider: 'kimi' },
+  { value: 'qwen3.7-plus', label: 'Qwen3.7-Plus', provider: 'qwen' },
+  { value: 'glm-5.2', label: 'GLM-5.2', provider: 'glm' },
+  { value: 'deepseek-v4-pro', label: 'DeepSeek-V4-Pro', provider: 'deepseek' },
 ]
 
 export default function ChatPage() {
@@ -48,7 +48,7 @@ export default function ChatPage() {
 
 function ChatContent() {
   const handleAuthenticationFailure = useAuthenticationFailure()
-  const [selectedModel, setSelectedModel] = useState<TextModelId>('kimi')
+  const [selectedModel, setSelectedModel] = useState<TextModelId>('kimi-k3')
   const [modelOptions, setModelOptions] = useState(fallbackModelOptions)
   const [modelError, setModelError] = useState('')
   const [temperature, setTemperature] = useState(0.7)

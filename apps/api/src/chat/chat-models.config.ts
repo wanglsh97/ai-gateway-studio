@@ -14,28 +14,28 @@ export interface ChatModelConfig {
  */
 export const CHAT_MODELS = Object.freeze([
   {
-    id: 'qwen-plus',
-    displayName: 'Qwen Plus',
+    id: 'qwen3.7-plus',
+    displayName: 'Qwen3.7-Plus',
     provider: 'qwen',
-    upstreamModelId: 'qwen-plus',
+    upstreamModelId: 'qwen3.7-plus',
   },
   {
-    id: 'glm-4.7-flash',
-    displayName: 'GLM 4.7 Flash',
+    id: 'glm-5.2',
+    displayName: 'GLM-5.2',
     provider: 'glm',
-    upstreamModelId: 'glm-4.7-flash',
+    upstreamModelId: 'glm-5.2',
   },
   {
-    id: 'deepseek-v4-flash',
-    displayName: 'DeepSeek V4 Flash',
+    id: 'deepseek-v4-pro',
+    displayName: 'DeepSeek-V4-Pro',
     provider: 'deepseek',
-    upstreamModelId: 'deepseek-v4-flash',
+    upstreamModelId: 'deepseek-v4-pro',
   },
   {
-    id: 'kimi-k2.6',
-    displayName: 'Kimi K2.6',
+    id: 'kimi-k3',
+    displayName: 'Kimi K3',
     provider: 'kimi',
-    upstreamModelId: 'kimi-k2.6',
+    upstreamModelId: 'kimi-k3',
   },
 ] satisfies readonly ChatModelConfig[])
 

@@ -13,10 +13,10 @@ describe('ChatModelCatalog', () => {
       validateChatModels([
         ...CHAT_MODELS,
         {
-          id: 'kimi-k3',
-          displayName: 'Kimi K3',
+          id: 'kimi-k3-turbo',
+          displayName: 'Kimi K3 Turbo',
           provider: 'kimi',
-          upstreamModelId: 'kimi-k3',
+          upstreamModelId: 'kimi-k3-turbo',
         },
       ]),
     ).not.toThrow()
@@ -33,17 +33,17 @@ describe('ChatModelCatalog', () => {
 
     expect(catalog.list()).toEqual([
       {
-        id: 'kimi-k2.6',
-        displayName: 'Kimi K2.6',
+        id: 'kimi-k3',
+        displayName: 'Kimi K3',
         provider: 'kimi',
-        upstreamModelId: 'kimi-k2.6',
+        upstreamModelId: 'kimi-k3',
       },
     ])
-    expect(catalog.resolve('kimi-k2.6')).toEqual({
-      id: 'kimi-k2.6',
-      displayName: 'Kimi K2.6',
+    expect(catalog.resolve('kimi-k3')).toEqual({
+      id: 'kimi-k3',
+      displayName: 'Kimi K3',
       provider: 'kimi',
-      upstreamModelId: 'kimi-k2.6',
+      upstreamModelId: 'kimi-k3',
     })
   })
 

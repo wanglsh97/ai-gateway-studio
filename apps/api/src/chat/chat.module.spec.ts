@@ -72,7 +72,7 @@ describe('ChatModule', () => {
     const { module, registry } = await createRegistry({ mockEnabled: true, qwenEnabled: true })
 
     expect(registry.get('qwen')).toBeInstanceOf(QwenChatAdapter)
-    expect(registry.get('qwen').resolvedModel).toBe('qwen-plus')
+    expect(registry.get('qwen').resolvedModel).toBe('qwen3.7-plus')
     await module.close()
   })
 
@@ -80,7 +80,7 @@ describe('ChatModule', () => {
     const { module, registry } = await createRegistry({ mockEnabled: true, glmEnabled: true })
 
     expect(registry.get('glm')).toBeInstanceOf(GlmChatAdapter)
-    expect(registry.get('glm').resolvedModel).toBe('glm-4.7-flash')
+    expect(registry.get('glm').resolvedModel).toBe('glm-5.2')
     await module.close()
   })
 
@@ -91,7 +91,7 @@ describe('ChatModule', () => {
     })
 
     expect(registry.get('deepseek')).toBeInstanceOf(DeepSeekChatAdapter)
-    expect(registry.get('deepseek').resolvedModel).toBe('deepseek-v4-flash')
+    expect(registry.get('deepseek').resolvedModel).toBe('deepseek-v4-pro')
     await module.close()
   })
 
@@ -99,7 +99,7 @@ describe('ChatModule', () => {
     const { module, registry } = await createRegistry({ mockEnabled: true, kimiEnabled: true })
 
     expect(registry.get('kimi')).toBeInstanceOf(KimiChatAdapter)
-    expect(registry.get('kimi').resolvedModel).toBe('kimi-k2.6')
+    expect(registry.get('kimi').resolvedModel).toBe('kimi-k3')
     await module.close()
   })
 })
