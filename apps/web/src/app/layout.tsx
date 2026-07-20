@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
 
-import { SiteHeader } from '../components/site-header'
+import { AppShell } from '../components/app-shell'
 import { UserSessionProvider } from '../components/user-session-provider'
 
 import './globals.css'
@@ -34,8 +34,7 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
       </head>
       <body suppressHydrationWarning>
         <UserSessionProvider>
-          <SiteHeader />
-          {children}
+          <AppShell>{children}</AppShell>
         </UserSessionProvider>
       </body>
     </html>
