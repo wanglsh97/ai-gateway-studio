@@ -21,6 +21,8 @@
   },
   "dependencies": {
     "@aigateway/sdk": "workspace:*",
+    "@earendil-works/pi-agent-core": "0.80.10",
+    "@earendil-works/pi-ai": "0.80.10",
     "@nestjs/common": "^11.1.28",
     "@nestjs/config": "^4.0.4",
     "@nestjs/core": "^11.1.28",
