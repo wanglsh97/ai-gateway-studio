@@ -224,21 +224,12 @@ function AgentThread({
               <NewThreadButton />
             </div>
             <div className="agent-composer-submit-group">
-              <label className="agent-composer-model">
-                <span className="agent-live-mark" aria-hidden="true" />
-                <span className="sr-only">运行模型</span>
-                <select
-                  value={selectedModel}
-                  disabled={modelDisabled}
-                  onChange={(event) => onModelChange(event.target.value as TextModelAlias)}
-                >
-                  {modelOptions.map(({ value, label }) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <ModelSelect
+                value={selectedModel}
+                options={modelOptions}
+                disabled={modelDisabled}
+                onChange={onModelChange}
+              />
               <AuiIf condition={({ thread }) => thread.isRunning}>
                 <ComposerPrimitive.Cancel className="agent-send-button is-cancel">
                   停止
@@ -261,6 +252,77 @@ function AgentThread({
         <p className="agent-privacy-note">内容由 AI 生成，请仔细甄别</p>
       </div>
     </ThreadPrimitive.Root>
+  )
+}
+
+function ModelSelect({
+  value,
+  options,
+  disabled,
+  onChange,
+}: {
+  value: TextModelAlias
+  options: ReadonlyArray<{ value: TextModelAlias; label: string }>
+  disabled: boolean
+  onChange: (value: TextModelAlias) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const rootRef = useRef<HTMLDivElement>(null)
+  const selectedLabel = options.find((option) => option.value === value)?.label ?? value
+
+  useEffect(() => {
+    if (!open) return
+    const closeOnOutsideClick = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false)
+    }
+    document.addEventListener('pointerdown', closeOnOutsideClick)
+    return () => document.removeEventListener('pointerdown', closeOnOutsideClick)
+  }, [open])
+
+  return (
+    <div className="agent-model-picker" ref={rootRef} onKeyDown={(event) => {
+      if (event.key === 'Escape') setOpen(false)
+    }}>
+      <button
+        type="button"
+        className="agent-model-trigger"
+        disabled={disabled}
+        aria-label={`运行模型：${selectedLabel}`}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}
+      >
+        <span className="agent-live-mark" aria-hidden="true" />
+        <span className="agent-model-trigger-label">{selectedLabel}</span>
+        <svg aria-hidden="true" viewBox="0 0 16 16">
+          <path d="m5 6 3 3 3-3" />
+        </svg>
+      </button>
+      {open && (
+        <div className="agent-model-menu" role="listbox" aria-label="选择运行模型">
+          <p>运行模型</p>
+          {options.map((option) => {
+            const selected = option.value === value
+            return (
+              <button
+                key={option.value}
+                type="button"
+                role="option"
+                aria-selected={selected}
+                className={selected ? 'is-selected' : undefined}
+                onClick={() => {
+                  onChange(option.value)
+                  setOpen(false)
+                }}
+              >
+                <span>{option.label}</span>
+                {selected && <span aria-hidden="true">✓</span>}
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
   )
 }
 
