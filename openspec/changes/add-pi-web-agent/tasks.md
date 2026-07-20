@@ -29,7 +29,7 @@
 ## 3. 生产级 web_fetch 工具
 
 - [x] 3.1 定义 `web_fetch` JSON Schema、标准成功/错误结果、AbortSignal 和审计字段，并用 Tool registry 测试拒绝未知工具及无效参数
-- [ ] 3.2 实现 HTTP/HTTPS URL 规范化，拒绝内嵌凭证、非 HTTP 协议、localhost 和畸形 URL，添加 IPv4/IPv6 边界测试
+- [x] 3.2 实现 HTTP/HTTPS URL 规范化，拒绝内嵌凭证、非 HTTP 协议、localhost 和畸形 URL，添加 IPv4/IPv6 边界测试
 - [ ] 3.3 实现 DNS 全地址分类和连接固定，拒绝 private、loopback、link-local、multicast、reserved、unspecified、云元数据及无法证明公网的目标，并覆盖 DNS rebinding 防护测试
 - [ ] 3.4 实现最多五跳的手动重定向和逐跳 URL/DNS 校验，验证公网到内网重定向、循环和超限均在连接前阻断
 - [ ] 3.5 实现无 Cookie/Authorization 的受限 HTTP client、连接/总超时、2 MiB 流式读取上限和取消传播，覆盖慢响应、超大响应和断连测试

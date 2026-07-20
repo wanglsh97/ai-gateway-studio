@@ -165,6 +165,12 @@ describe('webFetchFixtureTool', () => {
     await expect(
       webFetchFixtureTool.execute({ url: 'ftp://example.com' }, context),
     ).rejects.toMatchObject({ code: 'WEB_FETCH_UNSUPPORTED_PROTOCOL' })
+    await expect(
+      webFetchFixtureTool.execute({ url: 'http://localhost/secret' }, context),
+    ).rejects.toMatchObject({ code: 'WEB_FETCH_BLOCKED_TARGET' })
+    await expect(
+      webFetchFixtureTool.execute({ url: 'https://user:pass@example.com/' }, context),
+    ).rejects.toMatchObject({ code: 'WEB_FETCH_BLOCKED_TARGET' })
   })
 
   it('honors AbortSignal during slow.test delay', async () => {
