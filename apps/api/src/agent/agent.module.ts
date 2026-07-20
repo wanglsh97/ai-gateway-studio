@@ -3,10 +3,12 @@ import { ConfigModule } from '@nestjs/config'
 
 import { ChatModule } from '../chat/chat.module'
 import { UserAuthModule } from '../user-auth/user-auth.module'
+import { AgentController } from './agent.controller'
 import { AgentMessageRepository } from './agent-message.repository'
 import { AgentRunEventBus } from './agent-run-event-bus'
 import { AgentRunRepository } from './agent-run.repository'
 import { AgentRunService } from './agent-run.service'
+import { AgentService } from './agent.service'
 import { AgentThreadRepository } from './agent-thread.repository'
 import { AGENT_TOOLS, AgentToolRegistry } from './tools/agent-tool.registry'
 import type { AgentToolDefinition } from './tools/agent-tool'
@@ -21,12 +23,14 @@ import { webFetchFixtureTool } from './tools/web-fetch-fixture.tool'
  */
 @Module({
   imports: [ConfigModule, UserAuthModule, ChatModule],
+  controllers: [AgentController],
   providers: [
     AgentThreadRepository,
     AgentRunRepository,
     AgentMessageRepository,
     AgentRunEventBus,
     AgentRunService,
+    AgentService,
     {
       provide: AGENT_TOOLS,
       useFactory: (): readonly AgentToolDefinition[] => [webFetchFixtureTool],

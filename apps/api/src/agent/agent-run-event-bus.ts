@@ -52,7 +52,10 @@ export class AgentRunEventBus {
     }
     channel.listeners.add(listener)
     return () => {
-      channel?.listeners.delete(listener)
+      const current = this.channels.get(runId)
+      if (!current) return
+      current.listeners.delete(listener)
+      if (current.listeners.size === 0 && current.closed) this.channels.delete(runId)
     }
   }
 }

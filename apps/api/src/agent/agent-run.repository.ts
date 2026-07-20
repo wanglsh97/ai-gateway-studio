@@ -67,9 +67,27 @@ export class AgentRunRepository {
     return this.prisma.agentRun.findFirst({ where: { id: runId, userId } })
   }
 
+  async listEventsAfter(
+    runId: string,
+    after: number,
+  ): Promise<{ sequence: number; payload: unknown }[]> {
+    return this.prisma.agentEvent.findMany({
+      where: { runId, sequence: { gt: after } },
+      orderBy: { sequence: 'asc' },
+      select: { sequence: true, payload: true },
+    })
+  }
+
   async findActiveForUser(userId: string): Promise<AgentRun | null> {
     return this.prisma.agentRun.findFirst({
       where: { userId, status: { in: [...ACTIVE_AGENT_RUN_STATUSES] } },
+      orderBy: { createdAt: 'desc' },
+    })
+  }
+
+  async findActiveForThread(threadId: string): Promise<AgentRun | null> {
+    return this.prisma.agentRun.findFirst({
+      where: { threadId, status: { in: [...ACTIVE_AGENT_RUN_STATUSES] } },
       orderBy: { createdAt: 'desc' },
     })
   }
