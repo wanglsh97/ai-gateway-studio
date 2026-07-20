@@ -1,5 +1,10 @@
 import type { TextModelAlias } from '@aigateway/sdk'
 
+import deepseekLogo from './deepseek-color.png'
+import kimiLogo from './kimi.webp'
+import qwenLogo from './qwen-color.png'
+import glmLogo from './zai.webp'
+
 export interface ChatProviderBranding {
   /** 厂商 Logo 的静态资源地址；留空时展示 fallbackText。 */
   logoUrl: string | null
@@ -13,20 +18,19 @@ export interface ChatProviderBranding {
  */
 export const CHAT_PROVIDER_BRANDING = {
   qwen: {
-    logoUrl:
-      'https://assets.alicdn.com/g/qwenweb/qwen-chat-fe/0.2.74/static/images/ms-icon-light-150x150.png',
+    logoUrl: qwenLogo.src,
     fallbackText: 'Q',
   },
   glm: {
-    logoUrl: null,
+    logoUrl: glmLogo.src,
     fallbackText: '智',
   },
   deepseek: {
-    logoUrl: null,
+    logoUrl: deepseekLogo.src,
     fallbackText: 'DS',
   },
   kimi: {
-    logoUrl: null,
+    logoUrl: kimiLogo.src,
     fallbackText: 'K',
   },
 } satisfies Record<TextModelAlias, ChatProviderBranding>
