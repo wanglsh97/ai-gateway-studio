@@ -6,7 +6,7 @@
 - [x] 1.4 定义 provider-neutral `ModelInvocationPort` 的 text/reasoning/tool-call/tool-result/usage 事件，并以不改变现有 Chat 行为的方式从 Chat 编排中提取复用边界
 - [x] 1.5 扩展 Mock Chat Adapter 以确定性模拟一次 `web_fetch` tool call、tool result 后续 turn、reasoning、usage、错误和取消，并添加统一 contract tests
 - [x] 1.6 精确锁定 `@earendil-works/pi-agent-core` 依赖，建立 Pi `StreamFn` bridge，将平台模型事件双向映射为 Pi context/assistant events，并覆盖文本、reasoning 和 tool-call 映射测试
-- [ ] 1.7 实现服务端内存 Tool registry 和测试用确定性 `web_fetch` fixture tool，使 Pi harness 完成 tool-call → tool-result → follow-up 模型 turn
+- [x] 1.7 实现服务端内存 Tool registry 和测试用确定性 `web_fetch` fixture tool，使 Pi harness 完成 tool-call → tool-result → follow-up 模型 turn
 - [ ] 1.8 实现 Agent run 状态机、递增事件 sequence、消息 parts 持久化和最终快照，覆盖 succeeded/failed/cancelled/limit_reached/interrupted 转换测试
 - [ ] 1.9 实现 thread CRUD、run create、cursor event SSE 和 cancel API，并同步 Swagger、统一错误 envelope 与认证 guard 测试
 - [ ] 1.10 在 SDK 实现 thread CRUD、run create、按 sequence 订阅/重连和 cancel client，覆盖事件顺序、断线补读、AbortSignal 和协议错误测试

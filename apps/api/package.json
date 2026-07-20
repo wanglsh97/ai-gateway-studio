@@ -10,6 +10,7 @@
     "pretypecheck": "corepack pnpm --workspace-root db:generate",
     "typecheck": "tsc --noEmit",
     "test": "jest --runInBand",
+    "test:agent-harness": "tsx scripts/agent-harness.check.ts",
     "test:smoke:deepseek": "tsx --env-file-if-exists=../../.env scripts/deepseek-chat.smoke.ts",
     "test:smoke:glm": "tsx --env-file-if-exists=../../.env scripts/glm-chat.smoke.ts",
     "test:smoke:kimi": "tsx --env-file-if-exists=../../.env scripts/kimi-chat.smoke.ts",

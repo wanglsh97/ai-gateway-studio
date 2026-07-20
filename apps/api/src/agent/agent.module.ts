@@ -1,9 +1,13 @@
 import { Module } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
 
+import { ChatModule } from '../chat/chat.module'
 import { UserAuthModule } from '../user-auth/user-auth.module'
 import { AgentRunRepository } from './agent-run.repository'
 import { AgentThreadRepository } from './agent-thread.repository'
+import { AGENT_TOOLS, AgentToolRegistry } from './tools/agent-tool.registry'
+import type { AgentToolDefinition } from './tools/agent-tool'
+import { webFetchFixtureTool } from './tools/web-fetch-fixture.tool'
 
 /**
  * AgentModule：通用 Web Agent 的模块化单体边界。
@@ -13,8 +17,16 @@ import { AgentThreadRepository } from './agent-thread.repository'
  * 始终限制在服务端，不进入 SDK 公共面或浏览器。
  */
 @Module({
-  imports: [ConfigModule, UserAuthModule],
-  providers: [AgentThreadRepository, AgentRunRepository],
-  exports: [AgentThreadRepository, AgentRunRepository],
+  imports: [ConfigModule, UserAuthModule, ChatModule],
+  providers: [
+    AgentThreadRepository,
+    AgentRunRepository,
+    {
+      provide: AGENT_TOOLS,
+      useFactory: (): readonly AgentToolDefinition[] => [webFetchFixtureTool],
+    },
+    AgentToolRegistry,
+  ],
+  exports: [AgentThreadRepository, AgentRunRepository, AgentToolRegistry],
 })
 export class AgentModule {}
