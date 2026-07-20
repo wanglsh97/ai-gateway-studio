@@ -9,6 +9,7 @@ const REQUEST_CAPABILITY_MAP = {
   chat: RequestCapability.CHAT,
   image: RequestCapability.IMAGE,
   prompt: RequestCapability.PROMPT,
+  agent: RequestCapability.AGENT,
 } as const satisfies Record<Capability, RequestCapability>
 
 export interface StartRequestLifecycleInput {
@@ -22,6 +23,7 @@ export interface StartRequestLifecycleInput {
   resolvedModel?: string
   clientIp?: string
   metadata?: Prisma.InputJsonValue
+  agentRunId?: string
 }
 
 export type StartedRequestLifecycle = Pick<RequestLog, 'id' | 'requestId' | 'status' | 'startedAt'>
@@ -136,6 +138,7 @@ export class RequestLifecycleService {
           ...(input.resolvedModel === undefined ? {} : { resolvedModel: input.resolvedModel }),
           ...(input.clientIp === undefined ? {} : { clientIp: input.clientIp }),
           ...(input.metadata === undefined ? {} : { metadata: input.metadata }),
+          ...(input.agentRunId === undefined ? {} : { agentRunId: input.agentRunId }),
         },
         select: {
           id: true,

@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
 
 import { ChatModule } from '../chat/chat.module'
+import { RequestLifecycleModule } from '../request-lifecycle/request-lifecycle.module'
 import { UserAuthModule } from '../user-auth/user-auth.module'
 import { AgentController } from './agent.controller'
 import { AgentMessageRepository } from './agent-message.repository'
@@ -22,7 +23,7 @@ import { webFetchFixtureTool } from './tools/web-fetch-fixture.tool'
  * 始终限制在服务端，不进入 SDK 公共面或浏览器。
  */
 @Module({
-  imports: [ConfigModule, UserAuthModule, ChatModule],
+  imports: [ConfigModule, UserAuthModule, ChatModule, RequestLifecycleModule],
   controllers: [AgentController],
   providers: [
     AgentThreadRepository,

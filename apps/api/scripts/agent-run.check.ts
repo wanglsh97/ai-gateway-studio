@@ -9,6 +9,8 @@ import type { ChatFailoverService } from '../src/chat/chat-failover.service'
 import { ChatModelCatalog } from '../src/chat/chat-model-catalog'
 import { ModelInvocationService } from '../src/chat/model-invocation.service'
 import type { ProviderHealthService } from '../src/chat/provider-health.service'
+import { PricingService } from '../src/billing/pricing.service'
+import { RequestLifecycleService } from '../src/request-lifecycle/request-lifecycle.service'
 import { PrismaService } from '../src/database/prisma.service'
 import { AgentMessageRepository } from '../src/agent/agent-message.repository'
 import { AgentRunEventBus } from '../src/agent/agent-run-event-bus'
@@ -51,7 +53,17 @@ async function main(): Promise<void> {
   const messages = new AgentMessageRepository(prisma)
   const tools = new AgentToolRegistry([webFetchFixtureTool])
   const bus = new AgentRunEventBus()
-  const service = new AgentRunService(runs, messages, tools, buildModelInvocation(), bus)
+  const lifecycle = new RequestLifecycleService(prisma)
+  const pricing = new PricingService(fakeConfig())
+  const service = new AgentRunService(
+    runs,
+    messages,
+    tools,
+    buildModelInvocation(),
+    lifecycle,
+    pricing,
+    bus,
+  )
 
   const user = await prisma.user.create({
     data: {
@@ -103,9 +115,23 @@ async function main(): Promise<void> {
     assert.equal(toolCalls[0]?.toolName, 'web_fetch')
     assert.equal(toolCalls[0]?.status, 'SUCCEEDED')
 
-    console.log('agent-run.check PASS: run 状态机、事件 sequence、消息快照与工具调用均已持久化')
+    const requestLogs = await prisma.requestLog.findMany({
+      where: { agentRunId: run.id },
+      include: { billing: true },
+    })
+    assert.equal(requestLogs.length, 2, '两次模型调用应各生成一条 RequestLog')
+    for (const log of requestLogs) {
+      assert.equal(log.capability, 'AGENT')
+      assert.equal(log.status, 'SUCCEEDED')
+      assert.ok(log.billing, '每条 RequestLog 应有一对一 BillingRecord')
+    }
+
+    console.log(
+      'agent-run.check PASS: run 状态机、事件 sequence、消息快照、工具调用与 RequestLog/BillingRecord 均已持久化',
+    )
   } finally {
     await prisma.agentThread.delete({ where: { id: thread.id } }).catch(() => undefined)
+    await prisma.requestLog.deleteMany({ where: { userId: user.id } }).catch(() => undefined)
     await prisma.user.delete({ where: { id: user.id } }).catch(() => undefined)
     await prisma.$disconnect()
   }

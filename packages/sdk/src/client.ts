@@ -396,7 +396,7 @@ function parseModelSummary(value: unknown, requestId: string): ModelSummary {
     !displayName ||
     (model?.modelId !== undefined && !modelId) ||
     !Array.isArray(capabilities) ||
-    !capabilities.every((item) => ['chat', 'image', 'prompt'].includes(String(item))) ||
+    !capabilities.every((item) => ['chat', 'image', 'prompt', 'agent'].includes(String(item))) ||
     enabled === undefined ||
     configured === undefined ||
     !['unknown', 'healthy', 'unhealthy'].includes(String(health))

@@ -9,6 +9,9 @@ import type { AgentEvent } from '@earendil-works/pi-agent-core'
 import type { AgentRunStatus } from '../generated/prisma/client'
 import { MODEL_INVOCATION_PORT } from '../chat/model-invocation.port'
 import type { ModelInvocationPort } from '../chat/model-invocation.port'
+import { PricingService } from '../billing/pricing.service'
+import { RequestLifecycleService } from '../request-lifecycle/request-lifecycle.service'
+import { createAgentModelInvocationPort } from './agent-model-invocation'
 import { AgentMessageRepository } from './agent-message.repository'
 import { AgentRunEventBus } from './agent-run-event-bus'
 import { AgentRunProjector } from './agent-run.projector'
@@ -63,6 +66,8 @@ export class AgentRunService {
     @Inject(AgentMessageRepository) private readonly messages: AgentMessageRepository,
     @Inject(AgentToolRegistry) private readonly tools: AgentToolRegistry,
     @Inject(MODEL_INVOCATION_PORT) private readonly modelInvocation: ModelInvocationPort,
+    @Inject(RequestLifecycleService) private readonly lifecycle: RequestLifecycleService,
+    @Inject(PricingService) private readonly pricing: PricingService,
     @Inject(AgentRunEventBus) private readonly bus: AgentRunEventBus,
   ) {}
 
@@ -85,13 +90,22 @@ export class AgentRunService {
 
     const projector = new AgentRunProjector(input.runId, () => randomUUID())
     const persistAndPublish = async (events: ReturnType<AgentRunProjector['ingest']>): Promise<void> => {
-      for (const event of events) this.bus.publish(input.runId, event)
+      // 必须先落库再广播：确保任何已投影到 SSE 的事件都已在 PostgreSQL 中可补读，
+      // 避免订阅者在“已广播未入库”窗口做游标补读时丢失事件、产生 sequence 间隙。
       if (events.length > 0) await this.runs.appendEvents(input.runId, events)
+      for (const event of events) this.bus.publish(input.runId, event)
     }
 
     try {
       await this.runs.markStarted(input.runId)
       await persistAndPublish(projector.start())
+
+      const boundPort = createAgentModelInvocationPort(
+        this.modelInvocation,
+        this.lifecycle,
+        this.pricing,
+        { userId: input.userId, agentRunId: input.runId },
+      )
 
       const { Agent } = await loadPiAgentCore()
       const agent = new Agent({
@@ -101,7 +115,7 @@ export class AgentRunService {
           tools: this.tools.list().map((tool) => toPiAgentTool(tool)),
         },
         streamFn: createPiStreamFn({
-          port: this.modelInvocation,
+          port: boundPort,
           createRequestId: () => randomUUID(),
         }),
         convertToLlm: (messages) => messages as Message[],
@@ -171,10 +185,11 @@ export class AgentRunService {
     status: AgentRunTerminalStatus,
     error: { code: string; message: string; retryable: boolean } | undefined,
   ): Promise<void> {
+    // 先计算终态事件（会关闭仍打开的消息并定稿快照）。
     const terminalEvents = projector.finalize(status, error === undefined ? {} : { error })
-    for (const event of terminalEvents) this.bus.publish(input.runId, event)
-    if (terminalEvents.length > 0) await this.runs.appendEvents(input.runId, terminalEvents)
 
+    // 在向客户端发出终态事件前，先持久化消息快照、工具调用与 run 计数，
+    // 使“收到 run-terminal”即代表刷新可恢复完整快照。
     const snapshot = projector.messagesSnapshot()
     await this.messages.appendMessages(
       input.threadId,
@@ -196,6 +211,10 @@ export class AgentRunService {
       usageUnknown: usage.usageUnknown,
       ...(error === undefined ? {} : { errorCode: error.code, errorMessage: error.message }),
     })
+
+    // 快照落库后再持久化并广播终态事件（usage + run-terminal）。
+    if (terminalEvents.length > 0) await this.runs.appendEvents(input.runId, terminalEvents)
+    for (const event of terminalEvents) this.bus.publish(input.runId, event)
   }
 }
 

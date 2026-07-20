@@ -108,6 +108,7 @@ import { OpenAICompatibleChatTransport } from './transports/openai-compatible-ch
     ProviderHealthService,
     ModelInvocationService,
     MODEL_INVOCATION_PORT,
+    PricingService,
   ],
 })
 export class ChatModule {}

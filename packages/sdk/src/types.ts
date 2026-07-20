@@ -6,7 +6,7 @@ export type TextModelId = string
 export type ImageModelAlias = (typeof IMAGE_MODEL_ALIASES)[number]
 export type ModelAlias = TextModelAlias | ImageModelAlias
 
-export type Capability = 'chat' | 'image' | 'prompt'
+export type Capability = 'chat' | 'image' | 'prompt' | 'agent'
 
 export interface GatewayError {
   requestId: string
