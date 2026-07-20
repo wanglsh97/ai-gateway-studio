@@ -19,7 +19,7 @@
 - [x] 2.1 实现 Agent thread 列表、详情、新建、有限长度默认标题和更新时间排序，添加空状态及分页/边界测试
 - [x] 2.2 实现 thread 重命名与永久删除事务，删除前端二次确认，并验证级联删除 Agent 子记录但保留 RequestLog/BillingRecord
 - [x] 2.3 将模型目录增加显式 `agent` capability，只允许启用、配置且通过 tool-calling contract 的模型创建 Agent thread
-- [ ] 2.4 实现 `/agent` 模型选择和“切换模型即新建 thread”，验证已存在 thread 的 modelId 不可修改且旧会话保持不变
+- [x] 2.4 实现 `/agent` 模型选择和“切换模型即新建 thread”，验证已存在 thread 的 modelId 不可修改且旧会话保持不变
 - [ ] 2.5 实现 PostgreSQL 真源加 Redis 原子锁的单用户全局 active run 约束，覆盖跨 thread 并发、跨用户独立和 Redis 异常 fail-closed 测试
 - [ ] 2.6 运行期间禁用该用户所有 Agent Composer 的提交操作但允许浏览历史，并在服务端拒绝篡改客户端发起的并发 prompt
 - [ ] 2.7 实现 API 启动时遗留 running/cancelling run 转 interrupted、过期锁清理和 UI 中断状态，确认不自动重放模型或工具

@@ -91,9 +91,11 @@ export function AgentWorkspaceProvider({ children }: Readonly<{ children: ReactN
 
   const openThread = useCallback(
     (threadId: string) => {
+      const thread = threads.find((item) => item.id === threadId)
+      if (thread) setSelectedModel(thread.model)
       router.push(`/agent?thread=${encodeURIComponent(threadId)}`)
     },
-    [router],
+    [router, threads],
   )
 
   const prependThread = useCallback((thread: AgentThreadSummary) => {

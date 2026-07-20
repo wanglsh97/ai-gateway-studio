@@ -30,6 +30,7 @@ import {
   createAgentRunAdapter,
   type AgentRunMetadata,
 } from './agent-run-adapter'
+import { shouldStartNewThreadOnModelChange } from './agent-model-policy'
 
 const client = createAIGatewayClient()
 
@@ -91,6 +92,16 @@ function AgentConsole() {
     [models],
   )
 
+  const handleModelChange = (nextModel: TextModelId) => {
+    const current = (selectedModel as TextModelId) || modelOptions[0]?.value || 'qwen3.7-plus'
+    const leaveThread = shouldStartNewThreadOnModelChange(activeThreadId, current, nextModel)
+    setSelectedModel(nextModel)
+    if (leaveThread) {
+      skipHydrationRef.current = false
+      startNewThread()
+    }
+  }
+
   const adapter = useMemo(
     () =>
       createAgentRunAdapter(
@@ -104,7 +115,6 @@ function AgentConsole() {
   )
 
   const runtime = useLocalRuntime(adapter)
-  const modelLocked = activeThreadId !== null
   const modelDisabled = modelOptions.length === 0
 
   return (
@@ -115,10 +125,10 @@ function AgentConsole() {
         <section className="agent-console agent-chat-panel" aria-label="智能体">
           <AgentThread
             modelDisabled={modelDisabled}
-            modelLocked={modelLocked}
+            modelBoundToThread={activeThreadId !== null}
             modelOptions={modelOptions}
             selectedModel={(selectedModel as TextModelId) || modelOptions[0]?.value || 'qwen3.7-plus'}
-            onModelChange={(model) => setSelectedModel(model)}
+            onModelChange={handleModelChange}
             onNewThread={startNewThread}
           />
         </section>
@@ -134,6 +144,7 @@ function ThreadHydrator({
 }) {
   const api = useAui()
   const activeThreadId = useAgentActiveThreadId()
+  const { setSelectedModel } = useAgentWorkspace()
   const handleAuthenticationFailure = useAuthenticationFailure()
 
   useEffect(() => {
@@ -151,6 +162,7 @@ function ThreadHydrator({
         }
         const thread = await client.agent.threads.get(activeThreadId)
         if (cancelled) return
+        setSelectedModel(thread.model)
         api.thread().reset(agentMessagesToThreadMessages(thread.messages))
       } catch (error) {
         if (!cancelled) handleAuthenticationFailure(error)
@@ -169,14 +181,14 @@ function ThreadHydrator({
 
 function AgentThread({
   modelDisabled,
-  modelLocked,
+  modelBoundToThread,
   modelOptions,
   selectedModel,
   onModelChange,
   onNewThread,
 }: {
   modelDisabled: boolean
-  modelLocked: boolean
+  modelBoundToThread: boolean
   modelOptions: ReadonlyArray<ModelOption>
   selectedModel: TextModelId
   onModelChange: (model: TextModelId) => void
@@ -212,7 +224,8 @@ function AgentThread({
               <ModelSelect
                 value={selectedModel}
                 options={modelOptions}
-                disabled={modelDisabled || modelLocked}
+                disabled={modelDisabled}
+                boundHint={modelBoundToThread}
                 onChange={onModelChange}
               />
               <AuiIf condition={({ thread }) => thread.isRunning}>
@@ -286,11 +299,13 @@ function ModelSelect({
   value,
   options,
   disabled,
+  boundHint,
   onChange,
 }: {
   value: TextModelId
   options: ReadonlyArray<ModelOption>
   disabled: boolean
+  boundHint: boolean
   onChange: (value: TextModelId) => void
 }) {
   const [open, setOpen] = useState(false)
@@ -319,7 +334,12 @@ function ModelSelect({
         type="button"
         className="agent-model-trigger"
         disabled={disabled}
-        aria-label={`运行模型：${selectedLabel}`}
+        aria-label={
+          boundHint
+            ? `当前会话模型：${selectedLabel}（切换将新建会话）`
+            : `运行模型：${selectedLabel}`
+        }
+        title={boundHint ? '切换模型将新建会话，当前会话保持不变' : undefined}
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={() => setOpen((current) => !current)}
@@ -332,7 +352,7 @@ function ModelSelect({
       </button>
       {open && (
         <div className="agent-model-menu" role="listbox" aria-label="选择运行模型">
-          <p>运行模型</p>
+          <p>{boundHint ? '切换模型将新建会话' : '运行模型'}</p>
           {options.map((option) => {
             const selected = option.value === value
             return (

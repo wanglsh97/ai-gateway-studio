@@ -206,6 +206,43 @@ describe('AgentService', () => {
       expect.objectContaining({ id: 'thread-1', title: '整理会议纪要' }),
     )
     expect(threads.renameForOwner).toHaveBeenCalledWith('thread-1', 'user-a', '整理会议纪要')
+    expect(threads.renameForOwner).toHaveBeenCalledTimes(1)
+  })
+
+  it('createRun always uses the thread-bound modelId rather than a client-supplied model', async () => {
+    const { service, threads, runs, messages, models, runService } = setup()
+    ;(threads.findSummaryForOwner as jest.Mock).mockResolvedValue(
+      threadRow({ modelId: 'glm-5.2', provider: 'glm', title: '已绑定' }),
+    )
+    ;(models.resolve as jest.Mock).mockReturnValue({
+      id: 'glm-5.2',
+      provider: 'glm',
+      upstreamModelId: 'glm-5.2',
+      displayName: 'GLM',
+    })
+    ;(runs.create as jest.Mock).mockResolvedValue({
+      id: 'run-1',
+      threadId: 'thread-1',
+      status: 'RUNNING',
+      limitReason: null,
+      usageUnknown: false,
+      inputTokens: 0,
+      outputTokens: 0,
+      totalTokens: 0,
+      estimatedCostCny: null,
+      modelCallCount: 0,
+      toolCallCount: 0,
+      webFetchCount: 0,
+      lastSequence: -1,
+      createdAt: new Date('2026-07-20T00:00:00.000Z'),
+      startedAt: null,
+      completedAt: null,
+    })
+    await service.createRun(user, 'thread-1', '继续')
+    expect(runService.execute).toHaveBeenCalledWith(
+      expect.objectContaining({ modelId: 'glm-5.2', provider: 'glm' }),
+    )
+    expect(messages.appendUserMessage).toHaveBeenCalled()
   })
 
   it('deletes an owned thread when no run is active', async () => {
