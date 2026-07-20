@@ -41,7 +41,10 @@ body {
 
 /* Agent workspace — assistant-ui primitives, styled as a focused model console. */
 .agent-page {
-  min-height: 100vh;
+  height: 100dvh;
+  min-height: 34rem;
+  overflow: hidden;
+  padding: clamp(0.8rem, 2vw, 1.4rem);
 }
 .agent-page-header {
   display: flex;
@@ -113,6 +116,8 @@ body {
 }
 .agent-quiet-button:focus-visible,
 .agent-model-select select:focus-visible,
+.agent-composer-model select:focus-visible,
+.agent-composer-action:focus-visible,
 .agent-suggestions button:focus-visible,
 .agent-send-button:focus-visible,
 .agent-copy-button:focus-visible,
@@ -144,6 +149,10 @@ body {
   border-color: #302943;
   background: rgb(20 16 30 / 0.88);
   box-shadow: 0 28px 80px rgb(0 0 0 / 0.25);
+}
+.agent-chat-panel {
+  height: 100%;
+  margin-top: 0;
 }
 .agent-console-bar {
   display: flex;
@@ -249,23 +258,23 @@ body {
 .agent-thread {
   position: relative;
   display: flex;
-  min-height: 41rem;
+  height: 100%;
   flex-direction: column;
 }
 .agent-thread-viewport {
-  min-height: 31rem;
+  min-height: 0;
   flex: 1;
   overflow-y: auto;
-  scroll-padding-bottom: 10rem;
+  scroll-padding-bottom: 13rem;
 }
 .agent-thread-viewport > div {
-  width: min(100%, 52rem);
+  width: min(100%, 58rem);
   margin-inline: auto;
-  padding: 2rem 1.25rem 1rem;
+  padding: 2.4rem 1.5rem 1.5rem;
 }
 .agent-empty-state {
   display: grid;
-  min-height: 25rem;
+  min-height: calc(100dvh - 14rem);
   place-items: center;
   align-content: center;
   text-align: center;
@@ -479,23 +488,20 @@ body {
   position: sticky;
   bottom: 0;
   z-index: 3;
-  border-top: 1px solid #ded9e8;
-  background: rgb(250 249 252 / 0.92);
-  padding: 0.85rem 1.1rem 0.7rem;
-  backdrop-filter: blur(18px);
+  background: linear-gradient(to bottom, transparent, rgb(250 249 252 / 0.98) 28%);
+  padding: 1.8rem 1.1rem 0.65rem;
 }
 .dark .agent-composer-dock {
-  border-color: #302943;
-  background: rgb(20 16 30 / 0.92);
+  background: linear-gradient(to bottom, transparent, rgb(20 16 30 / 0.98) 28%);
 }
 .agent-composer {
-  width: min(100%, 52rem);
+  width: min(100%, 58rem);
   margin-inline: auto;
   border: 1px solid #cfc7df;
-  border-radius: 1rem;
+  border-radius: 1.15rem;
   background: #fff;
-  padding: 0.55rem;
-  box-shadow: 0 10px 30px rgb(46 32 76 / 0.08);
+  padding: 0.55rem 0.65rem 0.65rem;
+  box-shadow: 0 18px 50px rgb(46 32 76 / 0.13);
   transition:
     border-color 0.16s,
     box-shadow 0.16s;
@@ -508,6 +514,106 @@ body {
   border-color: #403653;
   background: #181322;
   box-shadow: 0 14px 35px rgb(0 0 0 / 0.24);
+}
+.agent-composer-toolbar {
+  display: flex;
+  min-height: 2.65rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-bottom: 1px solid #ebe7f0;
+  padding: 0 0.3rem 0.5rem;
+}
+.dark .agent-composer-toolbar {
+  border-color: #302943;
+}
+.agent-composer-model {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.6rem;
+}
+.agent-composer-model .agent-live-mark {
+  width: 0.65rem;
+  height: 0.65rem;
+}
+.agent-composer-model select {
+  min-width: 0;
+  max-width: 14rem;
+  border: 0;
+  background: transparent;
+  color: #332750;
+  font-size: 0.75rem;
+  font-weight: 750;
+  outline: none;
+}
+.dark .agent-composer-model select {
+  color: #f8fafc;
+}
+.agent-composer-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+.agent-composer-action {
+  display: inline-flex;
+  min-height: 2rem;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 0.55rem;
+  padding: 0 0.55rem;
+  color: #70677f;
+  font-size: 0.66rem;
+  font-weight: 650;
+  white-space: nowrap;
+  transition:
+    background 0.16s,
+    color 0.16s;
+}
+.agent-composer-action:hover {
+  background: #eee9fa;
+  color: #4d38b8;
+}
+.dark .agent-composer-action {
+  color: #aaa0bd;
+}
+.dark .agent-composer-action:hover {
+  background: #2a2140;
+  color: #d6ceff;
+}
+.agent-composer-error {
+  margin: 0.55rem 0.65rem 0;
+  color: #be123c;
+  font-size: 0.7rem;
+}
+.agent-composer-parameters {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  margin: 0.5rem 0.25rem 0;
+  border-radius: 0.75rem;
+  background: #f5f2fb;
+  padding: 0.75rem;
+}
+.dark .agent-composer-parameters {
+  background: #211a31;
+}
+.agent-composer-parameters label > span {
+  display: flex;
+  justify-content: space-between;
+  color: #70677f;
+  font-size: 0.62rem;
+}
+.dark .agent-composer-parameters label > span {
+  color: #aaa0bd;
+}
+.agent-composer-parameters output {
+  font-family: ui-monospace, monospace;
+}
+.agent-composer-parameters input {
+  width: 100%;
+  margin-top: 0.45rem;
+  accent-color: #7057e8;
 }
 .agent-composer textarea {
   width: 100%;
@@ -567,15 +673,16 @@ body {
   color: #211b32;
 }
 .agent-privacy-note {
-  width: min(100%, 52rem);
-  margin: 0.45rem auto 0;
-  color: #aaa2b4;
-  font-size: 0.56rem;
+  width: min(100%, 58rem);
+  margin: 0.5rem auto 0;
+  color: #938a9e;
+  font-size: 0.62rem;
+  text-align: center;
 }
 .agent-scroll-button {
   position: absolute;
   right: 1.1rem;
-  bottom: 8.5rem;
+  bottom: 12rem;
   z-index: 5;
   display: grid;
   width: 2.3rem;
@@ -620,32 +727,14 @@ body {
   .agent-header-actions {
     justify-content: flex-start;
   }
-  .agent-console {
-    margin-top: 1.35rem;
-    border-radius: 1.15rem;
-  }
-  .agent-console-bar {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-  .agent-model-select {
-    width: 100%;
-    justify-content: space-between;
-  }
-  .agent-model-select select {
-    max-width: 70%;
-  }
-  .agent-parameters {
-    grid-template-columns: 1fr;
-  }
   .agent-thread {
-    min-height: 36rem;
+    min-height: 0;
   }
   .agent-thread-viewport > div {
-    padding: 1.5rem 0.9rem 0.75rem;
+    padding: 1.4rem 0.9rem 0.75rem;
   }
   .agent-empty-state {
-    min-height: 22rem;
+    min-height: calc(100dvh - 15rem);
   }
   .agent-suggestions {
     align-items: stretch;
@@ -660,13 +749,49 @@ body {
     max-width: 92%;
   }
   .agent-composer-dock {
-    padding-inline: 0.7rem;
+    padding: 1.5rem 0.65rem 0.55rem;
+  }
+  .agent-composer-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+  .agent-composer-model {
+    min-height: 2rem;
+  }
+  .agent-composer-model select {
+    max-width: calc(100vw - 6rem);
+  }
+  .agent-composer-actions {
+    justify-content: space-between;
+    border-top: 1px solid #ebe7f0;
+    padding-top: 0.35rem;
+  }
+  .dark .agent-composer-actions {
+    border-color: #302943;
+  }
+  .agent-composer-action {
+    justify-content: center;
+    flex: 1;
+  }
+  .agent-composer-parameters {
+    grid-template-columns: 1fr;
+    gap: 0.65rem;
   }
   .agent-composer-footer > span {
     display: none;
   }
   .agent-composer-footer {
     justify-content: flex-end;
+  }
+}
+@media (max-width: 767px) {
+  .agent-page {
+    height: calc(100dvh - 4.5rem);
+    padding: 0.65rem;
+  }
+  .agent-chat-panel {
+    border-radius: 1rem;
   }
 }
 @media (prefers-reduced-motion: reduce) {

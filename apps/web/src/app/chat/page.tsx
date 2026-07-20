@@ -98,104 +98,60 @@ function ChatContent() {
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
-      <main className="agent-page px-4 py-6 sm:px-7 sm:py-9 lg:px-10">
-        <div className="mx-auto max-w-6xl">
-          <header className="agent-page-header">
-            <div>
-              <div className="agent-eyebrow">
-                <span /> AGENT WORKSPACE
-              </div>
-              <h1>对话 Agent</h1>
-              <p>选择一个国内模型，沿着同一条消息轨迹持续推演。</p>
-            </div>
-            <div className="agent-header-actions">
-              <Link href="/chat/compare" className="agent-quiet-button">
-                多模型对比
-              </Link>
-              <NewThreadButton />
-              <button
-                type="button"
-                className="agent-quiet-button"
-                onClick={() => setSettingsOpen((open) => !open)}
-                aria-expanded={settingsOpen}
-              >
-                生成参数
-              </button>
-            </div>
-          </header>
-
-          {modelError && (
-            <p role="alert" className="mt-4 text-sm text-rose-600">
-              {modelError}
-            </p>
-          )}
-
-          <section className="agent-console">
-            <div className="agent-console-bar">
-              <div className="agent-model-presence">
-                <span className="agent-live-mark" aria-hidden="true" />
-                <div>
-                  <strong>
-                    {modelOptions.find(({ value }) => value === selectedModel)?.label ??
-                      selectedModel}
-                  </strong>
-                  <small>READY · STREAMING SSE</small>
-                </div>
-              </div>
-              <label className="agent-model-select">
-                <span>运行模型</span>
-                <select
-                  value={selectedModel}
-                  disabled={modelOptions.length === 0}
-                  onChange={(event) => setSelectedModel(event.target.value as TextModelAlias)}
-                >
-                  {modelOptions.map(({ value, label }) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-
-            {settingsOpen && (
-              <section aria-label="生成参数" className="agent-parameters">
-                <Parameter
-                  label="Temperature"
-                  value={temperature}
-                  min={0}
-                  max={2}
-                  step={0.1}
-                  onChange={setTemperature}
-                />
-                <Parameter
-                  label="Top P"
-                  value={topP}
-                  min={0}
-                  max={1}
-                  step={0.05}
-                  onChange={setTopP}
-                />
-                <Parameter
-                  label="Max tokens"
-                  value={maxTokens}
-                  min={1}
-                  max={4096}
-                  step={1}
-                  onChange={setMaxTokens}
-                />
-              </section>
-            )}
-
-            <AgentThread modelDisabled={modelOptions.length === 0} />
-          </section>
-        </div>
+      <main className="agent-page">
+        <section className="agent-console agent-chat-panel" aria-label="对话 Agent">
+          <AgentThread
+            modelDisabled={modelOptions.length === 0}
+            modelError={modelError}
+            modelOptions={modelOptions}
+            selectedModel={selectedModel}
+            onModelChange={setSelectedModel}
+            settingsOpen={settingsOpen}
+            onSettingsToggle={() => setSettingsOpen((open) => !open)}
+            temperature={temperature}
+            onTemperatureChange={setTemperature}
+            topP={topP}
+            onTopPChange={setTopP}
+            maxTokens={maxTokens}
+            onMaxTokensChange={setMaxTokens}
+          />
+        </section>
       </main>
     </AssistantRuntimeProvider>
   )
 }
 
-function AgentThread({ modelDisabled }: { modelDisabled: boolean }) {
+interface AgentThreadProps {
+  modelDisabled: boolean
+  modelError: string
+  modelOptions: ReadonlyArray<{ value: TextModelAlias; label: string }>
+  selectedModel: TextModelAlias
+  onModelChange: (model: TextModelAlias) => void
+  settingsOpen: boolean
+  onSettingsToggle: () => void
+  temperature: number
+  onTemperatureChange: (value: number) => void
+  topP: number
+  onTopPChange: (value: number) => void
+  maxTokens: number
+  onMaxTokensChange: (value: number) => void
+}
+
+function AgentThread({
+  modelDisabled,
+  modelError,
+  modelOptions,
+  selectedModel,
+  onModelChange,
+  settingsOpen,
+  onSettingsToggle,
+  temperature,
+  onTemperatureChange,
+  topP,
+  onTopPChange,
+  maxTokens,
+  onMaxTokensChange,
+}: AgentThreadProps) {
   return (
     <ThreadPrimitive.Root className="agent-thread">
       <ThreadPrimitive.Viewport className="agent-thread-viewport">
@@ -211,6 +167,71 @@ function AgentThread({ modelDisabled }: { modelDisabled: boolean }) {
       </ThreadPrimitive.ScrollToBottom>
       <div className="agent-composer-dock">
         <ComposerPrimitive.Root className="agent-composer">
+          <div className="agent-composer-toolbar">
+            <label className="agent-composer-model">
+              <span className="agent-live-mark" aria-hidden="true" />
+              <span className="sr-only">运行模型</span>
+              <select
+                value={selectedModel}
+                disabled={modelDisabled}
+                onChange={(event) => onModelChange(event.target.value as TextModelAlias)}
+              >
+                {modelOptions.map(({ value, label }) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="agent-composer-actions">
+              <Link href="/chat/compare" className="agent-composer-action">
+                模型对比
+              </Link>
+              <button
+                type="button"
+                className="agent-composer-action"
+                onClick={onSettingsToggle}
+                aria-expanded={settingsOpen}
+              >
+                参数
+                <span aria-hidden="true">{settingsOpen ? '−' : '+'}</span>
+              </button>
+              <NewThreadButton />
+            </div>
+          </div>
+          {modelError && (
+            <p role="alert" className="agent-composer-error">
+              {modelError}
+            </p>
+          )}
+          {settingsOpen && (
+            <section aria-label="生成参数" className="agent-composer-parameters">
+              <Parameter
+                label="Temperature"
+                value={temperature}
+                min={0}
+                max={2}
+                step={0.1}
+                onChange={onTemperatureChange}
+              />
+              <Parameter
+                label="Top P"
+                value={topP}
+                min={0}
+                max={1}
+                step={0.05}
+                onChange={onTopPChange}
+              />
+              <Parameter
+                label="Max tokens"
+                value={maxTokens}
+                min={1}
+                max={4096}
+                step={1}
+                onChange={onMaxTokensChange}
+              />
+            </section>
+          )}
           <ComposerPrimitive.Input
             aria-label="输入消息"
             rows={1}
@@ -232,7 +253,7 @@ function AgentThread({ modelDisabled }: { modelDisabled: boolean }) {
             </AuiIf>
           </div>
         </ComposerPrimitive.Root>
-        <p className="agent-privacy-note">上下文仅保留在当前页面 · 请勿提交密码或 API Key</p>
+        <p className="agent-privacy-note">内容由 AI 生成，请仔细甄别</p>
       </div>
     </ThreadPrimitive.Root>
   )
@@ -324,7 +345,7 @@ function NewThreadButton() {
   const hasMessages = useAuiState(({ thread }) => thread.messages.length > 0)
   if (!hasMessages) return null
   return (
-    <button type="button" className="agent-quiet-button" onClick={() => api.thread().reset()}>
+    <button type="button" className="agent-composer-action" onClick={() => api.thread().reset()}>
       新会话
     </button>
   )
