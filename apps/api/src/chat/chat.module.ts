@@ -21,6 +21,8 @@ import { ChatController } from './chat.controller'
 import { ChatModelCatalog } from './chat-model-catalog'
 import { defaultUpstreamModelId } from './chat-models.config'
 import { ChatFailoverService } from './chat-failover.service'
+import { MODEL_INVOCATION_PORT } from './model-invocation.port'
+import { ModelInvocationService } from './model-invocation.service'
 import { ModelsController } from './models.controller'
 import { ProviderHealthService } from './provider-health.service'
 import { OpenAICompatibleChatTransport } from './transports/openai-compatible-chat.transport'
@@ -96,8 +98,16 @@ import { OpenAICompatibleChatTransport } from './transports/openai-compatible-ch
     ChatFailoverService,
     ProviderHealthService,
     PricingService,
+    ModelInvocationService,
+    { provide: MODEL_INVOCATION_PORT, useExisting: ModelInvocationService },
   ],
   controllers: [ChatController, ModelsController],
-  exports: [ChatAdapterRegistry, ChatModelCatalog, ProviderHealthService],
+  exports: [
+    ChatAdapterRegistry,
+    ChatModelCatalog,
+    ProviderHealthService,
+    ModelInvocationService,
+    MODEL_INVOCATION_PORT,
+  ],
 })
 export class ChatModule {}

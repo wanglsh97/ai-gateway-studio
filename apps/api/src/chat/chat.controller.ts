@@ -255,6 +255,15 @@ export class ChatController {
         continue
       }
 
+      if (event.type === 'reasoning') {
+        // 普通 Chat 不展示 reasoning，忽略以保持既有协议。
+        continue
+      }
+
+      if (event.type === 'tool-call') {
+        throw this.protocolError('Chat completions 不支持工具调用')
+      }
+
       if (event.type === 'usage') {
         if (state.usage) throw this.protocolError('Adapter emitted usage more than once')
         state.usage = event.usage

@@ -1,16 +1,48 @@
-import type { ChatFinishReason, ChatMessage, TextModelAlias } from '@aigateway/sdk'
+import type { ChatFinishReason, TextModelAlias } from '@aigateway/sdk'
 
 import type { ChatAdapterId } from '../chat.constants'
+
+/** 平台中立的工具调用块，供助手回放上一轮 tool call 与本轮新 tool call 使用。 */
+export interface ChatAdapterToolCall {
+  id: string
+  name: string
+  arguments: Record<string, unknown>
+}
+
+/**
+ * 适配器消息（普通 Chat 与 Agent tool loop 共用）。
+ *
+ * `ChatMessage`（system/user/assistant + content）结构上兼容本类型；Agent 额外使用
+ * `tool` 角色回传工具结果，以及在 assistant 消息上携带 `toolCalls` 回放。
+ */
+export interface ChatAdapterMessage {
+  role: 'system' | 'user' | 'assistant' | 'tool'
+  content: string
+  toolCallId?: string
+  toolName?: string
+  toolCalls?: readonly ChatAdapterToolCall[]
+}
+
+/** JSON Schema 工具定义（provider-neutral）。 */
+export interface ChatAdapterToolDefinition {
+  name: string
+  description: string
+  parameters: Record<string, unknown>
+}
+
+export type ChatAdapterToolChoice = 'auto' | 'required' | 'none'
 
 export interface ChatAdapterRequest {
   requestId: string
   modelAlias: TextModelAlias
   resolvedModel: string
-  messages: readonly ChatMessage[]
+  messages: readonly ChatAdapterMessage[]
   signal: AbortSignal
   temperature?: number
   topP?: number
   maxTokens?: number
+  tools?: readonly ChatAdapterToolDefinition[]
+  toolChoice?: ChatAdapterToolChoice
 }
 
 export interface ChatAdapterUsage {
@@ -24,6 +56,16 @@ export type ChatAdapterEvent =
   | {
       type: 'delta'
       content: string
+      providerRequestId?: string
+    }
+  | {
+      type: 'reasoning'
+      content: string
+      providerRequestId?: string
+    }
+  | {
+      type: 'tool-call'
+      toolCall: ChatAdapterToolCall
       providerRequestId?: string
     }
   | {
