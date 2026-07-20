@@ -75,11 +75,8 @@ export function createAgentRunAdapter(
       const metadata: AgentRunMetadata = { model: context.model, runId: run.id }
       const parts: MutablePart[] = []
 
-      const cancel = () => {
-        void client.agent.runs.cancel(run.id).catch(() => undefined)
-      }
-      abortSignal.addEventListener('abort', cancel, { once: true })
-
+      // 仅断开本端 SSE；浏览器刷新/卸载不得调用 cancel（规范：断线不取消进程内 run）。
+      // 显式「停止」由 UI 先调 cancel API，再触发本 abortSignal。
       try {
         for await (const event of client.agent.runs.subscribe(run.id, {
           after: -1,
@@ -109,17 +106,15 @@ export function createAgentRunAdapter(
         }
       } catch (error) {
         if (abortSignal.aborted) {
+          // 本地停止读取；服务端 run 继续。不把状态标成 cancelled。
           yield {
             content: toAssistantParts(parts),
-            status: { type: 'incomplete', reason: 'cancelled' },
-            metadata: { custom: { ...metadata } },
+            metadata: { custom: { ...metadata, runStatus: 'running' } },
           }
           return
         }
         onError?.(error)
         throw error
-      } finally {
-        abortSignal.removeEventListener('abort', cancel)
       }
     },
   }

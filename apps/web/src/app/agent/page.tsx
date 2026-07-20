@@ -31,6 +31,12 @@ import {
   type AgentRunMetadata,
 } from './agent-run-adapter'
 import { shouldStartNewThreadOnModelChange } from './agent-model-policy'
+import {
+  foldEventsFromCursor,
+  isResumableActiveRun,
+  mergeThreadMessagesWithRunView,
+} from './agent-run-resume'
+import { initialAgentRunViewState } from './agent-run-reducer'
 
 const client = createAIGatewayClient()
 
@@ -177,10 +183,11 @@ function ThreadHydrator({
 }) {
   const api = useAui()
   const activeThreadId = useAgentActiveThreadId()
-  const { setSelectedModel } = useAgentWorkspace()
+  const { setSelectedModel, setUserActiveRun, refreshThreads } = useAgentWorkspace()
   const handleAuthenticationFailure = useAuthenticationFailure()
 
   const [interruptedNotice, setInterruptedNotice] = useState<string | null>(null)
+  const [resumeNotice, setResumeNotice] = useState<string | null>(null)
 
   useEffect(() => {
     if (skipHydrationRef.current) {
@@ -189,42 +196,139 @@ function ThreadHydrator({
     }
 
     let cancelled = false
+    const resumeAbort = new AbortController()
+
     void (async () => {
       try {
         if (!activeThreadId) {
           api.thread().reset([])
           setInterruptedNotice(null)
+          setResumeNotice(null)
           return
         }
         const thread = await client.agent.threads.get(activeThreadId)
         if (cancelled) return
         setSelectedModel(thread.model)
+
+        if (isResumableActiveRun(thread.activeRun)) {
+          setUserActiveRun(thread.activeRun)
+          setInterruptedNotice(null)
+          setResumeNotice('运行仍在进行，正在按事件游标恢复…')
+          api.thread().reset(agentMessagesToThreadMessages(thread.messages))
+
+          let view = initialAgentRunViewState()
+          let afterSequence = -1
+          for await (const event of client.agent.runs.subscribe(thread.activeRun.id, {
+            after: -1,
+            signal: resumeAbort.signal,
+          })) {
+            if (cancelled) return
+            view = foldEventsFromCursor([event], afterSequence, view)
+            afterSequence = event.sequence
+            api.thread().reset(
+              agentMessagesToThreadMessages(mergeThreadMessagesWithRunView(thread.messages, view)),
+            )
+            if (event.type === 'run-terminal') {
+              setResumeNotice(null)
+              setUserActiveRun(null)
+              void refreshThreads().catch(() => undefined)
+              return
+            }
+          }
+          return
+        }
+
         const interrupted = thread.lastRun?.status === 'interrupted'
+        setResumeNotice(null)
         setInterruptedNotice(
           interrupted ? '上次运行因服务重启中断，未自动重放模型或工具。可继续发送新任务。' : null,
         )
+        if (thread.activeRun) setUserActiveRun(thread.activeRun)
+        else setUserActiveRun(null)
         api.thread().reset(
           agentMessagesToThreadMessages(thread.messages, {
             lastRunStatus: thread.lastRun?.status ?? null,
           }),
         )
       } catch (error) {
-        if (!cancelled) handleAuthenticationFailure(error)
+        if (!cancelled && !resumeAbort.signal.aborted) handleAuthenticationFailure(error)
       }
     })()
 
     return () => {
       cancelled = true
+      // 仅断开补读 SSE；不得 cancel 服务端 run
+      resumeAbort.abort()
     }
     // api 引用不稳定，只按会话 ID 水合
     // eslint-disable-next-line react-hooks/exhaustive-deps -- hydrate on thread change only
   }, [activeThreadId])
 
-  return interruptedNotice ? (
-    <p className="agent-interrupted-banner" role="status">
-      {interruptedNotice}
-    </p>
-  ) : null
+  if (interruptedNotice) {
+    return (
+      <p className="agent-interrupted-banner" role="status">
+        {interruptedNotice}
+      </p>
+    )
+  }
+  if (resumeNotice) {
+    return (
+      <p className="agent-interrupted-banner" role="status">
+        {resumeNotice}
+      </p>
+    )
+  }
+  return null
+}
+
+/** 显式停止：先调 cancel API，再断开本端读取。浏览器刷新/卸载不得走此路径。 */
+function AgentStopButton() {
+  const { userActiveRun, setUserActiveRun, refreshThreads } = useAgentWorkspace()
+  const handleAuthenticationFailure = useAuthenticationFailure()
+  const isRunning = useAuiState(({ thread }) => thread.isRunning)
+  const [stopping, setStopping] = useState(false)
+
+  const runId = userActiveRun?.id ?? null
+  if (!isRunning && !runId) return null
+
+  const requestCancel = () => {
+    if (!runId || stopping) return
+    setStopping(true)
+    void client.agent.runs
+      .cancel(runId)
+      .then((run) => {
+        // 保持全局锁直到终态；仅更新为 cancelling，避免提前解锁提交
+        setUserActiveRun(run)
+        void refreshThreads().catch(() => undefined)
+      })
+      .catch((error) => {
+        handleAuthenticationFailure(error)
+        setStopping(false)
+      })
+  }
+
+  if (isRunning) {
+    return (
+      <ComposerPrimitive.Cancel
+        className="agent-send-button is-cancel"
+        disabled={stopping}
+        onClick={requestCancel}
+      >
+        {stopping ? '停止中…' : '停止'}
+      </ComposerPrimitive.Cancel>
+    )
+  }
+
+  return (
+    <button
+      type="button"
+      className="agent-send-button is-cancel"
+      disabled={stopping}
+      onClick={requestCancel}
+    >
+      {stopping ? '停止中…' : '停止'}
+    </button>
+  )
 }
 
 function AgentThread({
@@ -285,21 +389,20 @@ function AgentThread({
                 boundHint={modelBoundToThread}
                 onChange={onModelChange}
               />
-              <AuiIf condition={({ thread }) => thread.isRunning}>
-                <ComposerPrimitive.Cancel className="agent-send-button is-cancel">
-                  停止
-                </ComposerPrimitive.Cancel>
-              </AuiIf>
-              <AuiIf condition={({ thread }) => !thread.isRunning}>
-                <ComposerPrimitive.Send
-                  className="agent-send-button"
-                  disabled={submitBlocked}
-                  aria-label="发送任务"
-                >
+              <AgentStopButton />
+              <AuiIf condition={({ thread }) => !thread.isRunning && !submitBlocked}>
+                <ComposerPrimitive.Send className="agent-send-button" aria-label="发送任务">
                   <svg aria-hidden="true" viewBox="0 0 20 20">
                     <path d="M10 15V5m0 0L6 9m4-4 4 4" />
                   </svg>
                 </ComposerPrimitive.Send>
+              </AuiIf>
+              <AuiIf condition={({ thread }) => !thread.isRunning && submitBlocked}>
+                <button type="button" className="agent-send-button" disabled aria-label="发送任务">
+                  <svg aria-hidden="true" viewBox="0 0 20 20">
+                    <path d="M10 15V5m0 0L6 9m4-4 4 4" />
+                  </svg>
+                </button>
               </AuiIf>
             </div>
           </div>

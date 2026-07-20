@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import type { AgentMessage } from '@aigateway/sdk'
+import type { AgentMessage, AgentStreamEvent, AIGatewayClient } from '@aigateway/sdk'
 
-import { agentMessagesToThreadMessages } from './agent-run-adapter'
+import { agentMessagesToThreadMessages, createAgentRunAdapter } from './agent-run-adapter'
 
 test('merges tool results into the preceding assistant tool-call part', () => {
   const messages: AgentMessage[] = [
@@ -99,4 +99,100 @@ test('marks the last assistant message incomplete when last run was interrupted'
     reason: 'error',
     error: '服务重启导致运行中断，未自动重放',
   })
+})
+
+test('aborting local SSE does not call runs.cancel (browser disconnect must not cancel)', async () => {
+  let cancelCalls = 0
+  const abort = new AbortController()
+  const events: AgentStreamEvent[] = [
+    { type: 'run-status', sequence: 0, runId: 'run-1', status: 'running' },
+    {
+      type: 'message-start',
+      sequence: 1,
+      runId: 'run-1',
+      messageId: 'm1',
+      role: 'assistant',
+    },
+    { type: 'text-delta', sequence: 2, runId: 'run-1', messageId: 'm1', delta: '半' },
+  ]
+
+  const client = {
+    agent: {
+      threads: {
+        create: async () => {
+          throw new Error('should not create')
+        },
+      },
+      runs: {
+        create: async () => ({
+          id: 'run-1',
+          threadId: 'thread-1',
+          status: 'running',
+          limitReason: null,
+          usage: {
+            inputTokens: null,
+            outputTokens: null,
+            totalTokens: null,
+            usageUnknown: true,
+            estimatedCostCny: null,
+            modelCalls: 0,
+            toolCalls: 0,
+            webFetchCalls: 0,
+          },
+          lastSequence: -1,
+          createdAt: '2026-07-20T00:00:00.000Z',
+          startedAt: null,
+          completedAt: null,
+        }),
+        cancel: async () => {
+          cancelCalls += 1
+          throw new Error('cancel must not be called on abort')
+        },
+        subscribe: async function* (_runId: string, options?: { signal?: AbortSignal }) {
+          for (const event of events) {
+            if (options?.signal?.aborted) {
+              throw Object.assign(new Error('aborted'), { name: 'AbortError' })
+            }
+            yield event
+            if (event.type === 'text-delta') {
+              abort.abort()
+            }
+          }
+          if (options?.signal?.aborted) {
+            throw Object.assign(new Error('aborted'), { name: 'AbortError' })
+          }
+        },
+      },
+    },
+  } as unknown as AIGatewayClient
+
+  const adapter = createAgentRunAdapter(client, () => ({
+    threadId: 'thread-1',
+    model: 'mock',
+    onThreadCreated: () => undefined,
+  }))
+
+  const messages = [
+    {
+      role: 'user' as const,
+      content: [{ type: 'text' as const, text: '继续' }],
+      id: 'u1',
+      createdAt: new Date(),
+    },
+  ]
+
+  const collected: unknown[] = []
+  const stream = adapter.run({
+    messages: messages as never,
+    abortSignal: abort.signal,
+    context: {} as never,
+    unstable_getMessage: () => messages[0] as never,
+  } as never) as AsyncGenerator<unknown>
+
+  for await (const chunk of stream) {
+    collected.push(chunk)
+  }
+
+  assert.equal(cancelCalls, 0)
+  assert.ok(collected.length >= 1)
 })

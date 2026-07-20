@@ -60,6 +60,10 @@ export const webFetchFixtureTool: AgentToolDefinition<{ url: string }> = {
     }
 
     const finalUrl = parsed.toString()
+    // 测试钩子：slow.test 人为延迟，便于验证刷新/断线不取消进程内 run
+    if (parsed.hostname === 'slow.test') {
+      await sleep(8_000, context.signal)
+    }
     const title = `Fixture 页面 ${parsed.hostname}`
     const body = [
       `# ${title}`,
@@ -82,4 +86,22 @@ export const webFetchFixtureTool: AgentToolDefinition<{ url: string }> = {
       },
     }
   },
+}
+
+function sleep(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal.aborted) {
+      reject(new AgentToolExecutionError({ code: 'AGENT_TOOL_ABORTED', message: '工具执行已取消' }))
+      return
+    }
+    const timer = setTimeout(() => {
+      signal.removeEventListener('abort', onAbort)
+      resolve()
+    }, ms)
+    const onAbort = () => {
+      clearTimeout(timer)
+      reject(new AgentToolExecutionError({ code: 'AGENT_TOOL_ABORTED', message: '工具执行已取消' }))
+    }
+    signal.addEventListener('abort', onAbort, { once: true })
+  })
 }

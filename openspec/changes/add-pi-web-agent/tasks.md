@@ -23,7 +23,7 @@
 - [x] 2.5 实现 PostgreSQL 真源加 Redis 原子锁的单用户全局 active run 约束，覆盖跨 thread 并发、跨用户独立和 Redis 异常 fail-closed 测试
 - [x] 2.6 运行期间禁用该用户所有 Agent Composer 的提交操作但允许浏览历史，并在服务端拒绝篡改客户端发起的并发 prompt
 - [x] 2.7 实现 API 启动时遗留 running/cancelling run 转 interrupted、过期锁清理和 UI 中断状态，确认不自动重放模型或工具
-- [ ] 2.8 验证刷新、关闭事件连接、重新进入会话和 sequence cursor 补读均不取消进程内 run，且不会重复消息或工具卡片
+- [x] 2.8 验证刷新、关闭事件连接、重新进入会话和 sequence cursor 补读均不取消进程内 run，且不会重复消息或工具卡片
 - [ ] 2.9 执行会话模块单测、PostgreSQL/Redis 集成测试、认证边界 E2E、typecheck、lint 和 build
 
 ## 3. 生产级 web_fetch 工具
