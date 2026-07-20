@@ -10,7 +10,7 @@
 - [x] 1.8 实现 Agent run 状态机、递增事件 sequence、消息 parts 持久化和最终快照，覆盖 succeeded/failed/cancelled/limit_reached/interrupted 转换测试
 - [x] 1.9 实现 thread CRUD、run create、cursor event SSE 和 cancel API，并同步 Swagger、统一错误 envelope 与认证 guard 测试
 - [x] 1.10 在 SDK 实现 thread CRUD、run create、按 sequence 订阅/重连和 cancel client，覆盖事件顺序、断线补读、AbortSignal 和协议错误测试
-- [ ] 1.11 新增最小 `/agent` 页面，使用 assistant-ui 展示持久消息、增量文本、折叠 reasoning、tool 状态、loading/error/cancelled 和停止操作
+- [x] 1.11 新增最小 `/agent` 页面，使用 assistant-ui 展示持久消息、增量文本、折叠 reasoning、tool 状态、loading/error/cancelled 和停止操作
 - [ ] 1.12 添加无公网依赖的 Agent E2E，串通 Web → SDK → Agent API → Pi harness → Mock tool-calling Adapter → fixture tool → follow-up turn → SSE cursor → PostgreSQL RequestLog/BillingRecord
 - [ ] 1.13 执行 Agent 首个闭环相关单测、集成测试、页面 E2E、typecheck、lint 和 build，并记录 Mock 验收结果
 

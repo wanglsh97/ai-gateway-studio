@@ -10,6 +10,7 @@ import { useUserSession } from './user-session-provider'
 
 const navigation = [
   { href: '/chat', label: '聊天', description: '与模型实时对话', icon: ChatIcon },
+  { href: '/agent', label: '智能体', description: '多步 Agent 任务', icon: AgentIcon },
   { href: '/image', label: '图片', description: '从文字生成图像', icon: ImageIcon },
   { href: '/skills', label: '技能', description: '查看已安装能力', icon: SparkIcon },
   { href: '/api', label: 'API', description: '接入网关能力', icon: ApiIcon },
@@ -214,6 +215,7 @@ function Icon({ children }: SvgProps) {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
 }
 function ChatIcon() { return <Icon><path d="M7 8h10M7 12h7"/><path d="M20 15a3 3 0 0 1-3 3H9l-5 3v-6a3 3 0 0 1-1-2V6a3 3 0 0 1 3-3h11a3 3 0 0 1 3 3Z"/></Icon> }
+function AgentIcon() { return <Icon><rect x="5" y="8" width="14" height="10" rx="2"/><path d="M12 8V4M9 4h6"/><circle cx="9" cy="13" r="1"/><circle cx="15" cy="13" r="1"/><path d="M2 12v3M22 12v3"/></Icon> }
 function ImageIcon() { return <Icon><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="9" r="2"/><path d="m4 17 4.5-4 3.5 3 3-2.5 5 4.5"/></Icon> }
 function SparkIcon() { return <Icon><path d="m12 3 1.2 3.8L17 8l-3.8 1.2L12 13l-1.2-3.8L7 8l3.8-1.2L12 3Z"/><path d="m18 14 .8 2.2L21 17l-2.2.8L18 20l-.8-2.2L15 17l2.2-.8L18 14ZM5 13l.7 1.8 1.8.7-1.8.7L5 18l-.7-1.8-1.8-.7 1.8-.7L5 13Z"/></Icon> }
 function ApiIcon() { return <Icon><path d="m8 9-3 3 3 3M16 9l3 3-3 3M14 5l-4 14"/></Icon> }
