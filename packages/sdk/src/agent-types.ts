@@ -121,6 +121,8 @@ export interface AgentThreadListPage {
 export interface AgentThread extends AgentThreadSummary {
   messages: AgentMessage[]
   activeRun: AgentRunSummary | null
+  /** 该会话最近一次 run（含已终结）；用于展示 interrupted 等终态。 */
+  lastRun: AgentRunSummary | null
 }
 
 export interface CreateAgentThreadRequest {

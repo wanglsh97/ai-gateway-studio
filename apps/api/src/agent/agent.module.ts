@@ -12,6 +12,7 @@ import { AgentRunEventBus } from './agent-run-event-bus'
 import { AgentRunRepository } from './agent-run.repository'
 import { AgentRunService } from './agent-run.service'
 import { AgentService } from './agent.service'
+import { AgentStartupCleanupService } from './agent-startup-cleanup.service'
 import { AgentThreadRepository } from './agent-thread.repository'
 import { AGENT_TOOLS, AgentToolRegistry } from './tools/agent-tool.registry'
 import type { AgentToolDefinition } from './tools/agent-tool'
@@ -35,6 +36,7 @@ import { webFetchFixtureTool } from './tools/web-fetch-fixture.tool'
     AgentActiveRunLock,
     AgentRunService,
     AgentService,
+    AgentStartupCleanupService,
     {
       provide: AGENT_TOOLS,
       useFactory: (): readonly AgentToolDefinition[] => [webFetchFixtureTool],

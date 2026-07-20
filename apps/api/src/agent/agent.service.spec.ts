@@ -30,6 +30,7 @@ function setup() {
     findForOwner: jest.fn(),
     findActiveForThread: jest.fn(),
     findActiveForUser: jest.fn().mockResolvedValue(null),
+    findLatestForThread: jest.fn().mockResolvedValue(null),
     countActiveForUser: jest.fn().mockResolvedValue(0),
   } as unknown as jest.Mocked<AgentRunRepository>
   const messages = {

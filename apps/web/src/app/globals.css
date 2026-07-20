@@ -839,6 +839,22 @@ body {
 .dark .agent-active-run-hint {
   color: #e7c27d;
 }
+.agent-interrupted-banner {
+  width: min(100%, 58rem);
+  margin: 0.75rem auto 0;
+  padding: 0.55rem 0.85rem;
+  border: 1px solid rgb(183 146 70 / 0.35);
+  border-radius: 0.65rem;
+  background: rgb(183 146 70 / 0.12);
+  color: #6b5324;
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+.dark .agent-interrupted-banner {
+  border-color: rgb(231 194 125 / 0.35);
+  background: rgb(231 194 125 / 0.1);
+  color: #e7c27d;
+}
 .agent-privacy-note {
   width: min(100%, 58rem);
   margin: 0.5rem auto 0;

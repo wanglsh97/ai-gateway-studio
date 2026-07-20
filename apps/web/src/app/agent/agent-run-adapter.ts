@@ -1,5 +1,6 @@
 import type {
   AgentMessage,
+  AgentRunStatus,
   AgentStreamEvent,
   AgentThreadSummary,
   AIGatewayClient,
@@ -26,6 +27,7 @@ export interface AgentRunMetadata extends Record<string, unknown> {
   modelCalls?: number
   toolCalls?: number
   totalTokens?: number | null
+  runStatus?: AgentRunStatus | 'idle'
 }
 
 type MutablePart =
@@ -92,7 +94,7 @@ export function createAgentRunAdapter(
               status:
                 event.status === 'cancelled'
                   ? { type: 'incomplete', reason: 'cancelled' }
-                  : event.status === 'failed'
+                  : event.status === 'failed' || event.status === 'interrupted'
                     ? { type: 'incomplete', reason: 'error' }
                     : { type: 'complete', reason: 'stop' },
             }
@@ -125,6 +127,7 @@ export function createAgentRunAdapter(
 
 export function agentMessagesToThreadMessages(
   messages: readonly AgentMessage[],
+  options?: { lastRunStatus?: AgentRunStatus | null },
 ): ThreadMessageLike[] {
   const result: ThreadMessageLike[] = []
   let pending: {
@@ -136,11 +139,17 @@ export function agentMessagesToThreadMessages(
 
   const flush = () => {
     if (!pending) return
+    const interrupted = options?.lastRunStatus === 'interrupted'
     result.push({
       id: pending.id,
       role: 'assistant',
       content: toAssistantParts(pending.content),
-      status: { type: 'complete', reason: 'stop' },
+      status: interrupted
+        ? { type: 'incomplete', reason: 'error', error: '服务重启导致运行中断，未自动重放' }
+        : { type: 'complete', reason: 'stop' },
+      metadata: interrupted
+        ? { custom: { runStatus: 'interrupted' } satisfies AgentRunMetadata }
+        : undefined,
       createdAt: pending.createdAt,
     })
     pending = null

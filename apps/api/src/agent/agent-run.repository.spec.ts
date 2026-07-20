@@ -43,4 +43,46 @@ describe('AgentRunRepository', () => {
       where: { userId: 'user-a', status: { in: ['RUNNING', 'CANCELLING'] } },
     })
   })
+
+  it('interrupts abandoned runs with a terminal event and no provider replay', async () => {
+    const findMany = jest.fn().mockResolvedValue([
+      {
+        id: 'run-stale',
+        lastSequence: 3,
+      },
+    ])
+    const createMany = jest.fn().mockResolvedValue({ count: 1 })
+    const updateMany = jest.fn()
+    const update = jest.fn().mockResolvedValue({})
+    const prisma = {
+      agentRun: { findMany, update, updateMany, create: jest.fn(), findFirst: jest.fn(), count: jest.fn() },
+      agentEvent: { createMany },
+    } as unknown as PrismaService
+    const repository = new AgentRunRepository(prisma)
+
+    await expect(repository.interruptAbandonedRuns()).resolves.toEqual({
+      count: 1,
+      runIds: ['run-stale'],
+    })
+    expect(createMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: [
+          expect.objectContaining({
+            runId: 'run-stale',
+            sequence: 4,
+            type: 'run-terminal',
+          }),
+        ],
+      }),
+    )
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'run-stale' },
+        data: expect.objectContaining({
+          status: 'INTERRUPTED',
+          errorCode: 'AGENT_INTERRUPTED',
+        }),
+      }),
+    )
+  })
 })

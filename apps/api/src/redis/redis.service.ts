@@ -101,6 +101,16 @@ export class RedisService implements OnModuleDestroy {
     return result === 1
   }
 
+  /** 按前缀扫描并删除键（启动清理用户级 Agent 锁）。 */
+  async deleteKeysByPrefix(prefix: string): Promise<number> {
+    await this.ensureConnected()
+    let deleted = 0
+    for await (const key of this.client.scanIterator({ MATCH: `${prefix}*`, COUNT: 100 })) {
+      deleted += await this.client.del(key)
+    }
+    return deleted
+  }
+
   private async ensureConnected() {
     if (this.client.isOpen) return
 

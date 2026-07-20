@@ -90,15 +90,17 @@ export class AgentService {
     const summary = await this.threads.findSummaryForOwner(threadId, user.id)
     if (!summary) throw new NotFoundException('Agent 会话不存在')
 
-    const [messages, activeRun] = await Promise.all([
+    const [messages, activeRun, lastRun] = await Promise.all([
       this.messages.listForThread(threadId),
       this.runs.findActiveForThread(threadId),
+      this.runs.findLatestForThread(threadId),
     ])
 
     return {
       ...toThreadSummary(summary),
       messages: messages.map(toMessage),
       activeRun: activeRun ? toRunSummary(activeRun) : null,
+      lastRun: lastRun ? toRunSummary(lastRun) : null,
     }
   }
 

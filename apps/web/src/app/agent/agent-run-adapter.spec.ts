@@ -75,3 +75,28 @@ test('merges tool results into the preceding assistant tool-call part', () => {
     { type: 'text', text: '页面是 Example Domain' },
   ])
 })
+
+test('marks the last assistant message incomplete when last run was interrupted', () => {
+  const messages: AgentMessage[] = [
+    {
+      id: 'u1',
+      role: 'user',
+      parts: [{ type: 'text', text: '任务' }],
+      createdAt: '2026-07-20T00:00:00.000Z',
+    },
+    {
+      id: 'a1',
+      role: 'assistant',
+      parts: [{ type: 'text', text: '半成品' }],
+      createdAt: '2026-07-20T00:00:01.000Z',
+    },
+  ]
+  const threadMessages = agentMessagesToThreadMessages(messages, { lastRunStatus: 'interrupted' })
+  const assistant = threadMessages[1]
+  assert.equal(assistant?.role, 'assistant')
+  assert.deepEqual(assistant && 'status' in assistant ? assistant.status : null, {
+    type: 'incomplete',
+    reason: 'error',
+    error: '服务重启导致运行中断，未自动重放',
+  })
+})

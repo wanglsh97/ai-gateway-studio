@@ -180,6 +180,8 @@ function ThreadHydrator({
   const { setSelectedModel } = useAgentWorkspace()
   const handleAuthenticationFailure = useAuthenticationFailure()
 
+  const [interruptedNotice, setInterruptedNotice] = useState<string | null>(null)
+
   useEffect(() => {
     if (skipHydrationRef.current) {
       skipHydrationRef.current = false
@@ -191,12 +193,21 @@ function ThreadHydrator({
       try {
         if (!activeThreadId) {
           api.thread().reset([])
+          setInterruptedNotice(null)
           return
         }
         const thread = await client.agent.threads.get(activeThreadId)
         if (cancelled) return
         setSelectedModel(thread.model)
-        api.thread().reset(agentMessagesToThreadMessages(thread.messages))
+        const interrupted = thread.lastRun?.status === 'interrupted'
+        setInterruptedNotice(
+          interrupted ? '上次运行因服务重启中断，未自动重放模型或工具。可继续发送新任务。' : null,
+        )
+        api.thread().reset(
+          agentMessagesToThreadMessages(thread.messages, {
+            lastRunStatus: thread.lastRun?.status ?? null,
+          }),
+        )
       } catch (error) {
         if (!cancelled) handleAuthenticationFailure(error)
       }
@@ -209,7 +220,11 @@ function ThreadHydrator({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- hydrate on thread change only
   }, [activeThreadId])
 
-  return null
+  return interruptedNotice ? (
+    <p className="agent-interrupted-banner" role="status">
+      {interruptedNotice}
+    </p>
+  ) : null
 }
 
 function AgentThread({
@@ -524,16 +539,20 @@ function AssistantMessage() {
 function MessageMetadata() {
   const custom = useAuiState(({ message }) => message.metadata.custom) as AgentRunMetadata
   const status = useAuiState(({ message }) => message.status)
+  const interrupted = custom.runStatus === 'interrupted' || status?.type === 'incomplete'
   return (
     <p>
       {custom.model ?? '模型'}
       {status?.type === 'running'
         ? ' · 生成中'
-        : custom.totalTokens != null
-          ? ` · ${custom.totalTokens} tokens`
-          : ''}
+        : custom.runStatus === 'interrupted'
+          ? ' · 已中断'
+          : custom.totalTokens != null
+            ? ` · ${custom.totalTokens} tokens`
+            : ''}
       {custom.modelCalls != null ? ` · 模型 ${custom.modelCalls}` : ''}
       {custom.toolCalls != null ? ` · 工具 ${custom.toolCalls}` : ''}
+      {interrupted && custom.runStatus === 'interrupted' ? ' · 未自动重放' : ''}
     </p>
   )
 }

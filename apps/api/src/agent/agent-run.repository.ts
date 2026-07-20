@@ -170,12 +170,44 @@ export class AgentRunRepository {
     })
   }
 
-  /** API 启动清理：把遗留 running/cancelling run 标记为 interrupted。 */
-  async markAbandonedAsInterrupted(): Promise<number> {
-    const result = await this.prisma.agentRun.updateMany({
+  /** API 启动清理：把遗留 running/cancelling run 标记为 interrupted，并写入终态事件。 */
+  async interruptAbandonedRuns(): Promise<{ count: number; runIds: string[] }> {
+    const abandoned = await this.prisma.agentRun.findMany({
       where: { status: { in: [...ACTIVE_AGENT_RUN_STATUSES] } },
-      data: { status: 'INTERRUPTED', completedAt: new Date() },
+      orderBy: { createdAt: 'asc' },
     })
-    return result.count
+    if (abandoned.length === 0) return { count: 0, runIds: [] }
+
+    for (const run of abandoned) {
+      const sequence = run.lastSequence + 1
+      await this.appendEvents(run.id, [
+        {
+          type: 'run-terminal',
+          sequence,
+          runId: run.id,
+          status: 'interrupted',
+          limitReason: null,
+        },
+      ])
+      await this.prisma.agentRun.update({
+        where: { id: run.id },
+        data: {
+          status: 'INTERRUPTED',
+          lastSequence: sequence,
+          completedAt: new Date(),
+          errorCode: 'AGENT_INTERRUPTED',
+          errorMessage: '服务重启导致运行中断，未自动重放模型或工具',
+        },
+      })
+    }
+
+    return { count: abandoned.length, runIds: abandoned.map((run) => run.id) }
+  }
+
+  async findLatestForThread(threadId: string): Promise<AgentRun | null> {
+    return this.prisma.agentRun.findFirst({
+      where: { threadId },
+      orderBy: { createdAt: 'desc' },
+    })
   }
 }
