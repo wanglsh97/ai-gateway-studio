@@ -17,6 +17,8 @@ import {
   AIGatewayTimeoutError,
 } from './errors.js'
 import { readSseData } from './sse.js'
+import { createAgentClient } from './agent-client.js'
+import type { AgentClient } from './agent-client.js'
 
 export interface RequestOptions {
   signal?: AbortSignal
@@ -70,6 +72,7 @@ export interface AIGatewayClient {
   models: {
     list(options?: RequestOptions): Promise<ModelSummary[]>
   }
+  agent: AgentClient
 }
 
 export function createAIGatewayClient(options: CreateAIGatewayClientOptions = {}): AIGatewayClient {
@@ -105,6 +108,7 @@ export function createAIGatewayClient(options: CreateAIGatewayClientOptions = {}
     models: {
       list: (requestOptions) => listModels(fetchWithCredentials, baseUrl, requestOptions),
     },
+    agent: createAgentClient(fetchWithCredentials, baseUrl),
   }
 }
 

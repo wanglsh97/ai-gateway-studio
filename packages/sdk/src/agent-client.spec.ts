@@ -1,0 +1,144 @@
+import assert from 'node:assert/strict'
+import { describe, it } from 'node:test'
+
+import { createAIGatewayClient } from './client.js'
+import { AIGatewayError, AIGatewayProtocolError } from './errors.js'
+import type { AgentStreamEvent } from './agent-types.js'
+
+const runId = '00000000-0000-4000-8000-0000000000f0'
+const threadId = '00000000-0000-4000-8000-0000000000f1'
+
+function sseResponse(frames: string): Response {
+  return new Response(frames, {
+    status: 200,
+    headers: { 'content-type': 'text/event-stream; charset=utf-8', 'x-request-id': runId },
+  })
+}
+
+function frame(event: Record<string, unknown>): string {
+  return `data: ${JSON.stringify(event)}\n\n`
+}
+
+async function collect(events: AsyncIterable<AgentStreamEvent>): Promise<AgentStreamEvent[]> {
+  const out: AgentStreamEvent[] = []
+  for await (const event of events) out.push(event)
+  return out
+}
+
+describe('AgentClient threads and runs', () => {
+  it('creates, lists, renames and deletes threads with correct HTTP shapes', async () => {
+    const calls: Array<{ url: string; method: string | undefined; body: unknown }> = []
+    const client = createAIGatewayClient({
+      baseUrl: 'http://localhost:3001',
+      fetch: async (input, init) => {
+        calls.push({ url: String(input), method: init?.method, body: init?.body })
+        if (init?.method === 'DELETE') return new Response(null, { status: 204 })
+        return Response.json({ id: threadId, title: 't', model: 'qwen3.7-plus', createdAt: '', updatedAt: '' })
+      },
+    })
+
+    await client.agent.threads.create({ model: 'qwen3.7-plus' })
+    await client.agent.threads.list()
+    await client.agent.threads.get(threadId)
+    await client.agent.threads.rename(threadId, { title: '新标题' })
+    await client.agent.threads.delete(threadId)
+
+    assert.equal(calls[0]?.url, 'http://localhost:3001/api/v1/agent/threads')
+    assert.equal(calls[0]?.method, 'POST')
+    assert.equal(calls[1]?.method, 'GET')
+    assert.equal(calls[2]?.url, `http://localhost:3001/api/v1/agent/threads/${threadId}`)
+    assert.equal(calls[3]?.method, 'PATCH')
+    assert.equal(calls[3]?.body, JSON.stringify({ title: '新标题' }))
+    assert.equal(calls[4]?.method, 'DELETE')
+  })
+
+  it('creates and cancels runs', async () => {
+    const calls: string[] = []
+    const client = createAIGatewayClient({
+      fetch: async (input, init) => {
+        calls.push(`${init?.method} ${String(input)}`)
+        return Response.json({
+          id: runId,
+          threadId,
+          status: 'running',
+          limitReason: null,
+          usage: { inputTokens: null, outputTokens: null, totalTokens: null, estimatedCostCny: null, usageUnknown: false, modelCalls: 0, toolCalls: 0, webFetchCalls: 0 },
+          lastSequence: -1,
+          createdAt: '',
+          startedAt: null,
+          completedAt: null,
+        })
+      },
+    })
+
+    const run = await client.agent.runs.create(threadId, { input: '你好' })
+    assert.equal(run.status, 'running')
+    await client.agent.runs.cancel(runId)
+    assert.ok(calls[0]?.endsWith(`/api/v1/agent/threads/${threadId}/runs`))
+    assert.ok(calls[1]?.endsWith(`/api/v1/agent/runs/${runId}/cancel`))
+  })
+
+  it('throws a typed error envelope for conflict responses', async () => {
+    const client = createAIGatewayClient({
+      fetch: async () =>
+        new Response(JSON.stringify({ requestId: runId, code: 'CONFLICT', message: '已有运行', retryable: false }), {
+          status: 409,
+          headers: { 'x-request-id': runId },
+        }),
+    })
+    await assert.rejects(
+      () => client.agent.runs.create(threadId, { input: 'x' }),
+      (error: unknown) => error instanceof AIGatewayError && error.code === 'CONFLICT' && error.status === 409,
+    )
+  })
+})
+
+describe('AgentClient runs.subscribe', () => {
+  it('decodes ordered events and stops at [DONE]', async () => {
+    const frames =
+      frame({ type: 'run-status', sequence: 0, runId, status: 'running' }) +
+      frame({ type: 'message-start', sequence: 1, runId, messageId: 'm1', role: 'assistant' }) +
+      frame({ type: 'text-delta', sequence: 2, runId, messageId: 'm1', delta: '答' }) +
+      frame({ type: 'run-terminal', sequence: 3, runId, status: 'succeeded', limitReason: null }) +
+      'data: [DONE]\n\n'
+    const client = createAIGatewayClient({ fetch: async () => sseResponse(frames) })
+
+    const events = await collect(client.agent.runs.subscribe(runId))
+    assert.deepEqual(events.map((event) => event.sequence), [0, 1, 2, 3])
+    assert.equal(events.at(-1)?.type, 'run-terminal')
+  })
+
+  it('sends the after cursor for reconnect', async () => {
+    let requestedUrl = ''
+    const client = createAIGatewayClient({
+      fetch: async (input) => {
+        requestedUrl = String(input)
+        return sseResponse(frame({ type: 'run-terminal', sequence: 5, runId, status: 'succeeded', limitReason: null }) + 'data: [DONE]\n\n')
+      },
+    })
+    const events = await collect(client.agent.runs.subscribe(runId, { after: 4 }))
+    assert.ok(requestedUrl.includes('after=4'))
+    assert.equal(events[0]?.sequence, 5)
+  })
+
+  it('rejects non-increasing sequences as a protocol error', async () => {
+    const frames =
+      frame({ type: 'run-status', sequence: 2, runId, status: 'running' }) +
+      frame({ type: 'text-delta', sequence: 1, runId, messageId: 'm1', delta: 'x' })
+    const client = createAIGatewayClient({ fetch: async () => sseResponse(frames) })
+    await assert.rejects(() => collect(client.agent.runs.subscribe(runId)), AIGatewayProtocolError)
+  })
+
+  it('propagates AbortSignal to the underlying fetch', async () => {
+    const controller = new AbortController()
+    let seenSignal: AbortSignal | undefined
+    const client = createAIGatewayClient({
+      fetch: async (_input, init) => {
+        seenSignal = init?.signal ?? undefined
+        return sseResponse(frame({ type: 'run-terminal', sequence: 0, runId, status: 'succeeded', limitReason: null }) + 'data: [DONE]\n\n')
+      },
+    })
+    await collect(client.agent.runs.subscribe(runId, { signal: controller.signal }))
+    assert.equal(seenSignal, controller.signal)
+  })
+})
