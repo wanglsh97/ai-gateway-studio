@@ -22,6 +22,7 @@ import type { AgentChatOptions, AgentMessageMetadata } from './agent-chat-adapte
 import { AssistantMarkdown } from './assistant-markdown'
 import { ProtectedUserPage } from '../../components/protected-user-page'
 import { useAuthenticationFailure } from '../../components/use-authentication-failure'
+import { CHAT_PROVIDER_BRANDING } from '../../config/chat-provider-branding'
 
 const client = createAIGatewayClient()
 const examples = ['解释什么是 API 网关', '为周末杭州之旅列一个计划', '用简单比喻介绍大语言模型']
@@ -347,16 +348,15 @@ function ModelSelect({
 }
 
 function ModelLogo({ alias }: { alias: TextModelAlias }) {
+  const branding = CHAT_PROVIDER_BRANDING[alias]
+
   return (
-    <span className={`agent-model-logo is-${alias}`} aria-hidden="true">
-      {alias === 'glm' && <span>智</span>}
-      {alias === 'deepseek' && (
-        <svg viewBox="0 0 24 24">
-          <path d="M4 13.5c2.8-5.3 8.6-7 15.8-4.3-1 5.9-5.3 9.6-11.2 8.8-1.7-.2-3.2-1.2-4.6-2.7 1.9.3 3.7 0 5.2-.9-2 .3-3.7 0-5.2-.9Z" />
-          <circle cx="16.7" cy="10.6" r="1" />
-        </svg>
-      )}
-      {alias === 'kimi' && <span>K</span>}
+    <span
+      className={`agent-model-logo is-${alias}${branding.logoUrl ? ' has-logo' : ''}`}
+      style={branding.logoUrl ? { backgroundImage: `url("${branding.logoUrl}")` } : undefined}
+      aria-hidden="true"
+    >
+      {!branding.logoUrl && <span>{branding.fallbackText}</span>}
     </span>
   )
 }

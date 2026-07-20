@@ -649,7 +649,9 @@ body {
 .agent-model-logo.is-qwen {
   border-color: #ddd4ff;
   background-color: #fff;
-  background-image: url('https://assets.alicdn.com/g/qwenweb/qwen-chat-fe/0.2.74/static/images/ms-icon-light-150x150.png');
+}
+.agent-model-logo.has-logo {
+  background-color: #fff;
   background-position: center;
   background-repeat: no-repeat;
   background-size: cover;
@@ -662,11 +664,6 @@ body {
 .agent-model-logo.is-deepseek {
   border-color: #d7e1ff;
   color: #5d7cf0;
-}
-.agent-model-logo svg {
-  width: 1.15rem;
-  height: 1.15rem;
-  fill: currentColor;
 }
 .dark .agent-model-logo {
   border-color: #4a4059;
