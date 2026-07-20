@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { type ReactNode, useEffect, useState } from 'react'
+import { type ReactNode, useEffect, useRef, useState } from 'react'
 
 import { logoutUser, sanitizeUserReturnTo } from '../lib/user-auth-client'
 import { ThemeToggle } from './theme-toggle'
@@ -30,9 +30,25 @@ function UserWorkspace({ children }: Readonly<{ children: ReactNode }>) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [avatarFailed, setAvatarFailed] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const userMenuRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => setMobileOpen(false), [pathname])
   useEffect(() => setAvatarFailed(false), [session.user?.avatarUrl])
+  useEffect(() => {
+    if (!userMenuOpen) return
+    function closeMenu(event: MouseEvent | KeyboardEvent) {
+      if (event instanceof KeyboardEvent && event.key !== 'Escape') return
+      if (event instanceof MouseEvent && userMenuRef.current?.contains(event.target as Node)) return
+      setUserMenuOpen(false)
+    }
+    document.addEventListener('mousedown', closeMenu)
+    document.addEventListener('keydown', closeMenu)
+    return () => {
+      document.removeEventListener('mousedown', closeMenu)
+      document.removeEventListener('keydown', closeMenu)
+    }
+  }, [userMenuOpen])
 
   async function logout() {
     if (loggingOut) return
@@ -51,9 +67,7 @@ function UserWorkspace({ children }: Readonly<{ children: ReactNode }>) {
     <div className="workspace-shell">
       <header className="mobile-workspace-bar">
         <Brand />
-        <div className="flex items-center gap-2">
-          <ThemeToggle />
-          <button
+        <button
             type="button"
             className="shell-icon-button"
             aria-label="打开边栏"
@@ -62,7 +76,6 @@ function UserWorkspace({ children }: Readonly<{ children: ReactNode }>) {
           >
             <MenuIcon />
           </button>
-        </div>
       </header>
 
       {mobileOpen && (
@@ -116,10 +129,28 @@ function UserWorkspace({ children }: Readonly<{ children: ReactNode }>) {
           })}
         </nav>
 
-        <div className="sidebar-footer">
-          {!collapsed && <ThemeToggle />}
+        <div className="sidebar-footer" ref={userMenuRef}>
           {session.status === 'authenticated' && session.user ? (
-            <div className="sidebar-user">
+            <>
+            {userMenuOpen && (
+              <div className="user-popover" role="menu" aria-label="用户菜单">
+                <ThemeToggle variant="menu" />
+                <Link href="/admin" className="user-menu-item" role="menuitem" onClick={() => setUserMenuOpen(false)}>
+                  <AdminIcon /><span>管理后台</span>
+                </Link>
+                <div className="user-menu-divider" />
+                <button type="button" role="menuitem" disabled={loggingOut} onClick={() => void logout()} className="user-menu-item is-danger">
+                  <LogoutIcon /><span>{loggingOut ? '正在退出…' : '退出登录'}</span>
+                </button>
+              </div>
+            )}
+            <button
+              type="button"
+              className="sidebar-user"
+              aria-haspopup="menu"
+              aria-expanded={userMenuOpen}
+              onClick={() => setUserMenuOpen((open) => !open)}
+            >
               <span className="sidebar-avatar">
                 {session.user.avatarUrl && !avatarFailed ? (
                   <img src={session.user.avatarUrl} alt="" referrerPolicy="no-referrer" onError={() => setAvatarFailed(true)} />
@@ -128,12 +159,12 @@ function UserWorkspace({ children }: Readonly<{ children: ReactNode }>) {
               {!collapsed && (
                 <div className="min-w-0 flex-1">
                   <strong className="block truncate text-sm">{session.user.githubUsername}</strong>
-                  <button type="button" disabled={loggingOut} onClick={() => void logout()} className="sidebar-logout">
-                    {loggingOut ? '正在退出…' : '退出登录'}
-                  </button>
+                  <span className="sidebar-user-hint">账户与设置</span>
                 </div>
               )}
-            </div>
+              {!collapsed && <ChevronIcon />}
+            </button>
+            </>
           ) : session.status === 'unauthenticated' ? (
             <Link className="sidebar-login" href={`/login?returnTo=${encodeURIComponent(sanitizeUserReturnTo(pathname))}`}>
               <span className="sidebar-avatar"><UserIcon /></span>
@@ -171,4 +202,7 @@ function ImageIcon() { return <Icon><rect x="3" y="4" width="18" height="16" rx=
 function SparkIcon() { return <Icon><path d="m12 3 1.2 3.8L17 8l-3.8 1.2L12 13l-1.2-3.8L7 8l3.8-1.2L12 3Z"/><path d="m18 14 .8 2.2L21 17l-2.2.8L18 20l-.8-2.2L15 17l2.2-.8L18 14ZM5 13l.7 1.8 1.8.7-1.8.7L5 18l-.7-1.8-1.8-.7 1.8-.7L5 13Z"/></Icon> }
 function UserIcon() { return <Icon><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></Icon> }
 function MenuIcon() { return <Icon><path d="M4 7h16M4 12h16M4 17h16"/></Icon> }
+function AdminIcon() { return <Icon><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 20V9"/></Icon> }
+function LogoutIcon() { return <Icon><path d="M10 17l5-5-5-5M15 12H3"/><path d="M14 3h5a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-5"/></Icon> }
+function ChevronIcon() { return <Icon><path d="m9 15 3-3-3-3"/></Icon> }
 function CollapseIcon({ collapsed }: Readonly<{ collapsed: boolean }>) { return <Icon><path d="M9 4H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h4M14 8l-4 4 4 4M10 12h11" className={collapsed ? 'origin-center rotate-180' : ''}/></Icon> }

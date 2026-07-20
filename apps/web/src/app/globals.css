@@ -49,6 +49,7 @@ body {
 .dark .workspace-sidebar { border-color: #302943; background: rgb(17 14 26 / .95); }
 .workspace-sidebar.is-collapsed { width: 5.25rem; }
 .sidebar-brand-row { display: flex; min-height: 3rem; align-items: center; justify-content: space-between; gap: .5rem; }
+.workspace-sidebar.is-collapsed .sidebar-brand-row { min-height: 6rem; flex-direction: column; justify-content: flex-start; gap: .85rem; }
 .workspace-brand { display: inline-flex; min-width: 0; align-items: center; gap: .75rem; border-radius: .75rem; }
 .workspace-brand:focus-visible, .sidebar-nav-item:focus-visible, .sidebar-login:focus-visible, .shell-icon-button:focus-visible { outline: 3px solid #8b76f0; outline-offset: 3px; }
 .workspace-logo { display: grid; width: 2.4rem; height: 2.4rem; flex: 0 0 auto; place-items: center; border-radius: .75rem; background: #7057e8; box-shadow: 0 8px 20px rgb(112 87 232 / .25); transform: rotate(45deg); }
@@ -66,7 +67,7 @@ body {
 .sidebar-nav-item:hover { background: #efecf5; color: #332750; transform: translateX(2px); }
 .sidebar-nav-item.is-active { background: #e9e4fb; color: #4d38b8; }
 .sidebar-nav-item.is-active::before { position: absolute; left: -.35rem; width: .2rem; height: 1.65rem; border-radius: 1rem; background: #7057e8; content: ''; }
-.sidebar-nav-icon { display: grid; width: 2.25rem; height: 2.25rem; flex: 0 0 auto; place-items: center; border-radius: .7rem; background: rgb(255 255 255 / .7); box-shadow: inset 0 0 0 1px rgb(112 87 232 / .08); }
+.sidebar-nav-icon { display: grid; width: 2.25rem; height: 2.25rem; flex: 0 0 auto; place-items: center; border-radius: .7rem; background: rgb(255 255 255 / .7); box-shadow: inset 0 0 0 1px rgb(112 87 232 / .08); transition: background .16s, color .16s, box-shadow .16s, transform .16s; }
 .sidebar-nav-item strong, .sidebar-nav-item small { display: block; white-space: nowrap; }
 .sidebar-nav-item strong { color: #342c42; font-size: .84rem; font-weight: 700; }
 .sidebar-nav-item small { margin-top: .15rem; color: #8e8698; font-size: .65rem; }
@@ -78,16 +79,27 @@ body {
 .dark .sidebar-nav-item small { color: #91889f; }
 .dark .sidebar-nav-item.is-active strong { color: #c5b9ff; }
 .workspace-sidebar.is-collapsed .sidebar-nav-item { justify-content: center; padding: .55rem; }
+.workspace-sidebar.is-collapsed .sidebar-nav-item:hover { background: transparent; transform: none; }
+.workspace-sidebar.is-collapsed .sidebar-nav-item:hover .sidebar-nav-icon { background: #e2dcfa; color: #4d38b8; box-shadow: 0 7px 16px rgb(77 56 184 / .15); transform: translateY(-2px); }
+.dark .workspace-sidebar.is-collapsed .sidebar-nav-item:hover .sidebar-nav-icon { background: #35294f; color: #c5b9ff; }
 .workspace-sidebar.is-collapsed .sidebar-navigation { padding-top: 3.2rem; }
-.sidebar-footer { display: grid; gap: .75rem; border-top: 1px solid #e4e0ea; padding-top: 1rem; }
+.sidebar-footer { position: relative; display: grid; gap: .75rem; border-top: 1px solid #e4e0ea; padding-top: 1rem; }
 .dark .sidebar-footer { border-color: #302943; }
-.sidebar-user, .sidebar-login { display: flex; min-width: 0; align-items: center; gap: .75rem; border-radius: .85rem; padding: .45rem; }
+.sidebar-user, .sidebar-login { display: flex; width: 100%; min-width: 0; align-items: center; gap: .75rem; border-radius: .85rem; padding: .45rem; text-align: left; }
+.sidebar-user { transition: background .16s; }.sidebar-user:hover { background: #efecf5; }.dark .sidebar-user:hover { background: #201a2d; }
+.sidebar-user > svg { width: 1rem; height: 1rem; flex: 0 0 auto; color: #938a9e; }
 .sidebar-login { color: #4d38b8; font-size: .78rem; font-weight: 700; }
 .sidebar-avatar { display: grid; width: 2.45rem; height: 2.45rem; flex: 0 0 auto; overflow: hidden; place-items: center; border-radius: .8rem; background: #e9e4fb; color: #4d38b8; font-size: .7rem; font-weight: 800; }
 .sidebar-avatar img { width: 100%; height: 100%; object-fit: cover; }
-.sidebar-logout { margin-top: .1rem; color: #8e8698; font-size: .66rem; }
-.sidebar-logout:hover { color: #7057e8; }
+.sidebar-user-hint { display: block; margin-top: .1rem; color: #8e8698; font-size: .66rem; }
 .workspace-sidebar.is-collapsed .sidebar-footer { justify-items: center; }
+.user-popover { position: absolute; bottom: calc(100% + .75rem); left: 0; display: grid; width: 100%; min-width: 13.5rem; gap: .2rem; border: 1px solid #ded9e8; border-radius: 1rem; background: rgb(255 255 255 / .97); padding: .45rem; box-shadow: 0 18px 45px rgb(32 24 50 / .16); }
+.workspace-sidebar.is-collapsed .user-popover { left: -.35rem; }
+.dark .user-popover { border-color: #3b324c; background: rgb(29 24 40 / .98); }
+.user-menu-item { display: flex; width: 100%; min-height: 2.65rem; align-items: center; gap: .75rem; border: 0; border-radius: .7rem; background: transparent; padding: .55rem .7rem; color: #4e4659; font-size: .78rem; font-weight: 650; text-align: left; box-shadow: none; transition: background .15s, color .15s; }
+.user-menu-item:hover { background: #f0edf6; color: #4d38b8; transform: none; }.dark .user-menu-item { color: #d8d1e3; }.dark .user-menu-item:hover { background: #352d45; color: #fff; }
+.user-menu-item svg { width: 1rem; height: 1rem; flex: 0 0 auto; }.user-menu-item.is-danger { color: #b54b3c; }.user-menu-item.is-danger:hover { background: #fbeae6; color: #a63c2e; }.dark .user-menu-item.is-danger:hover { background: #442a2c; color: #ff9d8e; }
+.user-menu-divider { height: 1px; margin: .25rem .45rem; background: #e8e4ed; }.dark .user-menu-divider { background: #3b324c; }
 .workspace-content { min-height: 100vh; margin-left: 17rem; transition: margin-left .22s ease; }
 .workspace-content.sidebar-collapsed { margin-left: 5.25rem; }
 .mobile-workspace-bar { display: none; }
@@ -123,6 +135,7 @@ body {
   .workspace-sidebar, .workspace-sidebar.is-collapsed { width: min(18rem, 86vw); transform: translateX(-105%); }
   .workspace-sidebar.is-open { transform: translateX(0); }
   .workspace-sidebar.is-collapsed .sidebar-nav-item { justify-content: flex-start; padding: .55rem .7rem; }
+  .workspace-sidebar.is-collapsed .sidebar-brand-row { min-height: 3rem; flex-direction: row; justify-content: space-between; }
   .workspace-sidebar.is-collapsed .sidebar-footer { justify-items: stretch; }
   .sidebar-scrim { position: fixed; inset: 0; z-index: 55; display: block; background: rgb(20 15 30 / .4); backdrop-filter: blur(2px); }
   .workspace-content, .workspace-content.sidebar-collapsed { margin-left: 0; }
