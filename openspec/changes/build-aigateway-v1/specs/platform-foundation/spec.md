@@ -44,12 +44,12 @@ The API SHALL expose liveness and readiness states for the application, PostgreS
 - **AND** public paid model calls fail closed rather than bypassing rate limits
 
 ### Requirement: User capabilities share a responsive workspace shell
-The user-facing Web application SHALL present Chat, Image, and Skills in a shared workspace shell. On desktop, the shell SHALL provide a left sidebar with the AI Gateway brand at the top, capability navigation in the middle, user identity at the bottom, and a control that collapses the sidebar. On narrow screens, the same navigation SHALL be available as a dismissible drawer without causing horizontal page overflow. The administrator console MAY retain its independent navigation shell.
+The user-facing Web application SHALL present Chat, Image, Skills, and API integration guidance in a shared workspace shell. On desktop, the shell SHALL provide a left sidebar with the AI Gateway brand at the top, capability navigation in the middle, user identity at the bottom, and a control that collapses the sidebar. On narrow screens, the same navigation SHALL be available as a dismissible drawer without causing horizontal page overflow. The administrator console MAY retain its independent navigation shell.
 
 #### Scenario: User navigates capabilities on desktop
 - **GIVEN** the user opens a user-facing capability page on a desktop viewport
 - **WHEN** the workspace shell is rendered
-- **THEN** Chat, Image, and Skills navigation is visible in the left sidebar
+- **THEN** Chat, Image, Skills, and API navigation is visible in the left sidebar
 - **AND** the user can collapse and expand the sidebar
 - **AND** authenticated user identity is shown at the bottom of the sidebar
 
@@ -58,3 +58,10 @@ The user-facing Web application SHALL present Chat, Image, and Skills in a share
 - **WHEN** the user opens the Skills page
 - **THEN** the page displays installed-skill preview cards and clearly labels them as display-only
 - **AND** it does not issue a Skills API request
+
+#### Scenario: Developer reviews gateway integration options
+- **GIVEN** the developer opens the API integration guidance page
+- **WHEN** the page is rendered
+- **THEN** it provides copyable SDK and cURL examples that match the current gateway contract
+- **AND** it lists the available Chat, Image, Prompt, and Models endpoints
+- **AND** it explains the user Session requirement without exposing a real credential
