@@ -8,7 +8,7 @@ const WEB_FETCH_TOOL = {
   parameters: { type: 'object', properties: { url: { type: 'string' } }, required: ['url'] },
 }
 
-function agentRequest(messages: ChatAdapterMessage[], delayMs = 0): ChatAdapterRequest {
+function agentRequest(messages: ChatAdapterMessage[]): ChatAdapterRequest {
   return {
     requestId: '00000000-0000-4000-8000-0000000000a1',
     modelAlias: 'qwen',
