@@ -89,19 +89,34 @@ function UserWorkspace({ children }: Readonly<{ children: ReactNode }>) {
 
       <aside className={`workspace-sidebar ${collapsed ? 'is-collapsed' : ''} ${mobileOpen ? 'is-open' : ''}`}>
         <div className="sidebar-brand-row">
-          <Brand compact={collapsed} />
-          <button
-            type="button"
-            className="shell-icon-button sidebar-close"
-            aria-label={collapsed ? '展开边栏' : '关闭边栏'}
-            title={collapsed ? '展开边栏' : '关闭边栏'}
-            onClick={() => {
-              if (window.matchMedia('(max-width: 767px)').matches) setMobileOpen(false)
-              else setCollapsed((value) => !value)
-            }}
-          >
-            <CollapseIcon collapsed={collapsed} />
-          </button>
+          {collapsed ? (
+            <button
+              type="button"
+              className="compact-sidebar-toggle"
+              aria-label="展开边栏"
+              title="展开边栏"
+              onClick={() => setCollapsed(false)}
+            >
+              <span className="workspace-logo compact-toggle-logo"><span>AI</span></span>
+              <span className="compact-toggle-icon"><CollapseIcon collapsed /></span>
+            </button>
+          ) : (
+            <>
+              <Brand />
+              <button
+                type="button"
+                className="shell-icon-button sidebar-close"
+                aria-label="关闭边栏"
+                title="关闭边栏"
+                onClick={() => {
+                  if (window.matchMedia('(max-width: 767px)').matches) setMobileOpen(false)
+                  else setCollapsed(true)
+                }}
+              >
+                <CollapseIcon collapsed={false} />
+              </button>
+            </>
+          )}
         </div>
 
         <nav className="sidebar-navigation" aria-label="功能菜单">

@@ -49,9 +49,9 @@ body {
 .dark .workspace-sidebar { border-color: #302943; background: rgb(17 14 26 / .95); }
 .workspace-sidebar.is-collapsed { width: 5.25rem; }
 .sidebar-brand-row { display: flex; min-height: 3rem; align-items: center; justify-content: space-between; gap: .5rem; }
-.workspace-sidebar.is-collapsed .sidebar-brand-row { min-height: 6rem; flex-direction: column; justify-content: flex-start; gap: .85rem; }
+.workspace-sidebar.is-collapsed .sidebar-brand-row { justify-content: center; }
 .workspace-brand { display: inline-flex; min-width: 0; align-items: center; gap: .75rem; border-radius: .75rem; }
-.workspace-brand:focus-visible, .sidebar-nav-item:focus-visible, .sidebar-login:focus-visible, .shell-icon-button:focus-visible { outline: 3px solid #8b76f0; outline-offset: 3px; }
+.workspace-brand:focus-visible, .sidebar-nav-item:focus-visible, .sidebar-login:focus-visible, .shell-icon-button:focus-visible, .compact-sidebar-toggle:focus-visible { outline: 3px solid #8b76f0; outline-offset: 3px; }
 .workspace-logo { display: grid; width: 2.4rem; height: 2.4rem; flex: 0 0 auto; place-items: center; border-radius: .75rem; background: #7057e8; box-shadow: 0 8px 20px rgb(112 87 232 / .25); transform: rotate(45deg); }
 .workspace-logo span { color: white; font-family: ui-monospace, monospace; font-size: .64rem; font-weight: 900; transform: rotate(-45deg); }
 .workspace-brand-name { overflow: hidden; color: #211b32; font-size: 1rem; font-weight: 750; letter-spacing: -.025em; white-space: nowrap; }
@@ -61,6 +61,15 @@ body {
 .shell-icon-button svg, .sidebar-nav-icon svg, .sidebar-avatar svg { width: 1.15rem; height: 1.15rem; }
 .dark .shell-icon-button { border-color: #302943; color: #aaa0bd; }
 .dark .shell-icon-button:hover { background: #282137; color: #fff; }
+.compact-sidebar-toggle { position: relative; display: grid; width: 2.75rem; height: 2.75rem; place-items: center; border-radius: .85rem; }
+.compact-toggle-logo, .compact-toggle-icon { position: absolute; transition: opacity .16s ease, transform .16s ease; }
+.compact-toggle-logo { transform: rotate(45deg) scale(.9); }
+.compact-toggle-logo span { transform: rotate(-45deg); }
+.compact-toggle-icon { display: grid; width: 2.4rem; height: 2.4rem; place-items: center; border: 1px solid #ded9e8; border-radius: .75rem; background: #ebe7f3; color: #4d38b8; opacity: 0; transform: scale(.82); }
+.compact-toggle-icon svg { width: 1.15rem; height: 1.15rem; }
+.compact-sidebar-toggle:hover .compact-toggle-logo, .compact-sidebar-toggle:focus-visible .compact-toggle-logo { opacity: 0; transform: rotate(45deg) scale(.72); }
+.compact-sidebar-toggle:hover .compact-toggle-icon, .compact-sidebar-toggle:focus-visible .compact-toggle-icon { opacity: 1; transform: scale(1); }
+.dark .compact-toggle-icon { border-color: #3b324c; background: #35294f; color: #c5b9ff; }
 .sidebar-navigation { display: flex; flex: 1; flex-direction: column; gap: .4rem; padding-top: 3.2rem; }
 .sidebar-section-label { margin: 0 0 .55rem .75rem; color: #938a9e; font-family: ui-monospace, monospace; font-size: .61rem; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; }
 .sidebar-nav-item { position: relative; display: flex; min-height: 3.65rem; align-items: center; gap: .8rem; border-radius: .9rem; padding: .55rem .7rem; color: #70677f; transition: background .16s, color .16s, transform .16s; }
@@ -135,7 +144,7 @@ body {
   .workspace-sidebar, .workspace-sidebar.is-collapsed { width: min(18rem, 86vw); transform: translateX(-105%); }
   .workspace-sidebar.is-open { transform: translateX(0); }
   .workspace-sidebar.is-collapsed .sidebar-nav-item { justify-content: flex-start; padding: .55rem .7rem; }
-  .workspace-sidebar.is-collapsed .sidebar-brand-row { min-height: 3rem; flex-direction: row; justify-content: space-between; }
+  .workspace-sidebar.is-collapsed .sidebar-brand-row { justify-content: center; }
   .workspace-sidebar.is-collapsed .sidebar-footer { justify-items: stretch; }
   .sidebar-scrim { position: fixed; inset: 0; z-index: 55; display: block; background: rgb(20 15 30 / .4); backdrop-filter: blur(2px); }
   .workspace-content, .workspace-content.sidebar-collapsed { margin-left: 0; }
