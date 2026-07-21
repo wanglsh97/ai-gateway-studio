@@ -10,13 +10,16 @@
 - 仅监听 `127.0.0.1:10100`，不向局域网或公网开放。
 - 使用 `openai` 的 `openai-responses` forward 模式，复用现有 `codex login` 凭据。
 - 使用 `direct` 账号模式，始终沿用当前 Codex 调用方/主登录，不启用账号池切换。
+- 使用 Kimi OAuth 接入 `https://api.kimi.com/coding/v1`，默认 Kimi 模型为
+  `kimi/kimi-k2.7-code`。
 - 不在配置文件保存 API Key。
 - 关闭 Web Search 和 Vision sidecar，避免代理额外发起模型调用。
 - 保持 HTTP/SSE，不启用 WebSocket。
 - 不启用历史记录重映射；loopback 注入仍保持原生 `openai` provider 标识。
 - 使用按需启动 shim：启动 `codex` 时执行 `ocx ensure`，不安装常驻 launchd 服务。
 
-实际的用户级配置位于 `~/.opencodex/config.json`：
+实际的用户级配置位于 `~/.opencodex/config.json`。以下是等价的核心配置；OpenCodex CLI
+还会维护 Kimi 模型列表、上下文窗口、输入模态和 reasoning 映射等 registry 元数据：
 
 ```json
 {
@@ -29,6 +32,12 @@
       "baseUrl": "https://chatgpt.com/backend-api/codex",
       "authMode": "forward",
       "codexAccountMode": "direct"
+    },
+    "kimi": {
+      "adapter": "openai-chat",
+      "baseUrl": "https://api.kimi.com/coding/v1",
+      "authMode": "oauth",
+      "defaultModel": "kimi-k2.7-code"
     }
   },
   "codexAutoStart": true,
@@ -52,6 +61,14 @@ ocx codex-shim install
 ocx start
 ```
 
+Kimi 使用设备授权 OAuth。登录成功后，token 保存在用户级的 `~/.opencodex/auth.json`，
+不得提交到仓库：
+
+```bash
+ocx login kimi
+ocx sync
+```
+
 OpenCodex 启动后会以可逆方式更新 `~/.codex/config.toml` 和模型目录。loopback 模式下，
 核心注入是将 Codex 的 `openai_base_url` 指向 `http://127.0.0.1:10100/v1`。
 
@@ -63,13 +80,28 @@ ocx status
 ocx health --json
 ocx codex-shim status
 curl --fail --silent http://127.0.0.1:10100/healthz
+ocx provider show kimi
+ocx models --json
 ```
 
 需要验证真实路由时，可执行一个最小请求；该请求会使用当前 Codex 账号额度：
 
 ```bash
 codex exec -m gpt-5.6-sol "只回复 OK"
+codex exec -m kimi/kimi-k2.7-code "只回复 OK"
 ```
+
+当前 Kimi registry 发布以下模型：
+
+| Codex 模型 ID | 上下文窗口 | 说明 |
+| --- | ---: | --- |
+| `kimi/kimi-k2.7-code` | 262,144 | 默认编程模型 |
+| `kimi/kimi-k2.7-code-highspeed` | 262,144 | 高速编程模型 |
+| `kimi/k3` | 262,144 | 文本/图像输入，支持 `low`、`high`、`max` reasoning |
+| `kimi/k3[1m]` | 1,048,576 | 百万上下文，文本/图像输入 |
+| `kimi/kimi-k2.6` | 262,144 | 兼容模型 |
+| `kimi/kimi-k2.5` | 262,144 | 兼容模型 |
+| `kimi/kimi-for-coding` | 262,144 | 兼容编程模型 |
 
 ## 日常操作与恢复
 
@@ -77,6 +109,7 @@ codex exec -m gpt-5.6-sol "只回复 OK"
 ocx gui                 # 打开本机管理界面
 ocx models              # 查看代理发布的模型
 ocx sync                # 重新同步模型及 Codex 配置
+ocx logout kimi         # 删除 Kimi OAuth 登录
 ocx stop                # 停止代理并恢复原生 Codex
 ocx restore             # 代理继续运行，但恢复原生 Codex 配置
 ocx restore back        # 重新把 Codex 指向运行中的代理
