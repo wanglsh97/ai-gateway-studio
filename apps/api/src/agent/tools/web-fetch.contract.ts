@@ -74,7 +74,7 @@ export function createWebFetchErrorResult(input: {
     isError: true,
     audit: sanitizeWebFetchAudit({
       ...input.audit,
-      errorCode: input.code,
+      errorCode: input.audit?.errorCode ?? input.code,
     }) as Record<string, unknown>,
   }
 }

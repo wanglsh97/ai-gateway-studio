@@ -17,6 +17,13 @@ import { AgentThreadRepository } from './agent-thread.repository'
 import { AGENT_TOOLS, AgentToolRegistry } from './tools/agent-tool.registry'
 import type { AgentToolDefinition } from './tools/agent-tool'
 import { webFetchFixtureTool } from './tools/web-fetch-fixture.tool'
+import { webFetchTool } from './tools/web-fetch.tool'
+
+function resolveAgentTools(): readonly AgentToolDefinition[] {
+  // CI/确定性 E2E 可显式启用 fixture；默认使用生产级联网 web_fetch。
+  if (process.env.AGENT_WEB_FETCH_FIXTURE === 'true') return [webFetchFixtureTool]
+  return [webFetchTool]
+}
 
 /**
  * AgentModule：通用 Web Agent 的模块化单体边界。
@@ -39,7 +46,7 @@ import { webFetchFixtureTool } from './tools/web-fetch-fixture.tool'
     AgentStartupCleanupService,
     {
       provide: AGENT_TOOLS,
-      useFactory: (): readonly AgentToolDefinition[] => [webFetchFixtureTool],
+      useFactory: (): readonly AgentToolDefinition[] => resolveAgentTools(),
     },
     AgentToolRegistry,
   ],
