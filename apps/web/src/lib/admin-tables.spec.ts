@@ -1,12 +1,7 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 
-import {
-  deleteAdminTableRow,
-  loadAdminTableRows,
-  loadAdminTables,
-  updateAdminTableRow,
-} from './admin-tables'
+import { loadAdminTableRows, loadAdminTables, loadAdminTableSchema } from './admin-tables'
 
 describe('admin table client', () => {
   it('loads capabilities and encoded paginated rows with same-origin credentials', async () => {
@@ -24,31 +19,26 @@ describe('admin table client', () => {
     assert.ok(calls.every(({ init }) => init?.credentials === 'same-origin'))
   })
 
-  it('uses explicit PATCH and DELETE requests for allowlisted rows', async () => {
-    const calls: Array<{ url: string; init?: RequestInit }> = []
-    const fetchImplementation: typeof fetch = async (input, init) => {
-      calls.push({ url: String(input), ...(init === undefined ? {} : { init }) })
-      return Response.json({ id: 'row/id', deleted: true })
-    }
+  it('loads schema for read-only table browser', async () => {
+    const fetchImplementation: typeof fetch = async () =>
+      Response.json({ tables: [], relations: [] })
 
-    await updateAdminTableRow('billing-records', 'row/id', { inputTokens: 2 }, fetchImplementation)
-    await deleteAdminTableRow('billing-records', 'row/id', fetchImplementation)
+    const schema = await loadAdminTableSchema(fetchImplementation)
 
-    assert.equal(calls[0]?.init?.method, 'PATCH')
-    assert.equal(calls[0]?.init?.body, JSON.stringify({ inputTokens: 2 }))
-    assert.equal(calls[1]?.init?.method, 'DELETE')
-    assert.ok(calls.every(({ url }) => url.endsWith('/row%2Fid')))
+    assert.deepEqual(schema, { tables: [], relations: [] })
   })
 
-  it('exposes audit logs as a query-only capability', async () => {
+  it('exposes tables as query-only capabilities', async () => {
     const fetchImplementation: typeof fetch = async () =>
       Response.json([
         {
           name: 'admin-audit-logs',
+          physicalName: 'AdminAuditLog',
           label: '管理员操作审计',
           primaryKey: 'id',
           operations: ['query'],
           fields: [],
+          relations: [],
         },
       ])
 

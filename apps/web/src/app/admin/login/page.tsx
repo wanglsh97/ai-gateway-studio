@@ -1,20 +1,23 @@
 'use client'
 
-import type { FormEvent } from 'react'
-import { useState } from 'react'
+import { LockOutlined, UserOutlined } from '@ant-design/icons'
+import { Alert, Button, Card, Form, Input, Typography } from 'antd'
 import { useRouter } from 'next/navigation'
+import { useState } from 'react'
 
 import { loginAdmin } from '../../../lib/admin-auth-client'
 
+interface LoginFormValues {
+  username: string
+  password: string
+}
+
 export default function AdminLoginPage() {
   const router = useRouter()
-  const [username, setUsername] = useState('root')
-  const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
+  async function submit({ username, password }: LoginFormValues) {
     if (submitting) return
     setSubmitting(true)
     setError('')
@@ -30,58 +33,59 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <main className="grid min-h-[calc(100vh-5rem)] place-items-center px-5 py-12">
-      <section className="w-full max-w-md rounded-3xl border border-slate-200/80 bg-white/85 p-7 shadow-2xl shadow-slate-900/10 backdrop-blur sm:p-9 dark:border-white/10 dark:bg-slate-950/80">
-        <p className="text-xs font-bold tracking-[0.2em] text-cyan-700 dark:text-cyan-300">
+    <main className="aigateway-admin-login">
+      <Card className="aigateway-admin-login-card" variant="borderless">
+        <Typography.Text type="secondary" style={{ letterSpacing: '0.16em', fontSize: 12 }}>
           ADMIN CONSOLE
-        </p>
-        <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 dark:text-white">
+        </Typography.Text>
+        <Typography.Title level={3} style={{ marginTop: 8, marginBottom: 24 }}>
           管理员登录
-        </h1>
-        <p className="mt-3 text-sm leading-6 text-slate-500 dark:text-slate-400">
-          V1 固定账号仅用于开发联调，禁止直接用于不受控公网。
-        </p>
+        </Typography.Title>
 
-        <form className="mt-8 space-y-5" onSubmit={submit}>
-          <label className="block text-sm font-medium text-slate-700 dark:text-slate-200">
-            用户名
-            <input
-              name="username"
-              autoComplete="username"
-              value={username}
-              onChange={(event) => setUsername(event.target.value)}
-              className="mt-2 min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/15 dark:border-white/10 dark:bg-slate-900"
-            />
-          </label>
-          <label className="block text-sm font-medium text-slate-700 dark:text-slate-200">
-            密码
-            <input
-              name="password"
-              type="password"
-              autoComplete="current-password"
-              required
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              className="mt-2 min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3.5 outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/15 dark:border-white/10 dark:bg-slate-900"
-            />
-          </label>
-          {error && (
-            <p
-              role="alert"
-              className="rounded-xl bg-rose-50 px-3.5 py-3 text-sm text-rose-700 dark:bg-rose-950/40 dark:text-rose-200"
-            >
-              {error}
-            </p>
-          )}
-          <button
-            type="submit"
-            disabled={submitting}
-            className="min-h-11 w-full rounded-xl bg-slate-950 px-4 font-semibold text-white transition hover:bg-cyan-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-slate-950"
+        <Form
+          layout="vertical"
+          requiredMark={false}
+          initialValues={{ username: 'root' }}
+          onFinish={submit}
+        >
+          <Form.Item
+            label="用户名"
+            name="username"
+            rules={[{ required: true, message: '请输入用户名' }]}
           >
-            {submitting ? '正在登录…' : '登录'}
-          </button>
-        </form>
-      </section>
+            <Input
+              autoComplete="username"
+              prefix={<UserOutlined />}
+              placeholder="用户名"
+              size="large"
+            />
+          </Form.Item>
+          <Form.Item
+            label="密码"
+            name="password"
+            rules={[{ required: true, message: '请输入密码' }]}
+          >
+            <Input.Password
+              autoComplete="current-password"
+              prefix={<LockOutlined />}
+              placeholder="密码"
+              size="large"
+            />
+          </Form.Item>
+
+          {error ? (
+            <Form.Item>
+              <Alert type="error" showIcon message={error} />
+            </Form.Item>
+          ) : null}
+
+          <Form.Item style={{ marginBottom: 0 }}>
+            <Button block type="primary" htmlType="submit" size="large" loading={submitting}>
+              登录
+            </Button>
+          </Form.Item>
+        </Form>
+      </Card>
     </main>
   )
 }

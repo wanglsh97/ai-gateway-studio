@@ -4,6 +4,7 @@ import { PrismaService } from '../../database/prisma.service'
 import { RequestCapability, RequestStatus } from '../../generated/prisma/client'
 import type { Prisma } from '../../generated/prisma/client'
 import type { RequestLogQueryDto } from './dto/request-log-query.dto'
+import { serializeAdminRows, serializeAdminValue } from '../admin-serialize'
 
 const CAPABILITY = {
   chat: RequestCapability.CHAT,
@@ -23,8 +24,12 @@ export class AdminRequestLogsService {
   constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
   async list(query: RequestLogQueryDto) {
-    const page = query.page ?? 1
-    const pageSize = query.pageSize ?? 20
+    return this.listRows(query)
+  }
+
+  private async listRows(query: RequestLogQueryDto) {
+    const page = Number(query.page ?? 1)
+    const pageSize = Number(query.pageSize ?? 20)
     const from = query.from === undefined ? undefined : new Date(query.from)
     const to = query.to === undefined ? undefined : new Date(query.to)
     if (from && to && from > to) throw new BadRequestException('开始时间不能晚于结束时间')
@@ -60,7 +65,7 @@ export class AdminRequestLogsService {
             },
           }),
     }
-    const [total, items] = await this.prisma.$transaction([
+    const [total, items] = await Promise.all([
       this.prisma.requestLog.count({ where }),
       this.prisma.requestLog.findMany({
         where,
@@ -99,7 +104,7 @@ export class AdminRequestLogsService {
         },
       }),
     ])
-    return { items, page, pageSize, total, pageCount: Math.ceil(total / pageSize) }
+    return { items: serializeAdminRows(items), page, pageSize, total, pageCount: Math.ceil(total / pageSize) }
   }
 
   async detail(requestId: string) {
@@ -153,6 +158,6 @@ export class AdminRequestLogsService {
       },
     })
     if (!detail) throw new NotFoundException('请求日志不存在')
-    return detail
+    return serializeAdminValue(detail)
   }
 }

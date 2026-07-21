@@ -1,21 +1,32 @@
 'use client'
 
+import {
+  Alert,
+  Card,
+  Col,
+  Empty,
+  Row,
+  Skeleton,
+  Statistic,
+  Table,
+  Typography,
+} from 'antd'
+import type { ColumnsType } from 'antd/es/table'
 import type { EChartsOption } from 'echarts'
-import { useRouter } from 'next/navigation'
-import type { ReactNode } from 'react'
 import { useEffect, useState } from 'react'
 
 import { DashboardChart } from '../../../components/admin/dashboard-chart'
+import { redirectToAdminLogin } from '../../../lib/admin-auth-client'
 import { loadDashboard } from '../../../lib/admin-dashboard-data'
 import type {
   DashboardData,
+  DashboardErrors,
   DashboardLatencies,
   DashboardSection,
   DashboardTrends,
 } from '../../../lib/admin-dashboard-data'
 
 export default function AdminHomePage() {
-  const router = useRouter()
   const [data, setData] = useState<DashboardData | null>(null)
 
   useEffect(() => {
@@ -25,7 +36,7 @@ export default function AdminHomePage() {
       if (
         Object.values(loaded).some((section) => section.status === 'error' && section.unauthorized)
       ) {
-        router.replace('/admin/login')
+        redirectToAdminLogin()
         return
       }
       setData(loaded)
@@ -33,147 +44,170 @@ export default function AdminHomePage() {
     return () => {
       active = false
     }
-  }, [router])
+  }, [])
 
-  if (!data) return <DashboardLoading />
+  if (!data) {
+    return (
+      <div>
+        <Skeleton active paragraph={{ rows: 1 }} />
+        <Row gutter={[16, 16]} style={{ marginTop: 24 }}>
+          {Array.from({ length: 4 }, (_, index) => (
+            <Col key={index} xs={24} sm={12} xl={6}>
+              <Card>
+                <Skeleton active paragraph={false} />
+              </Card>
+            </Col>
+          ))}
+        </Row>
+      </div>
+    )
+  }
 
   const overview = data.overview.status === 'success' ? data.overview.data : null
+
   return (
-    <main className="space-y-6">
-      <header>
-        <p className="text-xs font-bold tracking-[0.2em] text-cyan-700 dark:text-cyan-300">
-          DASHBOARD
-        </p>
-        <h1 className="mt-3 text-3xl font-semibold tracking-tight">运行概览</h1>
-      </header>
+    <div>
+      <Typography.Title level={4} style={{ marginTop: 0 }}>
+        运行概览
+      </Typography.Title>
+      {overview?.generatedAt ? (
+        <Typography.Text type="secondary">
+          数据更新时间：{new Date(overview.generatedAt).toLocaleString('zh-CN')}
+        </Typography.Text>
+      ) : null}
 
       {data.overview.status === 'error' ? (
         <SectionError section={data.overview} />
       ) : (
-        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <Metric label="今日请求" value={String(overview?.requestCount ?? 0)} />
-          <Metric
-            label="成功率"
-            value={
-              overview?.successRate === null
-                ? '暂无数据'
-                : `${((overview?.successRate ?? 0) * 100).toFixed(1)}%`
-            }
-          />
-          <Metric label="预估费用" value={`¥${overview?.estimatedCostCny ?? '0.00000000'}`} />
-          <Metric
-            label="健康模型"
-            value={`${overview?.health.filter(({ status }) => status === 'healthy').length ?? 0}/${overview?.health.length ?? 0}`}
-          />
-        </section>
+        <Row gutter={[16, 16]} style={{ marginTop: 24 }}>
+          <Col xs={24} sm={12} xl={6}>
+            <Card>
+              <Statistic title="今日请求" value={overview?.requestCount ?? 0} />
+            </Card>
+          </Col>
+          <Col xs={24} sm={12} xl={6}>
+            <Card>
+              {overview?.successRate === null ? (
+                <Statistic title="成功率" value="暂无数据" />
+              ) : (
+                <Statistic
+                  title="成功率"
+                  value={(overview?.successRate ?? 0) * 100}
+                  precision={1}
+                  suffix="%"
+                />
+              )}
+            </Card>
+          </Col>
+          <Col xs={24} sm={12} xl={6}>
+            <Card>
+              <Statistic
+                title="预估费用"
+                prefix="¥"
+                value={overview?.estimatedCostCny ?? '0'}
+                precision={8}
+              />
+            </Card>
+          </Col>
+          <Col xs={24} sm={12} xl={6}>
+            <Card>
+              <Statistic
+                title="健康模型"
+                value={`${overview?.health.filter(({ status }) => status === 'healthy').length ?? 0}/${overview?.health.length ?? 0}`}
+              />
+            </Card>
+          </Col>
+        </Row>
       )}
 
-      <section className="grid gap-6 xl:grid-cols-2">
-        <Panel title="24 小时请求趋势">
-          {data.trends.status === 'error' ? (
-            <SectionError section={data.trends} />
-          ) : data.trends.data.buckets.every(({ requests }) => requests === 0) ? (
-            <Empty />
-          ) : (
-            <DashboardChart
-              label="24 小时请求趋势图"
-              option={trendOption(data.trends.data.buckets)}
-            />
-          )}
-        </Panel>
-        <Panel title="模型延迟">
-          {data.latencies.status === 'error' ? (
-            <SectionError section={data.latencies} />
-          ) : data.latencies.data.length === 0 ? (
-            <Empty />
-          ) : (
-            <DashboardChart label="模型平均延迟图" option={latencyOption(data.latencies.data)} />
-          )}
-        </Panel>
-      </section>
+      <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+        <Col xs={24} xl={12}>
+          <Card title="24 小时请求趋势">
+            {data.trends.status === 'error' ? (
+              <SectionError section={data.trends} />
+            ) : data.trends.data.buckets.every(({ requests }) => requests === 0) ? (
+              <Empty description="暂无数据" />
+            ) : (
+              <DashboardChart
+                label="24 小时请求趋势图"
+                option={trendOption(data.trends.data.buckets)}
+              />
+            )}
+          </Card>
+        </Col>
+        <Col xs={24} xl={12}>
+          <Card title="模型延迟">
+            {data.latencies.status === 'error' ? (
+              <SectionError section={data.latencies} />
+            ) : data.latencies.data.length === 0 ? (
+              <Empty description="暂无数据" />
+            ) : (
+              <DashboardChart
+                label="模型平均延迟图"
+                option={latencyOption(data.latencies.data)}
+              />
+            )}
+          </Card>
+        </Col>
+      </Row>
 
-      <Panel title="最近错误">
+      <Card title="最近错误" style={{ marginTop: 16 }}>
         {data.errors.status === 'error' ? (
           <SectionError section={data.errors} />
         ) : data.errors.data.length === 0 ? (
-          <Empty />
+          <Empty description="暂无错误记录" />
         ) : (
-          <div className="divide-y divide-slate-200 dark:divide-white/10">
-            {data.errors.data.map((error) => (
-              <article
-                key={error.requestId}
-                className="grid gap-1 py-3 text-sm sm:grid-cols-[10rem_1fr_auto]"
-              >
-                <span className="font-mono text-xs text-slate-500">{error.requestId}</span>
-                <span>
-                  {error.errorCode ?? 'UNKNOWN'} · {error.errorMessage ?? '未知错误'}
-                </span>
-                <span className="text-xs text-slate-400">{error.modelAlias}</span>
-              </article>
-            ))}
-          </div>
+          <Table
+            rowKey="requestId"
+            size="small"
+            pagination={false}
+            columns={errorColumns}
+            dataSource={data.errors.data}
+          />
         )}
-      </Panel>
-    </main>
+      </Card>
+    </div>
   )
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <article className="rounded-2xl border border-slate-200/80 bg-white/80 p-5 dark:border-white/10 dark:bg-white/5">
-      <p className="text-sm text-slate-500">{label}</p>
-      <p className="mt-2 text-2xl font-semibold">{value}</p>
-    </article>
-  )
-}
-
-function Panel({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <section className="rounded-2xl border border-slate-200/80 bg-white/80 p-5 dark:border-white/10 dark:bg-white/5">
-      <h2 className="font-semibold">{title}</h2>
-      <div className="mt-4">{children}</div>
-    </section>
-  )
-}
+const errorColumns: ColumnsType<DashboardErrors[number]> = [
+  {
+    title: 'Request ID',
+    dataIndex: 'requestId',
+    width: 280,
+    render: (value: string) => <Typography.Text code copyable={{ text: value }}>{value}</Typography.Text>,
+  },
+  {
+    title: '错误',
+    key: 'error',
+    render: (_, row) => `${row.errorCode ?? 'UNKNOWN'} · ${row.errorMessage ?? '未知错误'}`,
+  },
+  {
+    title: '模型',
+    dataIndex: 'modelAlias',
+    width: 120,
+  },
+  {
+    title: '能力',
+    dataIndex: 'capability',
+    width: 100,
+  },
+]
 
 function SectionError({
   section,
 }: {
   section: Extract<DashboardSection<unknown>, { status: 'error' }>
 }) {
-  return (
-    <p
-      role="alert"
-      className="rounded-xl bg-rose-50 p-4 text-sm text-rose-700 dark:bg-rose-950/40 dark:text-rose-200"
-    >
-      {section.message}
-    </p>
-  )
-}
-
-function Empty() {
-  return <p className="grid h-48 place-items-center text-sm text-slate-400">暂无数据</p>
-}
-function DashboardLoading() {
-  return (
-    <main aria-busy="true" className="space-y-4">
-      <div className="h-10 w-48 animate-pulse rounded-lg bg-slate-200 dark:bg-white/10" />
-      <div className="grid gap-4 sm:grid-cols-4">
-        {Array.from({ length: 4 }, (_, index) => (
-          <div
-            key={index}
-            className="h-28 animate-pulse rounded-2xl bg-slate-200 dark:bg-white/10"
-          />
-        ))}
-      </div>
-    </main>
-  )
+  return <Alert type="error" showIcon message={section.message} style={{ marginTop: 16 }} />
 }
 
 function trendOption(buckets: DashboardTrends['buckets']): EChartsOption {
   return {
+    color: ['#1677ff', '#52c41a', '#ff4d4f'],
     tooltip: { trigger: 'axis' },
     legend: { data: ['请求', '成功', '失败'] },
+    grid: { left: 48, right: 16, top: 48, bottom: 32 },
     xAxis: {
       type: 'category',
       data: buckets.map(({ start }) =>
@@ -191,8 +225,10 @@ function trendOption(buckets: DashboardTrends['buckets']): EChartsOption {
 
 function latencyOption(rows: DashboardLatencies): EChartsOption {
   return {
+    color: ['#1677ff', '#13c2c2'],
     tooltip: { trigger: 'axis' },
     legend: { data: ['总耗时', 'TTFB'] },
+    grid: { left: 48, right: 16, top: 48, bottom: 32 },
     xAxis: { type: 'category', data: rows.map(({ model }) => model) },
     yAxis: { type: 'value', name: 'ms' },
     series: [

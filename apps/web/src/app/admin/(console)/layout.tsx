@@ -1,17 +1,63 @@
 'use client'
 
-import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import {
+  DashboardOutlined,
+  DatabaseOutlined,
+  FileSearchOutlined,
+  LogoutOutlined,
+  UserOutlined,
+} from '@ant-design/icons'
+import { Avatar, Dropdown, Layout, Menu, Result, Spin, Typography } from 'antd'
+import type { MenuProps } from 'antd'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import type { ReactNode } from 'react'
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useMemo, useState } from 'react'
 
-import { AdminApiError, getAdminSession, logoutAdmin } from '../../../lib/admin-auth-client'
+import {
+  AdminApiError,
+  getAdminSession,
+  logoutAdmin,
+  redirectToAdminLogin,
+} from '../../../lib/admin-auth-client'
 import type { AdminSession } from '../../../lib/admin-auth-client'
+import { loadAdminTableSchema } from '../../../lib/admin-tables'
+import type { AdminTableCapability } from '../../../lib/admin-tables'
 
-export default function AdminConsoleLayout({ children }: Readonly<{ children: ReactNode }>) {
+const { Header, Sider, Content } = Layout
+
+const PAGE_TITLES: Record<string, string> = {
+  dashboard: '运行概览',
+  logs: '请求日志',
+  database: '数据库',
+}
+
+function tableMenuKey(name: string) {
+  return `table:${name}`
+}
+
+function AdminBrand({ collapsed }: Readonly<{ collapsed: boolean }>) {
+  return (
+    <div className={`aigateway-admin-brand${collapsed ? ' aigateway-admin-brand--collapsed' : ''}`}>
+      <div className="aigateway-admin-brand-mark">AG</div>
+      {!collapsed ? (
+        <div className="aigateway-admin-brand-text">
+          <div className="aigateway-admin-brand-title">AI Gateway</div>
+          <div className="aigateway-admin-brand-subtitle">管理控制台</div>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function AdminConsoleLayoutInner({ children }: Readonly<{ children: ReactNode }>) {
   const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const [session, setSession] = useState<AdminSession | null>(null)
   const [error, setError] = useState('')
+  const [collapsed, setCollapsed] = useState(false)
+  const [tables, setTables] = useState<AdminTableCapability[]>([])
+  const [openKeys, setOpenKeys] = useState<string[]>(['database'])
 
   useEffect(() => {
     let active = true
@@ -22,7 +68,7 @@ export default function AdminConsoleLayout({ children }: Readonly<{ children: Re
       .catch((caught: unknown) => {
         if (!active) return
         if (caught instanceof AdminApiError && caught.status === 401) {
-          router.replace('/admin/login')
+          redirectToAdminLogin()
           return
         }
         setError(caught instanceof Error ? caught.message : '会话恢复失败')
@@ -30,7 +76,81 @@ export default function AdminConsoleLayout({ children }: Readonly<{ children: Re
     return () => {
       active = false
     }
-  }, [router])
+  }, [])
+
+  useEffect(() => {
+    if (!session) return
+    let active = true
+    void loadAdminTableSchema()
+      .then((schema) => {
+        if (active) setTables(schema.tables)
+      })
+      .catch(() => {
+        // 侧栏表名加载失败时不阻塞控制台其余页面。
+      })
+    return () => {
+      active = false
+    }
+  }, [session])
+
+  useEffect(() => {
+    if (pathname.startsWith('/admin/database')) {
+      setOpenKeys((keys) => (keys.includes('database') ? keys : [...keys, 'database']))
+    }
+  }, [pathname])
+
+  const selectedKey = useMemo(() => {
+    if (pathname.startsWith('/admin/logs')) return 'logs'
+    if (pathname.startsWith('/admin/database')) {
+      const table = searchParams.get('table')
+      return table ? tableMenuKey(table) : 'database'
+    }
+    return 'dashboard'
+  }, [pathname, searchParams])
+
+  const headerTitle = useMemo(() => {
+    if (pathname.startsWith('/admin/database')) {
+      const table = searchParams.get('table')
+      const found = tables.find(({ name }) => name === table)
+      return found?.physicalName ?? PAGE_TITLES.database
+    }
+    if (pathname.startsWith('/admin/logs')) return PAGE_TITLES.logs
+    return PAGE_TITLES.dashboard
+  }, [pathname, searchParams, tables])
+
+  const menuItems: MenuProps['items'] = useMemo(
+    () => [
+      { key: 'dashboard', icon: <DashboardOutlined />, label: 'Dashboard' },
+      { key: 'logs', icon: <FileSearchOutlined />, label: '请求日志' },
+      {
+        key: 'database',
+        icon: <DatabaseOutlined />,
+        label: '数据库',
+        children:
+          tables.length > 0
+            ? tables.map((table) => ({
+                key: tableMenuKey(table.name),
+                label: table.physicalName,
+              }))
+            : [{ key: 'database-loading', label: '加载表…', disabled: true }],
+      },
+    ],
+    [tables],
+  )
+
+  function navigateMenu({ key }: { key: string }) {
+    if (key === 'dashboard') {
+      router.push('/admin')
+      return
+    }
+    if (key === 'logs') {
+      router.push('/admin/logs')
+      return
+    }
+    if (key.startsWith('table:')) {
+      router.push(`/admin/database?table=${encodeURIComponent(key.slice('table:'.length))}`)
+    }
+  }
 
   async function logout() {
     try {
@@ -42,55 +162,83 @@ export default function AdminConsoleLayout({ children }: Readonly<{ children: Re
   }
 
   if (error) {
-    return <main className="mx-auto max-w-3xl px-5 py-16 text-center text-rose-700">{error}</main>
+    return (
+      <div className="aigateway-admin-console-layout">
+        <Result status="error" title="会话恢复失败" subTitle={error} />
+      </div>
+    )
   }
+
   if (!session) {
     return (
-      <main className="mx-auto max-w-3xl px-5 py-16 text-center text-slate-500">
-        正在恢复管理员会话…
-      </main>
+      <div className="aigateway-admin-console-layout" style={{ padding: 64, textAlign: 'center' }}>
+        <Spin size="large" description="正在恢复管理员会话…" />
+      </div>
     )
   }
 
   return (
-    <div className="mx-auto flex max-w-7xl gap-6 px-5 py-8 sm:px-8 lg:px-10">
-      <aside className="w-52 shrink-0 rounded-2xl border border-slate-200/80 bg-white/80 p-4 dark:border-white/10 dark:bg-white/5">
-        <p className="px-2 text-xs font-bold tracking-widest text-slate-400">ADMIN</p>
-        <nav className="mt-4 space-y-1" aria-label="管理后台导航">
-          <Link
-            className="block rounded-lg px-3 py-2 text-sm font-medium hover:bg-slate-100 dark:hover:bg-white/10"
-            href="/admin"
+    <Layout className="aigateway-admin-console-layout">
+      <Sider
+        className="aigateway-admin-sider"
+        collapsible
+        collapsed={collapsed}
+        onCollapse={setCollapsed}
+        width={232}
+        collapsedWidth={72}
+      >
+        <AdminBrand collapsed={collapsed} />
+        <Menu
+          className="aigateway-admin-menu"
+          mode="inline"
+          selectedKeys={[selectedKey]}
+          openKeys={openKeys}
+          onOpenChange={setOpenKeys}
+          items={menuItems}
+          onClick={navigateMenu}
+        />
+      </Sider>
+      <Layout>
+        <Header className="aigateway-admin-header">
+          <Typography.Title level={4} className="aigateway-admin-header-title">
+            {headerTitle}
+          </Typography.Title>
+          <Dropdown
+            menu={{
+              items: [
+                {
+                  key: 'logout',
+                  icon: <LogoutOutlined />,
+                  label: '退出登录',
+                  onClick: logout,
+                },
+              ],
+            }}
+            trigger={['click']}
+            placement="bottomRight"
           >
-            Dashboard
-          </Link>
-          <Link
-            className="block rounded-lg px-3 py-2 text-sm font-medium hover:bg-slate-100 dark:hover:bg-white/10"
-            href="/admin/logs"
-          >
-            请求日志
-          </Link>
-          <Link
-            className="block rounded-lg px-3 py-2 text-sm font-medium hover:bg-slate-100 dark:hover:bg-white/10"
-            href="/admin/database"
-          >
-            数据库
-          </Link>
-          <Link
-            className="block rounded-lg px-3 py-2 text-sm font-medium hover:bg-slate-100 dark:hover:bg-white/10"
-            href="/admin/database?table=admin-audit-logs"
-          >
-            操作审计
-          </Link>
-        </nav>
-        <button
-          type="button"
-          onClick={logout}
-          className="mt-8 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm dark:border-white/10"
-        >
-          退出登录
-        </button>
-      </aside>
-      <div className="min-w-0 flex-1">{children}</div>
-    </div>
+            <div className="aigateway-admin-header-user">
+              <Avatar size={32} icon={<UserOutlined />} style={{ backgroundColor: '#1677ff' }} />
+              <Typography.Text>{session.username}</Typography.Text>
+            </div>
+          </Dropdown>
+        </Header>
+        <Content className="aigateway-admin-console-content">{children}</Content>
+      </Layout>
+    </Layout>
+  )
+}
+
+export default function AdminConsoleLayout({ children }: Readonly<{ children: ReactNode }>) {
+  return (
+    <Suspense
+      fallback={
+        <div className="aigateway-admin-console-layout" style={{ padding: 64, textAlign: 'center' }}>
+          <Spin size="large" description="正在加载…" />
+        </div>
+      }
+    >
+      <AdminConsoleLayoutInner>{children}</AdminConsoleLayoutInner>
+    </Suspense>
   )
 }

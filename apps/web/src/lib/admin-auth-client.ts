@@ -37,6 +37,10 @@ export function logoutAdmin(fetchImplementation: typeof fetch = fetch): Promise<
   return adminRequest('/api/v1/admin/auth/logout', { method: 'POST' }, fetchImplementation)
 }
 
+export function redirectToAdminLogin(): void {
+  window.location.replace('/admin/login')
+}
+
 async function adminRequest<T>(
   url: string,
   init: RequestInit,

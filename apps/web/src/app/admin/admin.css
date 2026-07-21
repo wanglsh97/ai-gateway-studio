@@ -1,0 +1,184 @@
+/* Admin 区域固定浅色，隔离用户端 dark 模式对 Ant Design 的影响。 */
+.aigateway-admin-root {
+  min-height: 100vh;
+  color-scheme: light;
+  background: #f5f5f5;
+  color: rgba(0, 0, 0, 0.88);
+}
+
+.aigateway-admin-root,
+.aigateway-admin-root * {
+  color-scheme: light;
+}
+
+.aigateway-admin-login {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  background:
+    linear-gradient(135deg, rgba(22, 119, 255, 0.08), rgba(22, 119, 255, 0)),
+    #f5f5f5;
+}
+
+.aigateway-admin-login-card {
+  width: 100%;
+  max-width: 400px;
+}
+
+.aigateway-admin-console-layout {
+  min-height: 100vh;
+  background: #f5f5f5;
+}
+
+.aigateway-admin-sider {
+  background: #fff !important;
+  border-right: 1px solid rgba(5, 5, 5, 0.06);
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.02);
+}
+
+.aigateway-admin-sider .ant-layout-sider-children {
+  display: flex;
+  flex-direction: column;
+}
+
+.aigateway-admin-sider .ant-layout-sider-trigger {
+  border-top: 1px solid rgba(5, 5, 5, 0.06);
+}
+
+.aigateway-admin-brand {
+  flex-shrink: 0;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+  border-bottom: 1px solid rgba(5, 5, 5, 0.06);
+}
+
+.aigateway-admin-brand--collapsed {
+  justify-content: center;
+  padding: 0;
+}
+
+.aigateway-admin-brand-mark {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #1677ff 0%, #0958d9 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(22, 119, 255, 0.28);
+}
+
+.aigateway-admin-brand-text {
+  min-width: 0;
+}
+
+.aigateway-admin-brand-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.88);
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.aigateway-admin-brand-subtitle {
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.45);
+  line-height: 1.25;
+  margin-top: 2px;
+}
+
+.aigateway-admin-menu {
+  flex: 1;
+  padding: 12px 8px !important;
+  border-inline-end: none !important;
+  background: transparent !important;
+}
+
+.aigateway-admin-menu .ant-menu-item {
+  margin-inline: 0 !important;
+  margin-block: 4px !important;
+  width: 100%;
+}
+
+.aigateway-admin-menu .ant-menu-item-selected {
+  font-weight: 500;
+}
+
+.aigateway-admin-menu .ant-menu-submenu-title {
+  margin-inline: 0 !important;
+  margin-block: 4px !important;
+  width: 100%;
+}
+
+.aigateway-admin-menu .ant-menu-sub .ant-menu-item {
+  padding-left: 40px !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
+    'Courier New', monospace;
+  font-size: 12px;
+}
+
+.aigateway-admin-header {
+  background: #fff !important;
+  padding: 0 24px !important;
+  height: 64px;
+  line-height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(5, 5, 5, 0.06);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.aigateway-admin-header-title {
+  margin: 0 !important;
+  font-weight: 600 !important;
+}
+
+.aigateway-admin-header-user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 12px 0 4px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.aigateway-admin-header-user:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.aigateway-admin-console-content {
+  margin: 16px;
+  padding: 24px;
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid rgba(5, 5, 5, 0.06);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  min-height: calc(100vh - 32px - 64px);
+}
+
+@media (max-width: 768px) {
+  .aigateway-admin-console-content {
+    margin: 12px;
+    padding: 16px;
+    border-radius: 8px;
+  }
+
+  .aigateway-admin-header {
+    padding: 0 16px !important;
+  }
+}

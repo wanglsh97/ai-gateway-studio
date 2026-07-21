@@ -3,58 +3,39 @@ import { AdminTableAllowlist } from './admin-table-allowlist'
 describe('AdminTableAllowlist', () => {
   const allowlist = new AdminTableAllowlist()
 
-  it('exposes exactly four immutable business table capabilities', () => {
+  it('exposes all business tables as read-only', () => {
     const tables = allowlist.list()
 
-    expect(tables.map(({ name }) => name)).toEqual([
-      'request-logs',
-      'billing-records',
-      'image-generation-tasks',
-      'admin-audit-logs',
-    ])
-    expect(tables.every(Object.isFrozen)).toBe(true)
-    expect(
-      tables.every(
-        ({ fields, operations }) => Object.isFrozen(fields) && Object.isFrozen(operations),
-      ),
-    ).toBe(true)
-  })
-
-  it('keeps identity, relationship, lifecycle, and timestamp fields immutable', () => {
-    for (const table of allowlist.list()) {
-      for (const immutable of [
-        'id',
-        'requestId',
-        'requestLogId',
-        'taskId',
-        'status',
-        'createdAt',
-        'updatedAt',
-      ]) {
-        const field = table.fields.find(({ name }) => name === immutable)
-        if (field) expect(field.editable).toBe(false)
-      }
-    }
-  })
-
-  it('makes audit logs query-only with no editable fields', () => {
-    const audit = allowlist.resolve('admin-audit-logs')
-
-    expect(audit.operations).toEqual(['query'])
-    expect(audit.fields.some(({ editable }) => editable)).toBe(false)
-    expect(() => allowlist.assertOperation(audit.name, 'delete')).toThrow('不允许 delete')
-    expect(() => allowlist.assertEditablePatch(audit.name, { actor: 'attacker' })).toThrow()
-  })
-
-  it('rejects unknown tables, SQL-like names, empty patches, and non-allowlisted fields', () => {
-    expect(() => allowlist.resolve('users')).toThrow('不支持的业务表')
-    expect(() => allowlist.resolve('request-logs; DROP TABLE')).toThrow('不支持的业务表')
-    expect(() => allowlist.assertEditablePatch('request-logs', {})).toThrow('不能为空')
-    expect(() => allowlist.assertEditablePatch('request-logs', { requestId: 'changed' })).toThrow(
-      '不可编辑字段',
+    expect(tables.length).toBeGreaterThanOrEqual(11)
+    expect(tables.map(({ name }) => name)).toEqual(
+      expect.arrayContaining([
+        'users',
+        'request-logs',
+        'billing-records',
+        'image-generation-tasks',
+        'admin-audit-logs',
+        'agent-runs',
+      ]),
     )
-    expect(() =>
-      allowlist.assertEditablePatch('request-logs', { metadata: { reviewed: true } }),
-    ).not.toThrow()
+    expect(tables.every(({ operations }) => operations.length === 1 && operations[0] === 'query')).toBe(
+      true,
+    )
+    expect(tables.every(({ physicalName }) => typeof physicalName === 'string')).toBe(true)
+    expect(tables.find(({ name }) => name === 'users')?.physicalName).toBe('User')
+    expect(tables.every(({ fields }) => fields.every(({ editable }) => !editable))).toBe(true)
+  })
+
+  it('returns schema relations for UI navigation', () => {
+    const schema = allowlist.schema()
+
+    expect(schema.tables.length).toBeGreaterThanOrEqual(11)
+    expect(schema.relations.some(({ sourceTable }) => sourceTable === 'request-logs')).toBe(true)
+  })
+
+  it('rejects mutation operations and unknown tables', () => {
+    expect(() => allowlist.resolve('users; DROP TABLE')).toThrow('不支持的业务表')
+    expect(() => allowlist.assertOperation('users', 'create')).toThrow('不允许 create')
+    expect(() => allowlist.assertOperation('users', 'update')).toThrow('不允许 update')
+    expect(() => allowlist.assertOperation('users', 'delete')).toThrow('不允许 delete')
   })
 })

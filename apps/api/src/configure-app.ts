@@ -33,6 +33,7 @@ export function configureApplication(app: INestApplication): void {
   app.useGlobalPipes(
     new ValidationPipe({
       transform: true,
+      transformOptions: { enableImplicitConversion: true },
       whitelist: true,
       forbidNonWhitelisted: true,
     }),

@@ -1,27 +1,53 @@
 'use client'
 
-import type { FormEvent } from 'react'
+import {
+  Alert,
+  Avatar,
+  Button,
+  Col,
+  DatePicker,
+  Drawer,
+  Form,
+  Input,
+  Row,
+  Select,
+  Space,
+  Table,
+  Typography,
+} from 'antd'
+import type { ColumnsType } from 'antd/es/table'
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
 
-import { AdminApiError } from '../../../../lib/admin-auth-client'
+import { AdminApiError, redirectToAdminLogin } from '../../../../lib/admin-auth-client'
 import { loadRequestLogDetail, loadRequestLogs } from '../../../../lib/admin-request-logs'
 import type {
   RequestLogDetail,
   RequestLogFilters,
+  RequestLogListItem,
   RequestLogPage,
 } from '../../../../lib/admin-request-logs'
 
 const initialFilters: RequestLogFilters = { page: 1, pageSize: 20 }
 
+interface LogFilterFormValues {
+  capability?: string
+  status?: string
+  model?: string
+  requestId?: string
+  githubUsername?: string
+  githubId?: string
+  from?: { toISOString?: () => string }
+  to?: { toISOString?: () => string }
+}
+
 export default function AdminRequestLogsPage() {
-  const router = useRouter()
-  const [draft, setDraft] = useState<RequestLogFilters>(initialFilters)
+  const [form] = Form.useForm<LogFilterFormValues>()
   const [filters, setFilters] = useState<RequestLogFilters>(initialFilters)
   const [result, setResult] = useState<RequestLogPage | null>(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [detail, setDetail] = useState<RequestLogDetail | null>(null)
+  const [detailOpen, setDetailOpen] = useState(false)
   const [detailLoading, setDetailLoading] = useState(false)
   const [detailError, setDetailError] = useState('')
 
@@ -36,7 +62,7 @@ export default function AdminRequestLogsPage() {
       .catch((caught: unknown) => {
         if (!active) return
         if (caught instanceof AdminApiError && caught.status === 401) {
-          router.replace('/admin/login')
+          redirectToAdminLogin()
           return
         }
         setError(caught instanceof Error ? caught.message : '请求日志加载失败')
@@ -47,30 +73,34 @@ export default function AdminRequestLogsPage() {
     return () => {
       active = false
     }
-  }, [filters, router])
+  }, [filters])
 
-  function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    setFilters({ ...draft, page: 1 })
-  }
-
-  function update(name: keyof RequestLogFilters, value: string) {
-    setDraft((current) => ({ ...current, [name]: value }))
-  }
-
-  function goTo(page: number) {
-    setDraft((current) => ({ ...current, page }))
-    setFilters((current) => ({ ...current, page }))
+  function applyFilters(values: LogFilterFormValues) {
+    const next: RequestLogFilters = {
+      page: 1,
+      pageSize: 20,
+    }
+    if (values.capability) next.capability = values.capability
+    if (values.status) next.status = values.status
+    if (values.model) next.model = values.model
+    if (values.requestId) next.requestId = values.requestId
+    if (values.githubUsername) next.githubUsername = values.githubUsername
+    if (values.githubId) next.githubId = values.githubId
+    if (values.from?.toISOString) next.from = values.from.toISOString()
+    if (values.to?.toISOString) next.to = values.to.toISOString()
+    setFilters(next)
   }
 
   async function openDetail(requestId: string) {
+    setDetailOpen(true)
     setDetailLoading(true)
     setDetailError('')
+    setDetail(null)
     try {
       setDetail(await loadRequestLogDetail(requestId))
     } catch (caught) {
       if (caught instanceof AdminApiError && caught.status === 401) {
-        router.replace('/admin/login')
+        redirectToAdminLogin()
         return
       }
       setDetailError(caught instanceof Error ? caught.message : '详情加载失败')
@@ -79,299 +109,213 @@ export default function AdminRequestLogsPage() {
     }
   }
 
-  return (
-    <main className="space-y-6">
-      <header>
-        <p className="text-xs font-bold tracking-[0.2em] text-cyan-700 dark:text-cyan-300">
-          REQUEST LOGS
-        </p>
-        <h1 className="mt-3 text-3xl font-semibold tracking-tight">请求日志</h1>
-      </header>
+  function closeDetail() {
+    setDetailOpen(false)
+    setDetail(null)
+    setDetailError('')
+  }
 
-      <form
-        onSubmit={submit}
-        className="grid gap-3 rounded-2xl border border-slate-200/80 bg-white/80 p-4 md:grid-cols-4 dark:border-white/10 dark:bg-white/5"
-      >
-        <FilterSelect
-          label="能力"
-          value={draft.capability ?? ''}
-          onChange={(value) => update('capability', value)}
-          options={[
-            ['chat', 'Chat'],
-            ['image', '文生图'],
-            ['prompt', 'Prompt'],
-          ]}
-        />
-        <FilterSelect
-          label="状态"
-          value={draft.status ?? ''}
-          onChange={(value) => update('status', value)}
-          options={[
-            ['pending', 'Pending'],
-            ['succeeded', 'Succeeded'],
-            ['failed', 'Failed'],
-            ['cancelled', 'Cancelled'],
-          ]}
-        />
-        <FilterSelect
-          label="模型"
-          value={draft.model ?? ''}
-          onChange={(value) => update('model', value)}
-          options={['qwen', 'glm', 'deepseek', 'kimi', 'wanxiang', 'cogview'].map((model) => [
-            model,
-            model,
-          ])}
-        />
-        <label className="text-xs font-medium text-slate-500">
-          Request ID
-          <input
-            value={draft.requestId ?? ''}
-            onChange={(event) => update('requestId', event.target.value)}
-            placeholder="UUID"
-            className="mt-1.5 min-h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm dark:border-white/10 dark:bg-slate-900"
-          />
-        </label>
-        <label className="text-xs font-medium text-slate-500">
-          GitHub username
-          <input
-            value={draft.githubUsername ?? ''}
-            onChange={(event) => update('githubUsername', event.target.value)}
-            placeholder="octocat"
-            className="mt-1.5 min-h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm dark:border-white/10 dark:bg-slate-900"
-          />
-        </label>
-        <label className="text-xs font-medium text-slate-500">
-          GitHub ID
-          <input
-            inputMode="numeric"
-            value={draft.githubId ?? ''}
-            onChange={(event) => update('githubId', event.target.value)}
-            placeholder="数字 ID（精确匹配）"
-            className="mt-1.5 min-h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm dark:border-white/10 dark:bg-slate-900"
-          />
-        </label>
-        <label className="text-xs font-medium text-slate-500">
-          开始时间
-          <input
-            type="datetime-local"
-            value={toLocalDateTimeValue(draft.from)}
-            onChange={(event) =>
-              update('from', event.target.value ? new Date(event.target.value).toISOString() : '')
-            }
-            className="mt-1.5 min-h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm dark:border-white/10 dark:bg-slate-900"
-          />
-        </label>
-        <label className="text-xs font-medium text-slate-500">
-          结束时间
-          <input
-            type="datetime-local"
-            value={toLocalDateTimeValue(draft.to)}
-            onChange={(event) =>
-              update('to', event.target.value ? new Date(event.target.value).toISOString() : '')
-            }
-            className="mt-1.5 min-h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm dark:border-white/10 dark:bg-slate-900"
-          />
-        </label>
-        <div className="flex items-end gap-2 md:col-span-2">
-          <button
-            type="submit"
-            className="min-h-10 rounded-lg bg-slate-950 px-5 text-sm font-semibold text-white dark:bg-white dark:text-slate-950"
-          >
-            筛选
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setDraft(initialFilters)
-              setFilters(initialFilters)
-            }}
-            className="min-h-10 rounded-lg border border-slate-200 px-4 text-sm dark:border-white/10"
-          >
-            重置
-          </button>
-        </div>
-      </form>
-
-      <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white/80 dark:border-white/10 dark:bg-white/5">
-        {loading ? (
-          <p aria-busy="true" className="p-8 text-center text-slate-400">
-            正在加载请求日志…
-          </p>
-        ) : error ? (
-          <p role="alert" className="p-8 text-center text-rose-600">
-            {error}
-          </p>
-        ) : !result || result.items.length === 0 ? (
-          <p className="p-8 text-center text-slate-400">暂无匹配记录</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[1100px] text-left text-sm">
-              <thead className="bg-slate-100/80 text-xs text-slate-500 dark:bg-white/5">
-                <tr>
-                  {[
-                    '时间',
-                    'Request ID',
-                    '用户',
-                    '能力',
-                    '模型',
-                    '状态',
-                    '耗时',
-                    'Token',
-                    '费用',
-                  ].map((label) => (
-                    <th key={label} className="px-4 py-3 font-medium">
-                      {label}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200 dark:divide-white/10">
-                {result.items.map((item) => (
-                  <tr key={item.requestId}>
-                    <td className="whitespace-nowrap px-4 py-3">
-                      {new Date(item.createdAt).toLocaleString('zh-CN')}
-                    </td>
-                    <td className="px-4 py-3">
-                      <button
-                        type="button"
-                        onClick={() => openDetail(item.requestId)}
-                        className="font-mono text-xs text-cyan-700 underline-offset-2 hover:underline dark:text-cyan-300"
-                      >
-                        {item.requestId}
-                      </button>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex min-w-40 items-center gap-2.5">
-                        <span className="grid size-8 shrink-0 place-items-center rounded-full bg-cyan-100 text-[10px] font-bold text-cyan-800 dark:bg-cyan-950 dark:text-cyan-200">
-                          {item.user.githubUsername.slice(0, 2).toUpperCase()}
-                        </span>
-                        <span className="min-w-0">
-                          <span className="block truncate font-medium">
-                            @{item.user.githubUsername}
-                          </span>
-                          <span className="block font-mono text-[10px] text-slate-400">
-                            GitHub {item.user.githubId}
-                          </span>
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">{item.capability}</td>
-                    <td className="px-4 py-3">{item.modelAlias}</td>
-                    <td className="px-4 py-3">{item.status}</td>
-                    <td className="px-4 py-3">
-                      {item.durationMs === null ? '—' : `${item.durationMs} ms`}
-                    </td>
-                    <td className="px-4 py-3">{item.billing?.totalTokens ?? '—'}</td>
-                    <td className="px-4 py-3">
-                      {item.billing?.estimatedCostCny ? `¥${item.billing.estimatedCostCny}` : '—'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+  const columns: ColumnsType<RequestLogListItem> = [
+    {
+      title: '时间',
+      dataIndex: 'createdAt',
+      width: 170,
+      render: (value: string) => new Date(value).toLocaleString('zh-CN'),
+    },
+    {
+      title: 'Request ID',
+      dataIndex: 'requestId',
+      width: 280,
+      render: (value: string) => (
+        <Space size={4}>
+          <Typography.Link code onClick={() => openDetail(value)}>
+            {value.slice(0, 8)}…
+          </Typography.Link>
+          <Typography.Text copyable={{ text: value }} />
+        </Space>
+      ),
+    },
+    {
+      title: '用户',
+      key: 'user',
+      width: 180,
+      render: (_, row) => (
+        <Space>
+          <Avatar size="small">{row.user.githubUsername.slice(0, 2).toUpperCase()}</Avatar>
+          <div>
+            <div>@{row.user.githubUsername}</div>
+            <Typography.Text type="secondary" style={{ fontSize: 11 }}>
+              {row.user.githubId}
+            </Typography.Text>
           </div>
-        )}
-        {result && result.total > 0 && (
-          <footer className="flex items-center justify-between border-t border-slate-200 px-4 py-3 text-sm dark:border-white/10">
-            <span>共 {result.total} 条</span>
-            <div className="flex items-center gap-2">
-              <button
-                disabled={result.page <= 1 || loading}
-                onClick={() => goTo(result.page - 1)}
-                className="rounded-lg border border-slate-200 px-3 py-1.5 disabled:opacity-40 dark:border-white/10"
-              >
-                上一页
-              </button>
-              <span>
-                {result.page}/{Math.max(1, result.pageCount)}
-              </span>
-              <button
-                disabled={result.page >= result.pageCount || loading}
-                onClick={() => goTo(result.page + 1)}
-                className="rounded-lg border border-slate-200 px-3 py-1.5 disabled:opacity-40 dark:border-white/10"
-              >
-                下一页
-              </button>
-            </div>
-          </footer>
-        )}
-      </section>
-      {(detailLoading || detailError || detail) && (
-        <div
-          className="fixed inset-0 z-[70] flex justify-end bg-slate-950/40"
-          role="presentation"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) {
-              setDetail(null)
-              setDetailError('')
-            }
-          }}
-        >
-          <aside
-            role="dialog"
-            aria-modal="true"
-            aria-label="请求日志详情"
-            className="h-full w-full max-w-2xl overflow-y-auto bg-white p-6 shadow-2xl dark:bg-slate-950 sm:p-8"
-          >
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold">请求详情</h2>
-              <button
-                type="button"
-                onClick={() => {
-                  setDetail(null)
-                  setDetailError('')
-                }}
-                className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm dark:border-white/10"
-              >
-                关闭
-              </button>
-            </div>
-            {detailLoading ? (
-              <p aria-busy="true" className="py-16 text-center text-slate-400">
-                正在加载详情…
-              </p>
-            ) : detailError ? (
-              <p
-                role="alert"
-                className="mt-6 rounded-xl bg-rose-50 p-4 text-rose-700 dark:bg-rose-950/40 dark:text-rose-200"
-              >
-                {detailError}
-              </p>
-            ) : (
-              detail && <DetailContent detail={detail} />
-            )}
-          </aside>
-        </div>
-      )}
-    </main>
+        </Space>
+      ),
+    },
+    { title: '能力', dataIndex: 'capability', width: 90 },
+    { title: '模型', dataIndex: 'modelAlias', width: 100 },
+    { title: '状态', dataIndex: 'status', width: 100 },
+    {
+      title: '耗时',
+      dataIndex: 'durationMs',
+      width: 90,
+      render: (value: number | null) => (value === null ? '—' : `${value} ms`),
+    },
+    {
+      title: 'Token',
+      key: 'tokens',
+      width: 80,
+      render: (_, row) => row.billing?.totalTokens ?? '—',
+    },
+    {
+      title: '费用',
+      key: 'cost',
+      width: 120,
+      render: (_, row) =>
+        row.billing?.estimatedCostCny ? `¥${row.billing.estimatedCostCny}` : '—',
+    },
+  ]
+
+  return (
+    <div>
+      <Typography.Title level={4} style={{ marginTop: 0 }}>
+        请求日志
+      </Typography.Title>
+
+      <Form
+        form={form}
+        layout="vertical"
+        initialValues={initialFilters}
+        onFinish={applyFilters}
+        style={{ marginBottom: 16 }}
+      >
+        <Row gutter={16}>
+          <Col xs={24} sm={12} md={6}>
+            <Form.Item label="能力" name="capability">
+              <Select allowClear placeholder="全部" options={CAPABILITY_OPTIONS} />
+            </Form.Item>
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Form.Item label="状态" name="status">
+              <Select allowClear placeholder="全部" options={STATUS_OPTIONS} />
+            </Form.Item>
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Form.Item label="模型" name="model">
+              <Select allowClear placeholder="全部" options={MODEL_OPTIONS} />
+            </Form.Item>
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Form.Item label="Request ID" name="requestId">
+              <Input placeholder="UUID" allowClear />
+            </Form.Item>
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Form.Item label="GitHub username" name="githubUsername">
+              <Input placeholder="octocat" allowClear />
+            </Form.Item>
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Form.Item label="GitHub ID" name="githubId">
+              <Input placeholder="数字 ID" allowClear />
+            </Form.Item>
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Form.Item label="开始时间" name="from">
+              <DatePicker showTime style={{ width: '100%' }} />
+            </Form.Item>
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Form.Item label="结束时间" name="to">
+              <DatePicker showTime style={{ width: '100%' }} />
+            </Form.Item>
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <Form.Item label=" ">
+              <Space>
+                <Button type="primary" htmlType="submit">
+                  筛选
+                </Button>
+                <Button
+                  onClick={() => {
+                    form.resetFields()
+                    setFilters(initialFilters)
+                  }}
+                >
+                  重置
+                </Button>
+              </Space>
+            </Form.Item>
+          </Col>
+        </Row>
+      </Form>
+
+      {error ? <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} /> : null}
+
+      <Table
+        rowKey="requestId"
+        size="small"
+        loading={loading}
+        columns={columns}
+        dataSource={result?.items ?? []}
+        scroll={{ x: 1100 }}
+        locale={{ emptyText: '暂无匹配记录' }}
+        pagination={{
+          current: result?.page ?? filters.page ?? 1,
+          pageSize: result?.pageSize ?? filters.pageSize ?? 20,
+          total: result?.total ?? 0,
+          showTotal: (total) => `共 ${total} 条`,
+          onChange: (page) => setFilters((current) => ({ ...current, page })),
+        }}
+      />
+
+      <Drawer
+        title="请求详情"
+        size={720}
+        open={detailOpen}
+        onClose={closeDetail}
+        destroyOnHidden
+      >
+        {detailLoading ? (
+          <Typography.Text type="secondary">正在加载详情…</Typography.Text>
+        ) : detailError ? (
+          <Alert type="error" showIcon title={detailError} />
+        ) : detail ? (
+          <DetailContent detail={detail} />
+        ) : null}
+      </Drawer>
+    </div>
   )
 }
 
 function DetailContent({ detail }: { detail: RequestLogDetail }) {
+  const fields: Array<[string, unknown]> = [
+    ['Request ID', detail.requestId],
+    ['GitHub username', `@${detail.user.githubUsername}`],
+    ['GitHub ID', detail.user.githubId],
+    ['平台用户 ID', detail.user.id],
+    ['昵称', detail.user.displayName],
+    ['邮箱（仅管理员详情）', detail.user.email],
+    ['状态', detail.status],
+    ['能力', detail.capability],
+    ['模型 alias', detail.modelAlias],
+    ['Provider', detail.provider],
+    ['Resolved model', detail.resolvedModel],
+    ['Provider request ID', detail.providerRequestId],
+    ['耗时', detail.durationMs === null ? null : `${detail.durationMs} ms`],
+  ]
+
   return (
-    <div className="mt-6 space-y-6 text-sm">
-      <dl className="grid gap-4 sm:grid-cols-2">
-        {[
-          ['Request ID', detail.requestId],
-          ['GitHub username', `@${detail.user.githubUsername}`],
-          ['GitHub ID', detail.user.githubId],
-          ['平台用户 ID', detail.user.id],
-          ['昵称', detail.user.displayName],
-          ['邮箱（仅管理员详情）', detail.user.email],
-          ['状态', detail.status],
-          ['能力', detail.capability],
-          ['模型 alias', detail.modelAlias],
-          ['Provider', detail.provider],
-          ['Resolved model', detail.resolvedModel],
-          ['Provider request ID', detail.providerRequestId],
-          ['耗时', detail.durationMs === null ? null : `${detail.durationMs} ms`],
-        ].map(([label, value]) => (
-          <div key={label}>
-            <dt className="text-xs text-slate-400">{label}</dt>
-            <dd className="mt-1 break-all font-medium">{value ?? '—'}</dd>
-          </div>
+    <Space orientation="vertical" size="large" style={{ width: '100%' }}>
+      <Row gutter={[16, 8]}>
+        {fields.map(([label, value]) => (
+          <Col key={label} xs={24} sm={12}>
+            <Typography.Text type="secondary">{label}</Typography.Text>
+            <div>
+              <Typography.Text>{value === null || value === undefined ? '—' : String(value)}</Typography.Text>
+            </div>
+          </Col>
         ))}
-      </dl>
+      </Row>
       <JsonSection title="完整 Prompt / Messages" value={detail.prompt} />
       <JsonSection title="Usage / Cost" value={detail.billing} />
       <JsonSection
@@ -386,56 +330,48 @@ function DetailContent({ detail }: { detail: RequestLogDetail }) {
           details: detail.errorDetails,
         }}
       />
-      {detail.imageTask && <JsonSection title="图片任务" value={detail.imageTask} />}
+      {detail.imageTask ? <JsonSection title="图片任务" value={detail.imageTask} /> : null}
       <JsonSection title="Metadata" value={detail.metadata} />
-    </div>
+    </Space>
   )
 }
 
 function JsonSection({ title, value }: { title: string; value: unknown }) {
   return (
-    <section>
-      <h3 className="font-semibold">{title}</h3>
-      <pre className="mt-2 overflow-x-auto whitespace-pre-wrap break-words rounded-xl bg-slate-100 p-4 text-xs leading-6 dark:bg-white/5">
+    <div>
+      <Typography.Title level={5}>{title}</Typography.Title>
+      <pre
+        style={{
+          margin: 0,
+          padding: 12,
+          background: '#f5f5f5',
+          borderRadius: 6,
+          fontSize: 12,
+          overflow: 'auto',
+          whiteSpace: 'pre-wrap',
+          wordBreak: 'break-word',
+        }}
+      >
         {JSON.stringify(value, null, 2) ?? 'null'}
       </pre>
-    </section>
+    </div>
   )
 }
 
-function FilterSelect({
-  label,
-  value,
-  onChange,
-  options,
-}: {
-  label: string
-  value: string
-  onChange: (value: string) => void
-  options: string[][]
-}) {
-  return (
-    <label className="text-xs font-medium text-slate-500">
-      {label}
-      <select
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="mt-1.5 min-h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm dark:border-white/10 dark:bg-slate-900"
-      >
-        <option value="">全部</option>
-        {options.map(([optionValue, optionLabel]) => (
-          <option key={optionValue} value={optionValue}>
-            {optionLabel}
-          </option>
-        ))}
-      </select>
-    </label>
-  )
-}
+const CAPABILITY_OPTIONS = [
+  { value: 'chat', label: 'Chat' },
+  { value: 'image', label: '文生图' },
+  { value: 'prompt', label: 'Prompt' },
+]
 
-function toLocalDateTimeValue(value: string | undefined): string {
-  if (!value) return ''
-  const date = new Date(value)
-  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
-  return local.toISOString().slice(0, 16)
-}
+const STATUS_OPTIONS = [
+  { value: 'pending', label: 'Pending' },
+  { value: 'succeeded', label: 'Succeeded' },
+  { value: 'failed', label: 'Failed' },
+  { value: 'cancelled', label: 'Cancelled' },
+]
+
+const MODEL_OPTIONS = ['qwen', 'glm', 'deepseek', 'kimi', 'wanxiang', 'cogview'].map((model) => ({
+  value: model,
+  label: model,
+}))
