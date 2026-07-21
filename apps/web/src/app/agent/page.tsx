@@ -3,13 +3,10 @@
 import { createAIGatewayClient } from '@aigateway/sdk'
 import type { TextModelAlias, TextModelId } from '@aigateway/sdk'
 import {
-  ActionBarPrimitive,
   AssistantRuntimeProvider,
   AuiIf,
   ComposerPrimitive,
-  ErrorPrimitive,
   makeAssistantToolUI,
-  MessagePrimitive,
   ThreadPrimitive,
   useAui,
   useAuiState,
@@ -21,14 +18,42 @@ import {
   useAgentActiveThreadId,
   useAgentWorkspace,
 } from '../../components/agent-workspace-provider'
+import {
+  AgentActiveRunHint,
+  AgentComposerAction,
+  AgentComposerActions,
+  AgentComposerDock,
+  AgentComposerFooter,
+  AgentComposerInput,
+  AgentComposerRoot,
+  AgentComposerSubmitGroup,
+  AgentConsolePanel,
+  AgentEmptyState,
+  AgentInterruptedBanner,
+  AgentPageShell,
+  AgentPrivacyNote,
+  AgentReasoning,
+  AgentRunMetadata,
+  AgentScrollToBottom,
+  AgentSendButton,
+  AgentSendButtonDisabled,
+  AgentThreadRoot,
+  AgentThreadViewport,
+  AgentToolCall,
+  AgentToolResult,
+  AssistantMessage,
+  ModelSelect,
+  NewThreadButton,
+  UserMessage,
+} from '../../components/chat-thread-ui'
 import { ProtectedUserPage } from '../../components/protected-user-page'
 import { useAuthenticationFailure } from '../../components/use-authentication-failure'
-import { CHAT_PROVIDER_BRANDING } from '../../config/chat-provider-branding'
+import { cn } from '../../lib/cn'
 import { AssistantMarkdown } from '../chat/assistant-markdown'
 import {
   agentMessagesToThreadMessages,
   createAgentRunAdapter,
-  type AgentRunMetadata,
+  type AgentRunMetadata as AgentRunMetadataType,
 } from './agent-run-adapter'
 import { shouldStartNewThreadOnModelChange } from './agent-model-policy'
 import {
@@ -49,7 +74,7 @@ interface ModelOption {
 export default function AgentPage() {
   return (
     <ProtectedUserPage>
-      <Suspense fallback={<main className="agent-page" aria-busy="true" />}>
+      <Suspense fallback={<AgentPageShell aria-busy="true" />}>
         <AgentConsole />
       </Suspense>
     </ProtectedUserPage>
@@ -154,33 +179,90 @@ function AgentConsole() {
     <AssistantRuntimeProvider runtime={runtime}>
       <ThreadHydrator skipHydrationRef={skipHydrationRef} />
       <WebFetchToolUI />
-      <main className="agent-page">
-        <section className="agent-console agent-chat-panel" aria-label="智能体">
-          <AgentThread
-            modelDisabled={modelDisabled}
-            submitBlocked={submitBlocked}
-            activeRunHint={
-              userActiveRun && userActiveRun.threadId !== activeThreadId
-                ? '另一会话正在运行，请等待结束后再提交'
-                : null
-            }
-            modelBoundToThread={activeThreadId !== null}
-            modelOptions={modelOptions}
-            selectedModel={(selectedModel as TextModelId) || modelOptions[0]?.value || 'qwen3.7-plus'}
-            onModelChange={handleModelChange}
-            onNewThread={startNewThread}
-          />
-        </section>
-      </main>
+      <AgentPageShell>
+        <AgentConsolePanel label="智能体">
+          <AgentThreadRoot>
+            <AgentThreadViewport>
+              <ThreadPrimitive.Empty>
+                <AgentEmptyState
+                  kicker="AGENT THREAD · EMPTY"
+                  title="交给 Agent 一个可执行的任务"
+                  description="它可以自主调用工具（如 web_fetch），并在同一会话里跨多轮完成。"
+                  examples={[
+                    '总结 https://example.com/ 页面要点',
+                    '抓取指定 URL 并对比两处说法是否一致',
+                    '根据网页内容整理一份简短行动清单',
+                  ]}
+                />
+              </ThreadPrimitive.Empty>
+              <ThreadPrimitive.Messages>
+                {({ message }) =>
+                  message.role === 'user' ? (
+                    <UserMessage />
+                  ) : (
+                    <AssistantMessage
+                      label="AI GATEWAY · AGENT"
+                      metadata={<AgentMessageMetadata />}
+                      renderPart={(part) => {
+                        if (part.type === 'tool-call') return part.toolUI ?? null
+                        if (part.type === 'text') return <AssistantMarkdown>{part.text ?? ''}</AssistantMarkdown>
+                        if (part.type === 'reasoning') {
+                          return <AgentReasoning text={part.text ?? ''} />
+                        }
+                        return null
+                      }}
+                    />
+                  )
+                }
+              </ThreadPrimitive.Messages>
+            </AgentThreadViewport>
+            <AgentScrollToBottom />
+            <AgentComposerDock>
+              {userActiveRun && userActiveRun.threadId !== activeThreadId ? (
+                <AgentActiveRunHint message="另一会话正在运行，请等待结束后再提交" />
+              ) : null}
+              <AgentComposerRoot>
+                <AgentComposerInput
+                  placeholder={
+                    submitBlocked && !modelDisabled
+                      ? '已有进行中的 Agent 运行，请等待结束后再提交…'
+                      : '描述你想让 Agent 完成的任务…'
+                  }
+                  disabled={submitBlocked}
+                  maxLength={8000}
+                />
+                <AgentComposerFooter>
+                  <AgentComposerActions>
+                    <NewThreadButton onNewThread={startNewThread} />
+                  </AgentComposerActions>
+                  <AgentComposerSubmitGroup>
+                    <ModelSelect
+                      value={(selectedModel as TextModelId) || modelOptions[0]?.value || 'qwen3.7-plus'}
+                      options={modelOptions}
+                      disabled={modelDisabled}
+                      boundHint={activeThreadId !== null}
+                      onChange={handleModelChange}
+                    />
+                    <AgentStopButton />
+                    <AuiIf condition={({ thread }) => !thread.isRunning && !submitBlocked}>
+                      <AgentSendButton />
+                    </AuiIf>
+                    <AuiIf condition={({ thread }) => !thread.isRunning && submitBlocked}>
+                      <AgentSendButtonDisabled />
+                    </AuiIf>
+                  </AgentComposerSubmitGroup>
+                </AgentComposerFooter>
+              </AgentComposerRoot>
+              <AgentPrivacyNote />
+            </AgentComposerDock>
+          </AgentThreadRoot>
+        </AgentConsolePanel>
+      </AgentPageShell>
     </AssistantRuntimeProvider>
   )
 }
 
-function ThreadHydrator({
-  skipHydrationRef,
-}: {
-  skipHydrationRef: { current: boolean }
-}) {
+function ThreadHydrator({ skipHydrationRef }: { skipHydrationRef: { current: boolean } }) {
   const api = useAui()
   const activeThreadId = useAgentActiveThreadId()
   const { setSelectedModel, setUserActiveRun, refreshThreads } = useAgentWorkspace()
@@ -257,29 +339,15 @@ function ThreadHydrator({
 
     return () => {
       cancelled = true
-      // 仅断开补读 SSE；不得 cancel 服务端 run
       resumeAbort.abort()
     }
   }, [activeThreadId])
 
-  if (interruptedNotice) {
-    return (
-      <p className="agent-interrupted-banner" role="status">
-        {interruptedNotice}
-      </p>
-    )
-  }
-  if (resumeNotice) {
-    return (
-      <p className="agent-interrupted-banner" role="status">
-        {resumeNotice}
-      </p>
-    )
-  }
+  if (interruptedNotice) return <AgentInterruptedBanner message={interruptedNotice} />
+  if (resumeNotice) return <AgentInterruptedBanner message={resumeNotice} />
   return null
 }
 
-/** 显式停止：先调 cancel API，再断开本端读取。浏览器刷新/卸载不得走此路径。 */
 function AgentStopButton() {
   const { userActiveRun, setUserActiveRun, refreshThreads } = useAgentWorkspace()
   const handleAuthenticationFailure = useAuthenticationFailure()
@@ -295,7 +363,6 @@ function AgentStopButton() {
     void client.agent.runs
       .cancel(runId)
       .then((run) => {
-        // 保持全局锁直到终态；仅更新为 cancelling，避免提前解锁提交
         setUserActiveRun(run)
         void refreshThreads().catch(() => undefined)
       })
@@ -305,109 +372,23 @@ function AgentStopButton() {
       })
   }
 
+  const className = cn(
+    'grid h-9 w-auto place-items-center rounded-full bg-[#2c2540] px-3 text-[0.7rem] font-bold text-white transition-[background,transform] hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-40 dark:bg-surface-inset dark:text-ink',
+    'focus-visible:outline-3 focus-visible:outline-brand-focus focus-visible:outline-offset-3',
+  )
+
   if (isRunning) {
     return (
-      <ComposerPrimitive.Cancel
-        className="agent-send-button is-cancel"
-        disabled={stopping}
-        onClick={requestCancel}
-      >
+      <ComposerPrimitive.Cancel className={className} disabled={stopping} onClick={requestCancel}>
         {stopping ? '停止中…' : '停止'}
       </ComposerPrimitive.Cancel>
     )
   }
 
   return (
-    <button
-      type="button"
-      className="agent-send-button is-cancel"
-      disabled={stopping}
-      onClick={requestCancel}
-    >
+    <button type="button" className={className} disabled={stopping} onClick={requestCancel}>
       {stopping ? '停止中…' : '停止'}
     </button>
-  )
-}
-
-function AgentThread({
-  modelDisabled,
-  submitBlocked,
-  activeRunHint,
-  modelBoundToThread,
-  modelOptions,
-  selectedModel,
-  onModelChange,
-  onNewThread,
-}: {
-  modelDisabled: boolean
-  submitBlocked: boolean
-  activeRunHint: string | null
-  modelBoundToThread: boolean
-  modelOptions: ReadonlyArray<ModelOption>
-  selectedModel: TextModelId
-  onModelChange: (model: TextModelId) => void
-  onNewThread: () => void
-}) {
-  return (
-    <ThreadPrimitive.Root className="agent-thread">
-      <ThreadPrimitive.Viewport className="agent-thread-viewport">
-        <ThreadPrimitive.Empty>
-          <AgentEmptyState />
-        </ThreadPrimitive.Empty>
-        <ThreadPrimitive.Messages>
-          {({ message }) => (message.role === 'user' ? <UserMessage /> : <AssistantMessage />)}
-        </ThreadPrimitive.Messages>
-      </ThreadPrimitive.Viewport>
-      <ThreadPrimitive.ScrollToBottom className="agent-scroll-button" aria-label="滚动到底部">
-        ↓
-      </ThreadPrimitive.ScrollToBottom>
-      <div className="agent-composer-dock">
-        {activeRunHint ? <p className="agent-active-run-hint">{activeRunHint}</p> : null}
-        <ComposerPrimitive.Root className="agent-composer">
-          <ComposerPrimitive.Input
-            aria-label="描述 Agent 任务"
-            rows={1}
-            maxLength={8000}
-            disabled={submitBlocked}
-            placeholder={
-              submitBlocked && !modelDisabled
-                ? '已有进行中的 Agent 运行，请等待结束后再提交…'
-                : '描述你想让 Agent 完成的任务…'
-            }
-          />
-          <div className="agent-composer-footer">
-            <div className="agent-composer-actions">
-              <NewThreadButton onNewThread={onNewThread} />
-            </div>
-            <div className="agent-composer-submit-group">
-              <ModelSelect
-                value={selectedModel}
-                options={modelOptions}
-                disabled={modelDisabled}
-                boundHint={modelBoundToThread}
-                onChange={onModelChange}
-              />
-              <AgentStopButton />
-              <AuiIf condition={({ thread }) => !thread.isRunning && !submitBlocked}>
-                <ComposerPrimitive.Send className="agent-send-button" aria-label="发送任务">
-                  <svg aria-hidden="true" viewBox="0 0 20 20">
-                    <path d="M10 15V5m0 0L6 9m4-4 4 4" />
-                  </svg>
-                </ComposerPrimitive.Send>
-              </AuiIf>
-              <AuiIf condition={({ thread }) => !thread.isRunning && submitBlocked}>
-                <button type="button" className="agent-send-button" disabled aria-label="发送任务">
-                  <svg aria-hidden="true" viewBox="0 0 20 20">
-                    <path d="M10 15V5m0 0L6 9m4-4 4 4" />
-                  </svg>
-                </button>
-              </AuiIf>
-            </div>
-          </div>
-        </ComposerPrimitive.Root>
-        <p className="agent-privacy-note">内容由 AI 生成，请仔细甄别</p>
-      </div>
-    </ThreadPrimitive.Root>
   )
 }
 
@@ -418,253 +399,33 @@ const WebFetchToolUI = makeAssistantToolUI<
   toolName: 'web_fetch',
   render: ({ args, result, status, isError }) => {
     const url = typeof args.url === 'string' ? args.url : ''
-    const finalUrl =
-      typeof result?.audit?.finalUrl === 'string' ? result.audit.finalUrl : undefined
+    const finalUrl = typeof result?.audit?.finalUrl === 'string' ? result.audit.finalUrl : undefined
     const httpStatus = typeof result?.audit?.status === 'number' ? result.audit.status : undefined
-    const running = status.type === 'running'
 
-    if (running) {
-      return (
-        <div className="agent-tool-call">
-          <span className="agent-tool-name">web_fetch</span>
-          {url ? <span className="agent-tool-target">{url}</span> : null}
-          <span className="agent-tool-status is-running">调用中…</span>
-        </div>
-      )
-    }
+    if (status.type === 'running') return <AgentToolCall url={url} />
 
     return (
-      <div className={`agent-tool-result${isError ? ' is-error' : ''}`}>
-        <div className="agent-tool-result-head">
-          <span className="agent-tool-name">web_fetch</span>
-          <span className={`agent-tool-status is-${result?.status ?? 'succeeded'}`}>
-            {result?.status ?? (isError ? 'failed' : 'succeeded')}
-          </span>
-          {httpStatus ? <span className="agent-tool-http">HTTP {httpStatus}</span> : null}
-        </div>
-        {result?.summary ? <p className="agent-tool-summary">{result.summary}</p> : null}
-        {finalUrl ? (
-          <a className="agent-tool-link" href={finalUrl} target="_blank" rel="noreferrer noopener">
-            {finalUrl}
-          </a>
-        ) : null}
-      </div>
+      <AgentToolResult
+        isError={Boolean(isError)}
+        status={result?.status ?? (isError ? 'failed' : 'succeeded')}
+        httpStatus={httpStatus}
+        summary={result?.summary}
+        finalUrl={finalUrl}
+      />
     )
   },
 })
 
-function ModelSelect({
-  value,
-  options,
-  disabled,
-  boundHint,
-  onChange,
-}: {
-  value: TextModelId
-  options: ReadonlyArray<ModelOption>
-  disabled: boolean
-  boundHint: boolean
-  onChange: (value: TextModelId) => void
-}) {
-  const [open, setOpen] = useState(false)
-  const rootRef = useRef<HTMLDivElement>(null)
-  const selectedLabel = options.find((option) => option.value === value)?.label ?? value
-  const selectedProvider = options.find((option) => option.value === value)?.provider ?? 'qwen'
-
-  useEffect(() => {
-    if (!open) return
-    const closeOnOutsideClick = (event: PointerEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false)
-    }
-    document.addEventListener('pointerdown', closeOnOutsideClick)
-    return () => document.removeEventListener('pointerdown', closeOnOutsideClick)
-  }, [open])
-
+function AgentMessageMetadata() {
+  const custom = useAuiState(({ message }) => message.metadata.custom) as AgentRunMetadataType
   return (
-    <div
-      className="agent-model-picker"
-      ref={rootRef}
-      onKeyDown={(event) => {
-        if (event.key === 'Escape') setOpen(false)
-      }}
-    >
-      <button
-        type="button"
-        className="agent-model-trigger"
-        disabled={disabled}
-        aria-label={
-          boundHint
-            ? `当前会话模型：${selectedLabel}（切换将新建会话）`
-            : `运行模型：${selectedLabel}`
-        }
-        title={boundHint ? '切换模型将新建会话，当前会话保持不变' : undefined}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        onClick={() => setOpen((current) => !current)}
-      >
-        <ModelLogo alias={selectedProvider} />
-        <span className="agent-model-trigger-label">{selectedLabel}</span>
-        <svg aria-hidden="true" viewBox="0 0 16 16">
-          <path d="m5 6 3 3 3-3" />
-        </svg>
-      </button>
-      {open && (
-        <div className="agent-model-menu" role="listbox" aria-label="选择运行模型">
-          <p>{boundHint ? '切换模型将新建会话' : '运行模型'}</p>
-          {options.map((option) => {
-            const selected = option.value === value
-            return (
-              <button
-                key={option.value}
-                type="button"
-                role="option"
-                aria-selected={selected}
-                className={selected ? 'is-selected' : undefined}
-                onClick={() => {
-                  onChange(option.value)
-                  setOpen(false)
-                }}
-              >
-                <span className="agent-model-option-main">
-                  <ModelLogo alias={option.provider} />
-                  <span>{option.label}</span>
-                </span>
-                {selected && <span aria-hidden="true">✓</span>}
-              </button>
-            )
-          })}
-        </div>
-      )}
-    </div>
-  )
-}
-
-function ModelLogo({ alias }: { alias: TextModelAlias }) {
-  const branding = CHAT_PROVIDER_BRANDING[alias]
-  return (
-    <span
-      className={`agent-model-logo is-${alias}${branding.logoUrl ? ' has-logo' : ''}`}
-      style={branding.logoUrl ? { backgroundImage: `url("${branding.logoUrl}")` } : undefined}
-      aria-hidden="true"
-    >
-      {!branding.logoUrl && <span>{branding.fallbackText}</span>}
-    </span>
-  )
-}
-
-function AgentEmptyState() {
-  const api = useAui()
-  const examples = [
-    '总结 https://example.com/ 页面要点',
-    '抓取指定 URL 并对比两处说法是否一致',
-    '根据网页内容整理一份简短行动清单',
-  ]
-  return (
-    <div className="agent-empty-state">
-      <div className="agent-orbit" aria-hidden="true">
-        <span>AI</span>
-      </div>
-      <p className="agent-empty-kicker">AGENT THREAD · EMPTY</p>
-      <h2>交给 Agent 一个可执行的任务</h2>
-      <p>它可以自主调用工具（如 web_fetch），并在同一会话里跨多轮完成。</p>
-      <div className="agent-suggestions">
-        {examples.map((example) => (
-          <button key={example} type="button" onClick={() => api.composer().setText(example)}>
-            {example}
-            <span aria-hidden="true">↗</span>
-          </button>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function UserMessage() {
-  return (
-    <MessagePrimitive.Root className="agent-message is-user">
-      <div className="agent-message-label">YOU</div>
-      <div className="agent-user-bubble">
-        <MessagePrimitive.Parts />
-      </div>
-    </MessagePrimitive.Root>
-  )
-}
-
-function AssistantMessage() {
-  return (
-    <MessagePrimitive.Root className="agent-message is-assistant">
-      <div className="agent-assistant-rail" aria-hidden="true">
-        <span>AI</span>
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="agent-message-label">AI GATEWAY · AGENT</div>
-        <div className="agent-assistant-content">
-          <MessagePrimitive.Parts>
-            {({ part }) => {
-              if (part.type === 'tool-call') return part.toolUI ?? null
-              if (part.type === 'text') {
-                return <AssistantMarkdown>{part.text}</AssistantMarkdown>
-              }
-              if (part.type === 'reasoning') {
-                return (
-                  <details className="agent-reasoning">
-                    <summary>推理过程（可能不完整或不准确）</summary>
-                    <div>{part.text}</div>
-                  </details>
-                )
-              }
-              return null
-            }}
-          </MessagePrimitive.Parts>
-          <AuiIf condition={({ message }) => message.status?.type === 'running'}>
-            <span className="agent-stream-caret" aria-label="正在生成" />
-          </AuiIf>
-        </div>
-        <MessagePrimitive.Error>
-          <ErrorPrimitive.Root className="agent-message-error" role="alert">
-            请求失败：
-            <ErrorPrimitive.Message />
-          </ErrorPrimitive.Root>
-        </MessagePrimitive.Error>
-        <div className="agent-message-foot">
-          <MessageMetadata />
-          <ActionBarPrimitive.Root className="agent-message-actions">
-            <ActionBarPrimitive.Copy className="agent-copy-button">复制</ActionBarPrimitive.Copy>
-          </ActionBarPrimitive.Root>
-        </div>
-      </div>
-    </MessagePrimitive.Root>
-  )
-}
-
-function MessageMetadata() {
-  const custom = useAuiState(({ message }) => message.metadata.custom) as AgentRunMetadata
-  const status = useAuiState(({ message }) => message.status)
-  const interrupted = custom.runStatus === 'interrupted' || status?.type === 'incomplete'
-  return (
-    <p>
-      {custom.model ?? '模型'}
-      {status?.type === 'running'
-        ? ' · 生成中'
-        : custom.runStatus === 'interrupted'
-          ? ' · 已中断'
-          : custom.totalTokens != null
-            ? ` · ${custom.totalTokens} tokens`
-            : ''}
-      {custom.modelCalls != null ? ` · 模型 ${custom.modelCalls}` : ''}
-      {custom.toolCalls != null ? ` · 工具 ${custom.toolCalls}` : ''}
-      {interrupted && custom.runStatus === 'interrupted' ? ' · 未自动重放' : ''}
-    </p>
-  )
-}
-
-function NewThreadButton({ onNewThread }: { onNewThread: () => void }) {
-  const hasMessages = useAuiState(({ thread }) => thread.messages.length > 0)
-  if (!hasMessages) return null
-  return (
-    <button type="button" className="agent-composer-action" onClick={onNewThread}>
-      新会话
-    </button>
+    <AgentRunMetadata
+      model={custom.model}
+      runStatus={custom.runStatus}
+      totalTokens={custom.totalTokens}
+      modelCalls={custom.modelCalls}
+      toolCalls={custom.toolCalls}
+    />
   )
 }
 
