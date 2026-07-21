@@ -58,6 +58,7 @@ export function createAgentRunAdapter(
 ): ChatModelAdapter {
   return {
     async *run({ messages, abortSignal }) {
+      
       const context = getContext()
       const input = latestUserText(messages)
       if (!input) return
