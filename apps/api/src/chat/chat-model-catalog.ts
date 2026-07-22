@@ -27,7 +27,7 @@ export class ChatModelCatalog {
     return this.list().find((definition) => definition.id === id)
   }
 
-  /** 仅启用、可服务且通过 Agent tool-calling contract 的模型可创建 Agent thread。 */
+  /** 仅启用且可服务的模型可创建 Agent thread。 */
   resolveForAgent(id: string): ChatModelDefinition | undefined {
     const model = this.resolve(id)
     if (!model) return undefined

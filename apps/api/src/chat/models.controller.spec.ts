@@ -61,7 +61,7 @@ describe('ModelsController', () => {
         id: 'qwen-plus',
         alias: 'qwen',
         modelId: 'qwen-plus',
-        capabilities: ['chat', 'prompt'],
+        capabilities: ['chat', 'prompt', 'agent'],
         displayName: 'Qwen Plus',
         enabled: true,
         configured: true,
@@ -71,7 +71,7 @@ describe('ModelsController', () => {
         id: 'deepseek-v4',
         alias: 'deepseek',
         modelId: 'deepseek-v4',
-        capabilities: ['chat', 'prompt'],
+        capabilities: ['chat', 'prompt', 'agent'],
         displayName: 'DeepSeek V4',
         enabled: true,
         configured: true,
@@ -137,7 +137,7 @@ describe('ModelsController', () => {
     expect(providerHealth.getStatus).not.toHaveBeenCalledWith('mock')
   })
 
-  it('documents that unverified configured providers omit agent', () => {
+  it('advertises agent for configured real providers', () => {
     const model = {
       id: 'qwen3.7-plus',
       provider: 'qwen',
@@ -152,6 +152,6 @@ describe('ModelsController', () => {
         providerConfigured: true,
         mockAvailable: true,
       }),
-    ).toBe(false)
+    ).toBe(true)
   })
 })

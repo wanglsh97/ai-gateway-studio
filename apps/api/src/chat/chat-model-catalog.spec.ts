@@ -57,7 +57,7 @@ describe('ChatModelCatalog', () => {
     expect(catalog.resolve('qwen3.7-plus')?.contextWindowTokens).toBe(1_000_000)
   })
 
-  it('resolveForAgent allows Mock-backed models and rejects unverified real providers', () => {
+  it('resolveForAgent allows Mock-backed and configured real providers', () => {
     const mockCatalog = new ChatModelCatalog(new ChatAdapterRegistry([adapter('mock', 'mock-chat')]))
     expect(mockCatalog.resolveForAgent('qwen3.7-plus')).toEqual(
       expect.objectContaining({ id: 'qwen3.7-plus', provider: 'qwen' }),
@@ -66,9 +66,8 @@ describe('ChatModelCatalog', () => {
     const realCatalog = new ChatModelCatalog(
       new ChatAdapterRegistry([adapter('mock', 'mock-chat'), adapter('qwen', 'qwen3.7-plus')]),
     )
-    expect(realCatalog.resolveForAgent('qwen3.7-plus')).toBeUndefined()
-    expect(realCatalog.resolve('qwen3.7-plus')).toEqual(
-      expect.objectContaining({ id: 'qwen3.7-plus' }),
+    expect(realCatalog.resolveForAgent('qwen3.7-plus')).toEqual(
+      expect.objectContaining({ id: 'qwen3.7-plus', provider: 'qwen' }),
     )
   })
 })

@@ -1,7 +1,7 @@
 import { resolveChatModelCapabilities, canAdvertiseAgentCapability } from './chat-model-capabilities'
 
 describe('chat model capabilities', () => {
-  it('always includes chat and prompt for text models', () => {
+  it('includes chat, prompt, and agent for configured real providers', () => {
     expect(
       resolveChatModelCapabilities({
         modelId: 'qwen3.7-plus',
@@ -9,10 +9,10 @@ describe('chat model capabilities', () => {
         providerConfigured: true,
         mockAvailable: false,
       }),
-    ).toEqual(['chat', 'prompt'])
+    ).toEqual(['chat', 'prompt', 'agent'])
   })
 
-  it('advertises agent for Mock-backed catalog entries before real smoke', () => {
+  it('advertises agent for Mock-backed catalog entries', () => {
     expect(
       canAdvertiseAgentCapability({
         modelId: 'qwen3.7-plus',
@@ -31,7 +31,7 @@ describe('chat model capabilities', () => {
     ).toEqual(['chat', 'prompt', 'agent'])
   })
 
-  it('does not advertise agent for unverified real providers even when Mock is also present', () => {
+  it('advertises agent for configured real providers even when Mock is also present', () => {
     expect(
       canAdvertiseAgentCapability({
         modelId: 'qwen3.7-plus',
@@ -39,7 +39,7 @@ describe('chat model capabilities', () => {
         providerConfigured: true,
         mockAvailable: true,
       }),
-    ).toBe(false)
+    ).toBe(true)
   })
 
   it('does not advertise agent when neither provider nor Mock can serve', () => {
