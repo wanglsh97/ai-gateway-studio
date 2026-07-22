@@ -10,6 +10,7 @@ import type {
   ChatAdapter,
   ChatAdapterEvent,
   ChatAdapterRequest,
+  ChatAdapterToolCall,
   ChatAdapterUsage,
 } from './chat-adapter'
 import { ChatAdapterError } from './chat-adapter'
@@ -47,6 +48,8 @@ export class QwenChatAdapter implements ChatAdapter {
     let finishReason: ChatFinishReason | undefined
     let usage: ChatAdapterUsage | undefined
     let providerRequestId: string | undefined
+    const pendingToolCalls = new Map<number, PendingQwenToolCall>()
+    let toolCallsEmitted = false
 
     try {
       for await (const event of this.transport.stream({
@@ -60,6 +63,9 @@ export class QwenChatAdapter implements ChatAdapter {
         if (event.type === 'done') {
           if (finishReason === undefined) {
             throw this.protocolError('Qwen stream ended without a finish reason')
+          }
+          if (finishReason === 'tool_calls' && !toolCallsEmitted) {
+            throw this.protocolError('Qwen finished with tool_calls but emitted no valid tool call')
           }
           yield {
             type: 'usage',
@@ -75,6 +81,9 @@ export class QwenChatAdapter implements ChatAdapter {
         }
 
         const chunk = this.parseChunk(event.data)
+        for (const delta of chunk.toolCallDeltas ?? []) {
+          mergeToolCallDelta(pendingToolCalls, delta, this.protocolError.bind(this))
+        }
         if (chunk.content !== undefined) {
           yield {
             type: 'delta',
@@ -89,6 +98,21 @@ export class QwenChatAdapter implements ChatAdapter {
         if (chunk.finishReason !== undefined) {
           if (finishReason !== undefined) {
             throw this.protocolError('Qwen emitted a finish reason more than once')
+          }
+          if (chunk.finishReason === 'tool_calls') {
+            const toolCalls = finalizeToolCalls(pendingToolCalls, this.protocolError.bind(this))
+            for (const toolCall of toolCalls) {
+              yield {
+                type: 'tool-call',
+                toolCall,
+                ...(providerRequestId === undefined ? {} : { providerRequestId }),
+              }
+            }
+            toolCallsEmitted = true
+          } else if (pendingToolCalls.size > 0) {
+            throw this.protocolError(
+              `Qwen emitted tool-call fragments but finished with ${chunk.finishReason}`,
+            )
           }
           finishReason = chunk.finishReason
         }
@@ -108,12 +132,26 @@ export class QwenChatAdapter implements ChatAdapter {
       ...(request.temperature === undefined ? {} : { temperature: request.temperature }),
       ...(request.topP === undefined ? {} : { top_p: request.topP }),
       ...(request.maxTokens === undefined ? {} : { max_tokens: request.maxTokens }),
+      ...(request.tools?.length
+        ? {
+            tools: request.tools.map((tool) => ({
+              type: 'function',
+              function: {
+                name: tool.name,
+                description: tool.description,
+                parameters: tool.parameters,
+              },
+            })),
+            tool_choice: request.toolChoice ?? 'auto',
+          }
+        : {}),
     }
   }
 
   private parseChunk(data: unknown): {
     content?: string
     finishReason?: ChatFinishReason
+    toolCallDeltas?: QwenToolCallDelta[]
     usage?: ChatAdapterUsage
   } {
     const chunk = record(data, 'Qwen chunk')
@@ -122,6 +160,7 @@ export class QwenChatAdapter implements ChatAdapter {
     const parsed: {
       content?: string
       finishReason?: ChatFinishReason
+      toolCallDeltas?: QwenToolCallDelta[]
       usage?: ChatAdapterUsage
     } = {}
 
@@ -142,6 +181,9 @@ export class QwenChatAdapter implements ChatAdapter {
             }
             if (delta.content.length > 0) parsed.content = delta.content
           }
+          if (delta.tool_calls !== undefined && delta.tool_calls !== null) {
+            parsed.toolCallDeltas = this.parseToolCallDeltas(delta.tool_calls)
+          }
         }
         if (parsedChoice.finish_reason !== undefined && parsedChoice.finish_reason !== null) {
           if (typeof parsedChoice.finish_reason !== 'string') {
@@ -156,6 +198,33 @@ export class QwenChatAdapter implements ChatAdapter {
       throw this.protocolError('Qwen chunk contains neither choices nor usage')
     }
     return parsed
+  }
+
+  private parseToolCallDeltas(value: unknown): QwenToolCallDelta[] {
+    if (!Array.isArray(value)) throw this.protocolError('Qwen tool_calls must be an array')
+    return value.map((item) => {
+      const call = record(item, 'Qwen tool call delta')
+      if (!Number.isInteger(call.index) || (call.index as number) < 0) {
+        throw this.protocolError('Qwen tool call index must be a non-negative integer')
+      }
+      if (call.id !== undefined && typeof call.id !== 'string') {
+        throw this.protocolError('Qwen tool call id must be text')
+      }
+      const parsed: QwenToolCallDelta = { index: call.index as number }
+      if (typeof call.id === 'string' && call.id) parsed.id = call.id
+      if (call.function !== undefined && call.function !== null) {
+        const fn = record(call.function, 'Qwen tool call function')
+        if (fn.name !== undefined && typeof fn.name !== 'string') {
+          throw this.protocolError('Qwen tool call function name must be text')
+        }
+        if (fn.arguments !== undefined && typeof fn.arguments !== 'string') {
+          throw this.protocolError('Qwen tool call arguments must be text')
+        }
+        if (typeof fn.name === 'string' && fn.name) parsed.name = fn.name
+        if (typeof fn.arguments === 'string') parsed.argumentsDelta = fn.arguments
+      }
+      return parsed
+    })
   }
 
   private parseUsage(value: unknown): ChatAdapterUsage {
@@ -220,6 +289,74 @@ export class QwenChatAdapter implements ChatAdapter {
       retryable: true,
     })
   }
+}
+
+interface QwenToolCallDelta {
+  index: number
+  id?: string
+  name?: string
+  argumentsDelta?: string
+}
+
+interface PendingQwenToolCall {
+  id?: string
+  name?: string
+  argumentsText: string
+}
+
+function mergeToolCallDelta(
+  pending: Map<number, PendingQwenToolCall>,
+  delta: QwenToolCallDelta,
+  protocolError: (message: string) => ChatAdapterError,
+): void {
+  const current = pending.get(delta.index) ?? { argumentsText: '' }
+  if (delta.id !== undefined) {
+    if (current.id !== undefined && current.id !== delta.id) {
+      throw protocolError(`Qwen changed tool call id at index ${delta.index}`)
+    }
+    current.id = delta.id
+  }
+  if (delta.name !== undefined) {
+    if (current.name !== undefined && current.name !== delta.name) {
+      throw protocolError(`Qwen changed tool name at index ${delta.index}`)
+    }
+    current.name = delta.name
+  }
+  if (delta.argumentsDelta !== undefined) current.argumentsText += delta.argumentsDelta
+  pending.set(delta.index, current)
+}
+
+function finalizeToolCalls(
+  pending: ReadonlyMap<number, PendingQwenToolCall>,
+  protocolError: (message: string) => ChatAdapterError,
+): ChatAdapterToolCall[] {
+  if (pending.size === 0) {
+    throw protocolError('Qwen finished with tool_calls but supplied no tool-call fragments')
+  }
+  return [...pending.entries()]
+    .sort(([left], [right]) => left - right)
+    .map(([index, call]) => {
+      if (!call.id) throw protocolError(`Qwen tool call ${index} is missing an id`)
+      if (!call.name) throw protocolError(`Qwen tool call ${index} is missing a function name`)
+      let args: unknown
+      try {
+        args = JSON.parse(call.argumentsText || '{}')
+      } catch (error) {
+        throw new ChatAdapterError(`Qwen tool call ${index} contains invalid JSON arguments`, {
+          code: 'QWEN_PROTOCOL_ERROR',
+          retryable: true,
+          cause: error,
+        })
+      }
+      if (typeof args !== 'object' || args === null || Array.isArray(args)) {
+        throw protocolError(`Qwen tool call ${index} arguments must decode to an object`)
+      }
+      return {
+        id: call.id,
+        name: call.name,
+        arguments: args as Record<string, unknown>,
+      }
+    })
 }
 
 function record(value: unknown, label: string): Record<string, unknown> {

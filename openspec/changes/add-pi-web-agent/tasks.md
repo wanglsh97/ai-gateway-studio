@@ -46,7 +46,7 @@
 - [ ] 4.2 在 Pi loop 边界强制模型/工具/时间预算，达到限制时停止新工作、取消当前操作 best effort，并持久化可解释的 limit_reached 事件
 - [ ] 4.3 将每次 Agent 内部模型调用关联到独立 RequestLog/BillingRecord 和 agentRunId，验证失败、取消及 tool loop 多 turn 的一对一账单不变量
 - [ ] 4.4 在 AgentRun 事务聚合模型调用数、Token、人民币费用和工具调用数，并在 SDK/UI 展示最终累计值
-- [ ] 4.5 为首个候选真实 Agent 模型增加 tool calling/reasoning Adapter 映射与 contract fixture，不支持 reasoning 时不得伪造 reasoning part
+- [x] 4.5 为首个候选真实 Agent 模型增加 tool calling/reasoning Adapter 映射与 contract fixture，不支持 reasoning 时不得伪造 reasoning part
 - [ ] 4.6 使用最低成本真实 smoke 验证候选模型的工具参数流、一次 `web_fetch` follow-up、usage、取消和错误；记录 alias/model ID 后才启用 `agent` capability
 - [ ] 4.7 验证首 delta 前 failover 不拼接不同 provider 的 text/reasoning/tool-call，首事件后失败以规范化 Agent 错误终结
 - [ ] 4.8 执行预算、日志计费、真实 Adapter contract、Agent 流式 E2E、typecheck、lint 和 build
