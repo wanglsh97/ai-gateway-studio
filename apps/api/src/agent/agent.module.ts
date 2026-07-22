@@ -16,6 +16,7 @@ import { AgentRunService } from './agent-run.service'
 import { AgentService } from './agent.service'
 import { AgentStartupCleanupService } from './agent-startup-cleanup.service'
 import { AgentThreadRepository } from './agent-thread.repository'
+import { AgentPromptComposer } from './prompt/agent-prompt.composer'
 import { AGENT_SKILL_REGISTRY, EmptyAgentSkillRegistry } from './skills/agent-skill.registry'
 import { AGENT_TOOLS, AgentToolRegistry } from './tools/agent-tool.registry'
 import type { AgentToolDefinition } from './tools/agent-tool'
@@ -47,6 +48,7 @@ function resolveAgentTools(): readonly AgentToolDefinition[] {
     AgentRunService,
     AgentService,
     AgentStartupCleanupService,
+    AgentPromptComposer,
     EmptyAgentSkillRegistry,
     { provide: AGENT_SKILL_REGISTRY, useExisting: EmptyAgentSkillRegistry },
     EmptyAgentMcpRegistry,

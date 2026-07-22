@@ -324,7 +324,7 @@ export function createPiStreamFn(deps: PiStreamFnDeps): StreamFn {
  * StreamFn 只用 `id` 路由到 ModelInvocationPort，其余字段为占位符；真实解析、鉴权与计费
  * 都在服务端端口内完成，不依赖该对象承载厂商配置。
  */
-export function createPiModel(modelId: string, provider: string): Model<Api> {
+export function createPiModel(modelId: string, provider: string, contextWindow = 128_000): Model<Api> {
   return {
     id: modelId,
     name: modelId,
@@ -334,7 +334,7 @@ export function createPiModel(modelId: string, provider: string): Model<Api> {
     reasoning: true,
     input: ['text'],
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow: 128_000,
+    contextWindow,
     maxTokens: 4096,
   }
 }

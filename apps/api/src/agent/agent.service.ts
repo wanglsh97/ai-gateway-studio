@@ -174,6 +174,7 @@ export class AgentService {
           userId: user.id,
           modelId: model.id,
           provider: model.provider,
+          contextWindowTokens: model.contextWindowTokens,
           input,
           activeRunLockToken: lockToken,
         })
