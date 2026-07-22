@@ -8,6 +8,7 @@ import { UserAuthModule } from '../user-auth/user-auth.module'
 import { AgentActiveRunLock } from './agent-active-run.lock'
 import { AgentController } from './agent.controller'
 import { AgentMessageRepository } from './agent-message.repository'
+import { AGENT_MCP_REGISTRY, EmptyAgentMcpRegistry } from './mcp/agent-mcp.registry'
 import { AgentRunEventBus } from './agent-run-event-bus'
 import { AgentRunRepository } from './agent-run.repository'
 import { AgentRunService } from './agent-run.service'
@@ -47,6 +48,8 @@ function resolveAgentTools(): readonly AgentToolDefinition[] {
     AgentStartupCleanupService,
     EmptyAgentSkillRegistry,
     { provide: AGENT_SKILL_REGISTRY, useExisting: EmptyAgentSkillRegistry },
+    EmptyAgentMcpRegistry,
+    { provide: AGENT_MCP_REGISTRY, useExisting: EmptyAgentMcpRegistry },
     {
       provide: AGENT_TOOLS,
       useFactory: (): readonly AgentToolDefinition[] => resolveAgentTools(),
