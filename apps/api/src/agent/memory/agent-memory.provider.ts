@@ -17,7 +17,8 @@ export const AGENT_MEMORY_PROVIDER = Symbol('AGENT_MEMORY_PROVIDER')
 /** V1 不扫描、提取或持久化长期 Memory。 */
 @Injectable()
 export class EmptyAgentMemoryProvider implements AgentMemoryProvider {
-  async recall(_input: { userId: string; threadId: string }): Promise<readonly AgentMemoryEntry[]> {
+  async recall(input: { userId: string; threadId: string }): Promise<readonly AgentMemoryEntry[]> {
+    void input
     return []
   }
 }

@@ -26,7 +26,6 @@ import {
 } from '../../components/agent-workspace-provider'
 import {
   AgentActiveRunHint,
-  AgentComposerAction,
   AgentComposerActions,
   AgentComposerDock,
   AgentComposerFooter,
@@ -114,8 +113,10 @@ function AgentConsole() {
     onThreadCreated: (() => undefined) as (thread: Parameters<typeof prependThread>[0]) => void,
     onRunCreated: (() => undefined) as (run: { id: string; threadId: string }) => void,
     onRunFinished: () => undefined,
-    onContextBudget: (_budget: AgentContextBudgetState) => undefined,
-    onContextCompressed: (_event: Extract<AgentStreamEvent, { type: 'context-compressed' }>) => undefined,
+    onContextBudget: (() => undefined) as (budget: AgentContextBudgetState) => void,
+    onContextCompressed: (() => undefined) as (
+      event: Extract<AgentStreamEvent, { type: 'context-compressed' }>,
+    ) => void,
   })
 
   contextRef.current.threadId = activeThreadId

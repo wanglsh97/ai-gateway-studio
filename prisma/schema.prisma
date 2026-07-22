@@ -258,33 +258,36 @@ model AgentMessage {
 }
 
 model AgentRun {
-  id               String               @id @default(uuid()) @db.Uuid
-  threadId         String               @db.Uuid
-  userId           String               @db.Uuid
-  status           AgentRunStatus       @default(RUNNING)
-  limitReason      AgentRunLimitReason?
-  input            String               @db.Text
-  errorCode        String?              @db.VarChar(64)
-  errorMessage     String?              @db.Text
-  modelCallCount   Int                  @default(0)
-  toolCallCount    Int                  @default(0)
-  webFetchCount    Int                  @default(0)
-  inputTokens      Int                  @default(0)
-  outputTokens     Int                  @default(0)
-  totalTokens      Int                  @default(0)
-  usageUnknown     Boolean              @default(false)
-  estimatedCostCny Decimal?             @db.Decimal(18, 8)
-  lastSequence     Int                  @default(-1)
-  startedAt        DateTime?            @db.Timestamptz(3)
-  completedAt      DateTime?            @db.Timestamptz(3)
-  createdAt        DateTime             @default(now()) @db.Timestamptz(3)
-  updatedAt        DateTime             @updatedAt @db.Timestamptz(3)
-  thread           AgentThread          @relation(fields: [threadId], references: [id], onDelete: Cascade)
-  user             User                 @relation(fields: [userId], references: [id], onDelete: Restrict)
-  events           AgentEvent[]
-  toolCallRecords  AgentToolCall[]
-  messages         AgentMessage[]
-  requestLogs      RequestLog[]
+  id                   String               @id @default(uuid()) @db.Uuid
+  threadId             String               @db.Uuid
+  userId               String               @db.Uuid
+  status               AgentRunStatus       @default(RUNNING)
+  limitReason          AgentRunLimitReason?
+  input                String               @db.Text
+  errorCode            String?              @db.VarChar(64)
+  errorMessage         String?              @db.Text
+  promptProfileVersion String?              @db.VarChar(64)
+  promptHash           String?              @db.VarChar(64)
+  promptManifest       Json?
+  modelCallCount       Int                  @default(0)
+  toolCallCount        Int                  @default(0)
+  webFetchCount        Int                  @default(0)
+  inputTokens          Int                  @default(0)
+  outputTokens         Int                  @default(0)
+  totalTokens          Int                  @default(0)
+  usageUnknown         Boolean              @default(false)
+  estimatedCostCny     Decimal?             @db.Decimal(18, 8)
+  lastSequence         Int                  @default(-1)
+  startedAt            DateTime?            @db.Timestamptz(3)
+  completedAt          DateTime?            @db.Timestamptz(3)
+  createdAt            DateTime             @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime             @updatedAt @db.Timestamptz(3)
+  thread               AgentThread          @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  user                 User                 @relation(fields: [userId], references: [id], onDelete: Restrict)
+  events               AgentEvent[]
+  toolCallRecords      AgentToolCall[]
+  messages             AgentMessage[]
+  requestLogs          RequestLog[]
 
   @@index([threadId, createdAt])
   @@index([userId, status])

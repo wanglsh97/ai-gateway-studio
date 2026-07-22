@@ -10,6 +10,7 @@ import type {
 } from '../generated/prisma/client'
 import { PrismaService } from '../database/prisma.service'
 import type { ProjectedToolCall } from './agent-run.projector'
+import type { AgentPromptManifest } from './prompt/agent-prompt.composer'
 
 const TOOL_CALL_STATUS_MAP: Record<ProjectedToolCall['status'], AgentToolCallStatus> = {
   running: 'RUNNING',
@@ -104,6 +105,17 @@ export class AgentRunRepository {
 
   async markStarted(runId: string, startedAt = new Date()): Promise<void> {
     await this.prisma.agentRun.update({ where: { id: runId }, data: { startedAt } })
+  }
+
+  async savePromptAudit(runId: string, manifest: AgentPromptManifest): Promise<void> {
+    await this.prisma.agentRun.update({
+      where: { id: runId },
+      data: {
+        promptProfileVersion: manifest.profileVersion,
+        promptHash: manifest.promptHash,
+        promptManifest: manifest as unknown as Prisma.InputJsonValue,
+      },
+    })
   }
 
   /** 追加事件（幂等按 (runId, sequence) 唯一约束跳过重复），并推进 lastSequence。 */

@@ -85,4 +85,26 @@ describe('AgentPromptComposer', () => {
     expect(result.systemPrompt).not.toContain('<memory_context>')
     expect(result.systemPrompt).not.toContain('<mcp_context>')
   })
+
+  it('matches the reviewed V1 golden prompt hash', async () => {
+    const composer = new AgentPromptComposer(
+      new AgentToolRegistry([]),
+      { list: () => [] },
+      { listServers: () => [] },
+      { recall: async () => [] },
+    )
+    const result = await composer.compose({
+      userId: 'u1',
+      threadId: 't1',
+      modelId: 'mock',
+      provider: 'mock',
+      contextWindowTokens: 100_000,
+      summaryId: 'summary-1',
+      now: new Date('2026-07-21T00:00:00.000Z'),
+    })
+    expect(result.manifest.promptHash).toBe(
+      '75ff1b01d971b1ab4265e6c910385cf77dd7bd8f7e15eda81e16fc9e240248ec',
+    )
+    expect(result.manifest.summaryId).toBe('summary-1')
+  })
 })

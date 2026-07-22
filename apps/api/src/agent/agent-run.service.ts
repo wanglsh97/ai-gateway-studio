@@ -125,15 +125,20 @@ export class AgentRunService {
       )
 
       const { Agent } = await loadPiAgentCore()
+      const [persistedHistory, initialSummary] = await Promise.all([
+        this.messages.listForThread(input.threadId),
+        this.contextSummaries.findForThread(input.threadId),
+      ])
+      let activeSummary = initialSummary
       const composedPrompt = await this.promptComposer.compose({
         userId: input.userId,
         threadId: input.threadId,
         modelId: input.modelId,
         provider: input.provider,
         contextWindowTokens: input.contextWindowTokens,
+        summaryId: activeSummary?.id ?? null,
       })
-      const persistedHistory = await this.messages.listForThread(input.threadId)
-      let activeSummary = await this.contextSummaries.findForThread(input.threadId)
+      await this.runs.savePromptAudit(input.runId, composedPrompt.manifest)
       let contextLimitError: AgentContextLimitError | undefined
       const agent = new Agent({
         initialState: {

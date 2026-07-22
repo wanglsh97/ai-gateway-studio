@@ -13,6 +13,11 @@ import { PricingService } from '../src/billing/pricing.service'
 import { RequestLifecycleService } from '../src/request-lifecycle/request-lifecycle.service'
 import { PrismaService } from '../src/database/prisma.service'
 import { AgentMessageRepository } from '../src/agent/agent-message.repository'
+import type { AgentActiveRunLock } from '../src/agent/agent-active-run.lock'
+import { AgentContextPreparer } from '../src/agent/context/agent-context-preparer'
+import { AgentContextSummaryRepository } from '../src/agent/context/agent-context-summary.repository'
+import { AgentContextSummaryService } from '../src/agent/context/agent-context-summary.service'
+import { AgentPromptComposer } from '../src/agent/prompt/agent-prompt.composer'
 import { AgentRunEventBus } from '../src/agent/agent-run-event-bus'
 import { AgentRunRepository } from '../src/agent/agent-run.repository'
 import { AgentRunService } from '../src/agent/agent-run.service'
@@ -55,6 +60,15 @@ async function main(): Promise<void> {
   const bus = new AgentRunEventBus()
   const lifecycle = new RequestLifecycleService(prisma)
   const pricing = new PricingService(fakeConfig())
+  const activeRunLock = {
+    release: async () => undefined,
+  } as unknown as AgentActiveRunLock
+  const promptComposer = new AgentPromptComposer(
+    tools,
+    { list: () => [] },
+    { listServers: () => [] },
+    { recall: async () => [] },
+  )
   const service = new AgentRunService(
     runs,
     messages,
@@ -63,6 +77,11 @@ async function main(): Promise<void> {
     lifecycle,
     pricing,
     bus,
+    activeRunLock,
+    promptComposer,
+    new AgentContextPreparer(),
+    new AgentContextSummaryRepository(prisma),
+    new AgentContextSummaryService(),
   )
 
   const user = await prisma.user.create({
@@ -87,7 +106,9 @@ async function main(): Promise<void> {
       userId: user.id,
       modelId: 'qwen3.7-plus',
       provider: 'qwen',
+      contextWindowTokens: 1_000_000,
       input,
+      activeRunLockToken: 'agent-run-check',
     })
 
     const finalRun = await prisma.agentRun.findUniqueOrThrow({ where: { id: run.id } })
