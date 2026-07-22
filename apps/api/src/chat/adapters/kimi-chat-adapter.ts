@@ -14,6 +14,10 @@ import type {
 } from './chat-adapter'
 import { ChatAdapterError } from './chat-adapter'
 import { toOpenAICompatibleMessages } from './openai-compatible-message'
+import {
+  OpenAICompatibleToolCallAssembler,
+  openAICompatibleToolRequestFields,
+} from './openai-compatible-tool-calling'
 
 export interface KimiChatAdapterOptions {
   apiKey: string
@@ -48,6 +52,7 @@ export class KimiChatAdapter implements ChatAdapter {
     let usage: ChatAdapterUsage | undefined
     let providerRequestId: string | undefined
     const useK2Defaults = usesK2FixedSampling(request.resolvedModel)
+    const toolCalls = new OpenAICompatibleToolCallAssembler('Kimi', protocolError)
 
     try {
       for await (const event of this.transport.stream({
@@ -64,12 +69,14 @@ export class KimiChatAdapter implements ChatAdapter {
             : { temperature: request.temperature }),
           ...(useK2Defaults || request.topP === undefined ? {} : { top_p: request.topP }),
           ...(request.maxTokens === undefined ? {} : { max_tokens: request.maxTokens }),
+          ...openAICompatibleToolRequestFields(request),
         },
         signal: request.signal,
       })) {
         if (event.providerRequestId !== undefined) providerRequestId = event.providerRequestId
         if (event.type === 'done') {
           if (finishReason === undefined) throw protocolError('Kimi stream ended without finish')
+          toolCalls.assertStreamDone(finishReason)
           yield {
             type: 'usage',
             usage: usage ?? UNKNOWN_USAGE,
@@ -84,6 +91,7 @@ export class KimiChatAdapter implements ChatAdapter {
         }
 
         const chunk = parseChunk(event.data)
+        if (chunk.toolCallDeltas !== undefined) toolCalls.addDeltas(chunk.toolCallDeltas)
         if (chunk.providerRequestId !== undefined) providerRequestId = chunk.providerRequestId
         if (chunk.content !== undefined) {
           yield {
@@ -98,6 +106,13 @@ export class KimiChatAdapter implements ChatAdapter {
         }
         if (chunk.finishReason !== undefined) {
           if (finishReason !== undefined) throw protocolError('Kimi emitted finish more than once')
+          for (const toolCall of toolCalls.finish(chunk.finishReason)) {
+            yield {
+              type: 'tool-call',
+              toolCall,
+              ...(providerRequestId === undefined ? {} : { providerRequestId }),
+            }
+          }
           finishReason = chunk.finishReason
         }
       }
@@ -111,6 +126,7 @@ export class KimiChatAdapter implements ChatAdapter {
 interface ParsedChunk {
   content?: string
   finishReason?: ChatFinishReason
+  toolCallDeltas?: unknown
   usage?: ChatAdapterUsage
   providerRequestId?: string
 }
@@ -138,6 +154,9 @@ function parseChunk(data: unknown): ParsedChunk {
         if (delta.content !== undefined && delta.content !== null) {
           if (typeof delta.content !== 'string') throw protocolError('Kimi content must be text')
           if (delta.content) parsed.content = delta.content
+        }
+        if (delta.tool_calls !== undefined && delta.tool_calls !== null) {
+          parsed.toolCallDeltas = delta.tool_calls
         }
       }
       if (value.finish_reason !== undefined && value.finish_reason !== null) {
@@ -233,8 +252,12 @@ function token(value: unknown, label: string): number {
   return value as number
 }
 
-function protocolError(message: string): ChatAdapterError {
-  return new ChatAdapterError(message, { code: 'KIMI_PROTOCOL_ERROR', retryable: true })
+function protocolError(message: string, cause?: unknown): ChatAdapterError {
+  return new ChatAdapterError(message, {
+    code: 'KIMI_PROTOCOL_ERROR',
+    retryable: true,
+    ...(cause === undefined ? {} : { cause }),
+  })
 }
 
 function nonEmpty(value: string, label: string): string {

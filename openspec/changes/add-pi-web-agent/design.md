@@ -58,6 +58,8 @@ Pi `StreamFn` bridge 在 Pi 的 `Context/AssistantMessageEvent` 与平台内部 
 
 Mock Adapter 必须确定性模拟：文本直答、一次 `web_fetch` 后完成、多个 fetch、无效参数、未知工具、模型流错误、超限和取消。单模型首 delta failover 规则不得把两个 provider 的 tool call 拼接为同一响应；发生 provider 切换时必须尚未向 Pi bridge 提交任何 text/reasoning/tool-call delta。
 
+Qwen、GLM、DeepSeek 和 Kimi 等采用 OpenAI-compatible Chat Completions wire format 的 Adapter 共享同一层 tool-call 编解码器：统一发送 `tools/tool_choice`，按 `index` 聚合流式 `delta.tool_calls`，校验 call ID、函数名、JSON object 参数及 `finish_reason=tool_calls` 一致性，并输出平台中立 `tool-call` 事件。各 Adapter 只保留厂商特有的 endpoint、鉴权、reasoning、usage、错误码和非标准字段映射；不得复制或在业务 Service 中解析工具协议。
+
 ### Decision 4: Threads, runs, messages and events are persisted separately
 
 建议 Prisma 实体：

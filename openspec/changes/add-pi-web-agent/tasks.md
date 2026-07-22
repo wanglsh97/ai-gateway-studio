@@ -47,6 +47,7 @@
 - [ ] 4.3 将每次 Agent 内部模型调用关联到独立 RequestLog/BillingRecord 和 agentRunId，验证失败、取消及 tool loop 多 turn 的一对一账单不变量
 - [ ] 4.4 在 AgentRun 事务聚合模型调用数、Token、人民币费用和工具调用数，并在 SDK/UI 展示最终累计值
 - [x] 4.5 为首个候选真实 Agent 模型增加 tool calling/reasoning Adapter 映射与 contract fixture，不支持 reasoning 时不得伪造 reasoning part
+- [x] 4.5a 抽取 OpenAI-compatible 通用 tool-call 编解码层并接入 Qwen、GLM、DeepSeek、Kimi，覆盖工具定义、分片参数、多工具、非法 JSON、finish 一致性、tool result follow-up 和取消 contract
 - [ ] 4.6 使用最低成本真实 smoke 验证候选模型的工具参数流、一次 `web_fetch` follow-up、usage、取消和错误；记录 alias/model ID 后才启用 `agent` capability
 - [ ] 4.7 验证首 delta 前 failover 不拼接不同 provider 的 text/reasoning/tool-call，首事件后失败以规范化 Agent 错误终结
 - [ ] 4.8 执行预算、日志计费、真实 Adapter contract、Agent 流式 E2E、typecheck、lint 和 build

@@ -14,6 +14,10 @@ import type {
 } from './chat-adapter'
 import { ChatAdapterError } from './chat-adapter'
 import { toOpenAICompatibleMessages } from './openai-compatible-message'
+import {
+  OpenAICompatibleToolCallAssembler,
+  openAICompatibleToolRequestFields,
+} from './openai-compatible-tool-calling'
 
 export interface DeepSeekChatAdapterOptions {
   apiKey: string
@@ -47,6 +51,7 @@ export class DeepSeekChatAdapter implements ChatAdapter {
     let finishReason: ChatFinishReason | undefined
     let usage: ChatAdapterUsage | undefined
     let providerRequestId: string | undefined
+    const toolCalls = new OpenAICompatibleToolCallAssembler('DeepSeek', protocolError)
     try {
       for await (const event of this.transport.stream({
         url: this.endpoint,
@@ -59,6 +64,7 @@ export class DeepSeekChatAdapter implements ChatAdapter {
           ...(request.temperature === undefined ? {} : { temperature: request.temperature }),
           ...(request.topP === undefined ? {} : { top_p: request.topP }),
           ...(request.maxTokens === undefined ? {} : { max_tokens: request.maxTokens }),
+          ...openAICompatibleToolRequestFields(request),
         },
         signal: request.signal,
       })) {
@@ -66,6 +72,7 @@ export class DeepSeekChatAdapter implements ChatAdapter {
         if (event.type === 'done') {
           if (finishReason === undefined)
             throw protocolError('DeepSeek stream ended without finish')
+          toolCalls.assertStreamDone(finishReason)
           yield {
             type: 'usage',
             usage: usage ?? UNKNOWN_USAGE,
@@ -79,6 +86,7 @@ export class DeepSeekChatAdapter implements ChatAdapter {
           return
         }
         const chunk = parseChunk(event.data)
+        if (chunk.toolCallDeltas !== undefined) toolCalls.addDeltas(chunk.toolCallDeltas)
         if (chunk.providerRequestId !== undefined) providerRequestId = chunk.providerRequestId
         if (chunk.content !== undefined)
           yield {
@@ -93,6 +101,13 @@ export class DeepSeekChatAdapter implements ChatAdapter {
         if (chunk.finishReason !== undefined) {
           if (finishReason !== undefined)
             throw protocolError('DeepSeek emitted finish more than once')
+          for (const toolCall of toolCalls.finish(chunk.finishReason)) {
+            yield {
+              type: 'tool-call',
+              toolCall,
+              ...(providerRequestId === undefined ? {} : { providerRequestId }),
+            }
+          }
           finishReason = chunk.finishReason
         }
       }
@@ -106,6 +121,7 @@ export class DeepSeekChatAdapter implements ChatAdapter {
 interface ParsedChunk {
   content?: string
   finishReason?: ChatFinishReason
+  toolCallDeltas?: unknown
   usage?: ChatAdapterUsage
   providerRequestId?: string
 }
@@ -126,6 +142,9 @@ function parseChunk(data: unknown): ParsedChunk {
           if (typeof delta.content !== 'string')
             throw protocolError('DeepSeek content must be text')
           if (delta.content) parsed.content = delta.content
+        }
+        if (delta.tool_calls !== undefined && delta.tool_calls !== null) {
+          parsed.toolCallDeltas = delta.tool_calls
         }
       }
       if (value.finish_reason !== undefined && value.finish_reason !== null) {
@@ -209,8 +228,12 @@ function token(value: unknown): number {
     throw protocolError('DeepSeek usage is invalid')
   return value as number
 }
-function protocolError(message: string): ChatAdapterError {
-  return new ChatAdapterError(message, { code: 'DEEPSEEK_PROTOCOL_ERROR', retryable: true })
+function protocolError(message: string, cause?: unknown): ChatAdapterError {
+  return new ChatAdapterError(message, {
+    code: 'DEEPSEEK_PROTOCOL_ERROR',
+    retryable: true,
+    ...(cause === undefined ? {} : { cause }),
+  })
 }
 function nonEmpty(value: string, label: string): string {
   const result = value.trim()

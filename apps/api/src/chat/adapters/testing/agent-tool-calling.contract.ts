@@ -1,3 +1,5 @@
+import type { TextModelAlias } from '@aigateway/sdk'
+
 import type { ChatAdapterId } from '../../chat.constants'
 import type { ChatAdapter, ChatAdapterEvent, ChatAdapterRequest } from '../chat-adapter'
 
@@ -11,6 +13,7 @@ import type { ChatAdapter, ChatAdapterEvent, ChatAdapterRequest } from '../chat-
 export interface AgentToolCallingContractHarness {
   name: string
   adapterId: ChatAdapterId
+  modelAlias: TextModelAlias
   resolvedModel: string
   /** 构造被测 Adapter（每个用例独立实例）。 */
   createAdapter(): ChatAdapter
@@ -26,11 +29,15 @@ const WEB_FETCH_TOOL = {
   },
 } as const
 
-function baseRequest(signal: AbortSignal, messages: ChatAdapterRequest['messages']): ChatAdapterRequest {
+function baseRequest(
+  harness: AgentToolCallingContractHarness,
+  signal: AbortSignal,
+  messages: ChatAdapterRequest['messages'],
+): ChatAdapterRequest {
   return {
     requestId: '00000000-0000-4000-8000-0000000000c0',
-    modelAlias: 'qwen',
-    resolvedModel: 'contract-agent-v1',
+    modelAlias: harness.modelAlias,
+    resolvedModel: harness.resolvedModel,
     messages,
     tools: [WEB_FETCH_TOOL],
     toolChoice: 'auto',
@@ -38,7 +45,10 @@ function baseRequest(signal: AbortSignal, messages: ChatAdapterRequest['messages
   }
 }
 
-async function collect(adapter: ChatAdapter, request: ChatAdapterRequest): Promise<ChatAdapterEvent[]> {
+async function collect(
+  adapter: ChatAdapter,
+  request: ChatAdapterRequest,
+): Promise<ChatAdapterEvent[]> {
   const events: ChatAdapterEvent[] = []
   for await (const event of adapter.stream(request)) events.push(event)
   return events
@@ -50,7 +60,7 @@ export function describeAgentToolCallingContract(harness: AgentToolCallingContra
       const adapter = harness.createAdapter()
       const events = await collect(
         adapter,
-        baseRequest(new AbortController().signal, [
+        baseRequest(harness, new AbortController().signal, [
           { role: 'user', content: '帮我看看 https://example.com/ 的内容' },
         ]),
       )
@@ -69,12 +79,14 @@ export function describeAgentToolCallingContract(harness: AgentToolCallingContra
       const adapter = harness.createAdapter()
       const events = await collect(
         adapter,
-        baseRequest(new AbortController().signal, [
+        baseRequest(harness, new AbortController().signal, [
           { role: 'user', content: '帮我看看 https://example.com/ 的内容' },
           {
             role: 'assistant',
             content: '',
-            toolCalls: [{ id: 'call_1', name: 'web_fetch', arguments: { url: 'https://example.com/' } }],
+            toolCalls: [
+              { id: 'call_1', name: 'web_fetch', arguments: { url: 'https://example.com/' } },
+            ],
           },
           {
             role: 'tool',
@@ -93,7 +105,7 @@ export function describeAgentToolCallingContract(harness: AgentToolCallingContra
     it('propagates cancellation as AbortError', async () => {
       const adapter = harness.createAdapter()
       const controller = new AbortController()
-      const request = baseRequest(controller.signal, [
+      const request = baseRequest(harness, controller.signal, [
         { role: 'user', content: '帮我看看 https://example.com/ 的内容' },
       ])
       const next = adapter.stream(request)[Symbol.asyncIterator]().next()

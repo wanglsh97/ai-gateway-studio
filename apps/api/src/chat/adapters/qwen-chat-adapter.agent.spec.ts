@@ -65,6 +65,7 @@ function qwenAgentAdapter(onRequest?: (body: Record<string, unknown>) => void): 
 describeAgentToolCallingContract({
   name: 'Qwen',
   adapterId: 'qwen',
+  modelAlias: 'qwen',
   resolvedModel: 'qwen-agent-fixture',
   createAdapter: () => qwenAgentAdapter(),
 })
