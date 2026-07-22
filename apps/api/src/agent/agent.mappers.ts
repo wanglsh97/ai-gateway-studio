@@ -32,6 +32,7 @@ const LIMIT_REASON_MAP: Record<PrismaLimitReason, AgentRunLimitReason> = {
   TOOL_CALLS: 'tool_calls',
   WEB_FETCH_CALLS: 'web_fetch_calls',
   DURATION: 'duration',
+  CONTEXT_WINDOW: 'context_window',
 }
 
 const MESSAGE_ROLE_MAP: Record<PrismaMessageRole, AgentMessageRole> = {

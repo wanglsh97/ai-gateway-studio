@@ -2,6 +2,7 @@ import type { AgentMediaReferencePart, AgentMessagePart } from '@aigateway/sdk'
 
 import type { AgentMessage, AgentMessageRole } from '../../generated/prisma/client'
 import type { ChatAdapterMessage } from '../../chat/adapters/chat-adapter'
+import type { AgentContextSummaryV1 } from './agent-context-summary.schema'
 import { mediaReferencePlaceholder } from './agent-media-placeholder'
 
 export type HistoricalReasoningMode = 'native' | 'tagged'
@@ -11,6 +12,7 @@ export interface AgentHistoryAssemblyInput {
   currentRunId: string
   currentMessages: readonly ChatAdapterMessage[]
   reasoningMode?: HistoricalReasoningMode
+  summary?: { content: AgentContextSummaryV1; coveredThroughSequence: number }
 }
 
 /**
@@ -20,10 +22,36 @@ export interface AgentHistoryAssemblyInput {
 export function assembleAgentHistory(input: AgentHistoryAssemblyInput): ChatAdapterMessage[] {
   const system = input.currentMessages.filter((message) => message.role === 'system')
   const current = input.currentMessages.filter((message) => message.role !== 'system')
+  const summary = input.summary
+    ? [{
+        role: 'user' as const,
+        content: `<conversation_summary trust="historical-unverified">${JSON.stringify(input.summary.content)}</conversation_summary>`,
+      }]
+    : []
   const history = input.persistedMessages
-    .filter((message) => message.runId !== input.currentRunId)
+    .filter((message) =>
+      message.runId !== input.currentRunId &&
+      message.sequence > (input.summary?.coveredThroughSequence ?? -1),
+    )
     .flatMap((message) => persistedMessageToAdapter(message, input.reasoningMode ?? 'native'))
-  return [...system, ...history, ...current]
+  return [...system, ...summary, ...history, ...current]
+}
+
+/** 选择强制摘要覆盖范围，同时硬保留最后 `minimumTurns` 个完整 turns。 */
+export function selectMessagesForForcedSummary(
+  messages: readonly AgentMessage[],
+  currentRunId: string,
+  coveredThroughSequence: number,
+  minimumTurns = 2,
+): AgentMessage[] {
+  const uncovered = messages.filter((message) =>
+    message.runId !== currentRunId && message.sequence > coveredThroughSequence,
+  )
+  const userIndexes = uncovered
+    .map((message, index) => message.role === 'USER' ? index : -1)
+    .filter((index) => index >= 0)
+  const keepFrom = userIndexes.at(-minimumTurns) ?? 0
+  return uncovered.slice(0, keepFrom)
 }
 
 export function persistedMessageToAdapter(

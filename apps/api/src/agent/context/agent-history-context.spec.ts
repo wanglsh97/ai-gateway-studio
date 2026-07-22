@@ -1,5 +1,5 @@
 import type { AgentMessage } from '../../generated/prisma/client'
-import { assembleAgentHistory, persistedMessageToAdapter, selectRecentCompleteTurns } from './agent-history-context'
+import { assembleAgentHistory, persistedMessageToAdapter, selectMessagesForForcedSummary, selectRecentCompleteTurns } from './agent-history-context'
 
 function row(overrides: Partial<AgentMessage> & Pick<AgentMessage, 'role' | 'sequence'>): AgentMessage {
   return {
@@ -60,5 +60,14 @@ describe('agent history context', () => {
       sequence: index,
     }))
     expect(selectRecentCompleteTurns(messages, 2).map((message) => message.sequence)).toEqual([2, 3, 4, 5])
+  })
+
+  it('forced summary selection keeps the latest two complete turns', () => {
+    const messages = Array.from({ length: 8 }, (_, index) => row({
+      role: index % 2 === 0 ? 'USER' : 'ASSISTANT',
+      sequence: index,
+    }))
+    expect(selectMessagesForForcedSummary(messages, 'current-run', -1).map((message) => message.sequence))
+      .toEqual([0, 1, 2, 3])
   })
 })

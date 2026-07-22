@@ -7,6 +7,8 @@ import { RequestLifecycleModule } from '../request-lifecycle/request-lifecycle.m
 import { UserAuthModule } from '../user-auth/user-auth.module'
 import { AgentActiveRunLock } from './agent-active-run.lock'
 import { AgentContextPreparer } from './context/agent-context-preparer'
+import { AgentContextSummaryRepository } from './context/agent-context-summary.repository'
+import { AgentContextSummaryService } from './context/agent-context-summary.service'
 import { AgentController } from './agent.controller'
 import { AgentMessageRepository } from './agent-message.repository'
 import { AGENT_MCP_REGISTRY, EmptyAgentMcpRegistry } from './mcp/agent-mcp.registry'
@@ -47,6 +49,8 @@ function resolveAgentTools(): readonly AgentToolDefinition[] {
     AgentRunEventBus,
     AgentActiveRunLock,
     AgentContextPreparer,
+    AgentContextSummaryRepository,
+    AgentContextSummaryService,
     AgentRunService,
     AgentService,
     AgentStartupCleanupService,

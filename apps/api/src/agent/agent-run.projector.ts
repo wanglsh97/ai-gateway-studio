@@ -137,7 +137,7 @@ export class AgentRunProjector {
     )
 
     const error = options.error ?? this.failureError
-    if (status === 'failed' && error) {
+    if (error) {
       events.push(
         this.emit({
           type: 'error',

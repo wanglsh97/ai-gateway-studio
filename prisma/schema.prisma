@@ -52,6 +52,7 @@ enum AgentRunLimitReason {
   TOOL_CALLS
   WEB_FETCH_CALLS
   DURATION
+  CONTEXT_WINDOW
 }
 
 enum AgentMessageRole {
@@ -205,19 +206,39 @@ model AdminAuditLog {
 }
 
 model AgentThread {
-  id        String         @id @default(uuid()) @db.Uuid
-  userId    String         @db.Uuid
-  title     String         @db.VarChar(200)
-  modelId   String         @db.VarChar(128)
-  provider  String         @db.VarChar(64)
-  createdAt DateTime       @default(now()) @db.Timestamptz(3)
-  updatedAt DateTime       @updatedAt @db.Timestamptz(3)
-  user      User           @relation(fields: [userId], references: [id], onDelete: Restrict)
-  messages  AgentMessage[]
-  runs      AgentRun[]
+  id             String               @id @default(uuid()) @db.Uuid
+  userId         String               @db.Uuid
+  title          String               @db.VarChar(200)
+  modelId        String               @db.VarChar(128)
+  provider       String               @db.VarChar(64)
+  createdAt      DateTime             @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime             @updatedAt @db.Timestamptz(3)
+  user           User                 @relation(fields: [userId], references: [id], onDelete: Restrict)
+  messages       AgentMessage[]
+  runs           AgentRun[]
+  contextSummary AgentContextSummary?
 
   @@index([userId, updatedAt])
   @@index([userId, createdAt])
+}
+
+model AgentContextSummary {
+  id                     String      @id @default(uuid()) @db.Uuid
+  threadId               String      @unique @db.Uuid
+  revision               Int         @default(1)
+  coveredThroughSequence Int
+  schemaVersion          String      @db.VarChar(32)
+  promptHash             String      @db.VarChar(64)
+  modelId                String      @db.VarChar(128)
+  content                Json
+  inputTokens            Int?
+  outputTokens           Int?
+  totalTokens            Int?
+  createdAt              DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt              DateTime    @updatedAt @db.Timestamptz(3)
+  thread                 AgentThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([updatedAt])
 }
 
 model AgentMessage {

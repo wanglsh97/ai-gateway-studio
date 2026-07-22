@@ -13,8 +13,18 @@ import { PricingService } from '../billing/pricing.service'
 import { RequestLifecycleService } from '../request-lifecycle/request-lifecycle.service'
 import { createAgentModelInvocationPort } from './agent-model-invocation'
 import { AgentActiveRunLock } from './agent-active-run.lock'
-import { assembleAgentHistory } from './context/agent-history-context'
 import { AgentContextPreparer } from './context/agent-context-preparer'
+import { AgentContextSummaryRepository } from './context/agent-context-summary.repository'
+import {
+  AgentContextCompressionFailedError,
+  AgentContextSummaryService,
+} from './context/agent-context-summary.service'
+import type { AgentContextSummaryV1 } from './context/agent-context-summary.schema'
+import {
+  assembleAgentHistory,
+  persistedMessageToAdapter,
+  selectMessagesForForcedSummary,
+} from './context/agent-history-context'
 import { AgentMessageRepository } from './agent-message.repository'
 import { AgentRunEventBus } from './agent-run-event-bus'
 import { AgentRunProjector } from './agent-run.projector'
@@ -72,6 +82,10 @@ export class AgentRunService {
     @Inject(AgentActiveRunLock) private readonly activeRunLock: AgentActiveRunLock,
     @Inject(AgentPromptComposer) private readonly promptComposer: AgentPromptComposer,
     @Inject(AgentContextPreparer) private readonly contextPreparer: AgentContextPreparer,
+    @Inject(AgentContextSummaryRepository)
+    private readonly contextSummaries: AgentContextSummaryRepository,
+    @Inject(AgentContextSummaryService)
+    private readonly contextSummaryService: AgentContextSummaryService,
   ) {}
 
   isRunning(runId: string): boolean {
@@ -119,6 +133,8 @@ export class AgentRunService {
         contextWindowTokens: input.contextWindowTokens,
       })
       const persistedHistory = await this.messages.listForThread(input.threadId)
+      let activeSummary = await this.contextSummaries.findForThread(input.threadId)
+      let contextLimitError: AgentContextLimitError | undefined
       const agent = new Agent({
         initialState: {
           systemPrompt: composedPrompt.systemPrompt,
@@ -128,15 +144,86 @@ export class AgentRunService {
         streamFn: createPiStreamFn({
           port: boundPort,
           createRequestId: () => randomUUID(),
-          prepareMessages: (currentMessages, tools) => this.contextPreparer.prepare({
-            contextWindowTokens: input.contextWindowTokens,
-            messages: assembleAgentHistory({
-              persistedMessages: persistedHistory,
-              currentRunId: input.runId,
-              currentMessages,
-            }),
-            tools,
-          }).messages,
+          prepareMessages: async (currentMessages, tools) => {
+            try {
+              const assembled = assembleAgentHistory({
+                persistedMessages: persistedHistory,
+                currentRunId: input.runId,
+                currentMessages,
+                ...(activeSummary === null ? {} : {
+                  summary: {
+                    content: activeSummary.content as unknown as AgentContextSummaryV1,
+                    coveredThroughSequence: activeSummary.coveredThroughSequence,
+                  },
+                }),
+              })
+              const prepared = this.contextPreparer.prepare({
+                contextWindowTokens: input.contextWindowTokens,
+                messages: assembled,
+                tools,
+              })
+              if (prepared.budget.level !== 'forced') return prepared.messages
+
+              const candidates = selectMessagesForForcedSummary(
+                persistedHistory,
+                input.runId,
+                activeSummary?.coveredThroughSequence ?? -1,
+              )
+              if (candidates.length === 0) {
+                throw new AgentContextWindowExceededError()
+              }
+              let generated
+              try {
+                generated = await this.contextSummaryService.generate({
+                  port: boundPort,
+                  modelId: input.modelId,
+                  messages: candidates.flatMap((message) => persistedMessageToAdapter(message)),
+                  ...(activeSummary === null ? {} : {
+                    previousSummary: activeSummary.content as unknown as AgentContextSummaryV1,
+                  }),
+                  signal: controller.signal,
+                })
+              } catch (error) {
+                if (error instanceof AgentContextCompressionFailedError) {
+                  throw new AgentContextLimitError(error.code, error.message)
+                }
+                throw error
+              }
+              const boundary = candidates.at(-1)?.sequence
+              if (boundary === undefined) throw new AgentContextWindowExceededError()
+              projector.addUsage(generated.usage)
+              activeSummary = await this.contextSummaries.saveValid({
+                threadId: input.threadId,
+                coveredThroughSequence: boundary,
+                schemaVersion: generated.schemaVersion,
+                promptHash: generated.promptHash,
+                modelId: input.modelId,
+                content: generated.content,
+                inputTokens: generated.usage.inputTokens,
+                outputTokens: generated.usage.outputTokens,
+                totalTokens: generated.usage.totalTokens,
+              })
+              const afterSummary = assembleAgentHistory({
+                persistedMessages: persistedHistory,
+                currentRunId: input.runId,
+                currentMessages,
+                summary: {
+                  content: generated.content,
+                  coveredThroughSequence: boundary,
+                },
+              })
+              const recounted = this.contextPreparer.prepare({
+                contextWindowTokens: input.contextWindowTokens,
+                messages: afterSummary,
+                tools,
+              })
+              if (recounted.budget.level === 'forced') throw new AgentContextWindowExceededError()
+              return recounted.messages
+            } catch (error) {
+              if (error instanceof AgentContextLimitError) contextLimitError = error
+              throw error
+            }
+          },
         }),
         convertToLlm: (messages) => messages as Message[],
       })
@@ -168,16 +255,26 @@ export class AgentRunService {
         this.logger.warn({ error, runId: input.runId }, 'Agent prompt rejected')
       }
 
-      const status = this.determineTerminal(controller.signal.aborted, agent.state.errorMessage)
+      const status = contextLimitError
+        ? 'limit_reached'
+        : this.determineTerminal(controller.signal.aborted, agent.state.errorMessage)
       const error =
-        status === 'failed'
+        contextLimitError
+          ? { code: contextLimitError.code, message: contextLimitError.message, retryable: false }
+          : status === 'failed'
           ? {
               code: 'AGENT_RUN_FAILED',
               message: agent.state.errorMessage ?? '模型调用失败',
               retryable: true,
             }
           : undefined
-      await this.finalize(input, projector, status, error)
+      await this.finalize(
+        input,
+        projector,
+        status,
+        error,
+        contextLimitError ? 'context_window' : undefined,
+      )
     } catch (error) {
       this.logger.error({ error, runId: input.runId }, 'Agent run crashed')
       await this.finalize(input, projector, 'failed', {
@@ -205,9 +302,13 @@ export class AgentRunService {
     projector: AgentRunProjector,
     status: AgentRunTerminalStatus,
     error: { code: string; message: string; retryable: boolean } | undefined,
+    limitReason?: 'context_window',
   ): Promise<void> {
     // 先计算终态事件（会关闭仍打开的消息并定稿快照）。
-    const terminalEvents = projector.finalize(status, error === undefined ? {} : { error })
+    const terminalEvents = projector.finalize(status, {
+      ...(error === undefined ? {} : { error }),
+      ...(limitReason === undefined ? {} : { limitReason }),
+    })
 
     // 在向客户端发出终态事件前，先持久化消息快照、工具调用与 run 计数，
     // 使“收到 run-terminal”即代表刷新可恢复完整快照。
@@ -230,12 +331,27 @@ export class AgentRunService {
       outputTokens: usage.outputTokens,
       totalTokens: usage.totalTokens,
       usageUnknown: usage.usageUnknown,
+      ...(limitReason === undefined ? {} : { limitReason: 'CONTEXT_WINDOW' }),
       ...(error === undefined ? {} : { errorCode: error.code, errorMessage: error.message }),
     })
 
     // 快照落库后再持久化并广播终态事件（usage + run-terminal）。
     if (terminalEvents.length > 0) await this.runs.appendEvents(input.runId, terminalEvents)
     for (const event of terminalEvents) this.bus.publish(input.runId, event)
+  }
+}
+
+class AgentContextLimitError extends Error {
+  constructor(readonly code: string, message: string) {
+    super(message)
+    this.name = 'AgentContextLimitError'
+  }
+}
+
+class AgentContextWindowExceededError extends AgentContextLimitError {
+  constructor() {
+    super('AGENT_CONTEXT_WINDOW_EXCEEDED', '当前输入与必须保留的上下文超过模型可用窗口')
+    this.name = 'AgentContextWindowExceededError'
   }
 }
 
