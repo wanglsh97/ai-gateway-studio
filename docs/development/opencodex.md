@@ -122,6 +122,27 @@ ocx uninstall
 npm uninstall -g @bitkyc08/opencodex
 ```
 
+## 故障排查
+
+### Codex 报 `502 Bad Gateway`（url 指向 `http://127.0.0.1:10100/v1/responses`）
+
+原因不在 OpenCodex 或 Kimi：本机开启了 Clash Verge 系统代理（`127.0.0.1:7897`）后，
+Codex 的 HTTP 客户端会读取系统代理设置，把发往 `127.0.0.1:10100` 的 loopback 请求
+也交给 mihomo；mihomo 将 loopback 目标按 MATCH 规则转发到远端节点，连接失败，
+于是返回 502。直连 curl 验证代理和 Kimi OAuth 均正常时可据此定位。
+
+修复（已验证）：为 Codex 进程设置 `NO_PROXY`，让 loopback 绕过系统代理：
+
+```bash
+# ~/.zshrc
+export NO_PROXY="127.0.0.1,localhost,${NO_PROXY:-}"
+export no_proxy="$NO_PROXY"
+```
+
+注意 Codex 不读取 macOS 系统代理的绕过列表（ExceptionsList），必须显式设置
+`NO_PROXY` 环境变量。另一种思路是在 mihomo 配置中为 `127.0.0.0/8` 增加
+`DIRECT` 规则，但会改动代理全局配置，默认优先使用 `NO_PROXY` 方案。
+
 ## 安全边界
 
 - 不要把 `~/.opencodex`、OAuth 凭据或真实 API Key 提交到本仓库。
