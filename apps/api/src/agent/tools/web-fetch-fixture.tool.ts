@@ -18,6 +18,8 @@ export const webFetchFixtureTool: AgentToolDefinition<{ url: string }> = {
   name: WEB_FETCH_TOOL_NAME,
   description: '抓取单个公网 URL 并返回抽取后的正文（fixture：确定性、不联网）。',
   label: '网页抓取',
+  riskLevel: 'read',
+  approvalPolicy: 'none',
   parameters: WEB_FETCH_TOOL_PARAMETERS,
   async execute(args, context: AgentToolContext): Promise<AgentToolResult> {
     if (context.signal.aborted) {

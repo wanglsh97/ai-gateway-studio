@@ -21,11 +21,16 @@ export interface AgentToolResult {
   audit?: Record<string, unknown>
 }
 
+export type AgentToolRiskLevel = 'read' | 'write' | 'external_send' | 'destructive'
+export type AgentToolApprovalPolicy = 'none' | 'explicit'
+
 export interface AgentToolDefinition<TArgs extends Record<string, unknown> = Record<string, unknown>> {
   name: string
   description: string
   /** UI 展示用标签。 */
   label: string
+  riskLevel: AgentToolRiskLevel
+  approvalPolicy: AgentToolApprovalPolicy
   /** JSON Schema 参数定义。 */
   parameters: Record<string, unknown>
   execute(args: TArgs, context: AgentToolContext): Promise<AgentToolResult>

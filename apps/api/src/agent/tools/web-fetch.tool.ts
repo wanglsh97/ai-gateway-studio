@@ -21,6 +21,8 @@ export function createWebFetchTool(deps: WebFetchHttpDeps = {}): AgentToolDefini
     description:
       '抓取单个公网 HTTP/HTTPS URL，返回抽取后的正文与元数据。不执行 JavaScript，不携带 Cookie/Authorization。',
     label: '网页抓取',
+    riskLevel: 'read',
+    approvalPolicy: 'none',
     parameters: WEB_FETCH_TOOL_PARAMETERS,
     async execute(args, context: AgentToolContext): Promise<AgentToolResult> {
       const started = Date.now()

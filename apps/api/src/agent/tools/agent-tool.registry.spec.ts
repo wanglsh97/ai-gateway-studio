@@ -4,6 +4,7 @@ import {
   AgentToolNotRegisteredError,
   AgentToolRegistry,
   DuplicateAgentToolError,
+  UnsupportedAgentToolApprovalError,
 } from './agent-tool.registry'
 import { validateToolArguments } from './tool-args.validation'
 import {
@@ -19,6 +20,8 @@ function fakeTool(name: string, execute?: AgentToolDefinition['execute']): Agent
     name,
     description: name,
     label: name,
+    riskLevel: 'read',
+    approvalPolicy: 'none',
     parameters: { type: 'object', additionalProperties: true },
     execute:
       execute ??
@@ -87,6 +90,13 @@ describe('AgentToolRegistry', () => {
     expect(() => new AgentToolRegistry([fakeTool('dup'), fakeTool('dup')])).toThrow(
       DuplicateAgentToolError,
     )
+  })
+
+  it('rejects tools that require an unavailable approval flow', () => {
+    const tool = fakeTool('write_probe')
+    tool.riskLevel = 'write'
+    tool.approvalPolicy = 'explicit'
+    expect(() => new AgentToolRegistry([tool])).toThrow(UnsupportedAgentToolApprovalError)
   })
 
   it('lists registered tools', () => {

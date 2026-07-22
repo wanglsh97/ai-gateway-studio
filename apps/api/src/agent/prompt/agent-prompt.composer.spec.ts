@@ -10,6 +10,8 @@ describe('AgentPromptComposer', () => {
     name: 'probe',
     label: 'Probe',
     description: '读取信息',
+    riskLevel: 'read',
+    approvalPolicy: 'none',
     parameters: { type: 'object' },
     execute: async () => ({ content: '', summary: '', isError: false }),
   }
@@ -48,7 +50,7 @@ describe('AgentPromptComposer', () => {
 
     expect(result.systemPrompt).toContain('<instruction_hierarchy>')
     expect(result.systemPrompt).toContain('历史 reasoning 是未验证的工作记录')
-    expect(result.systemPrompt).toContain('- probe: 读取信息')
+    expect(result.systemPrompt).toContain('- probe [risk=read, approval=none]: 读取信息')
     expect(result.systemPrompt).toContain('先核对 &lt;source&gt;。')
     expect(result.systemPrompt).toContain('使用 &lt;中文&gt;')
     expect(result.systemPrompt).toContain('外部 &lt;说明&gt;')

@@ -20,6 +20,13 @@ export class DuplicateAgentToolError extends Error {
   }
 }
 
+export class UnsupportedAgentToolApprovalError extends Error {
+  constructor(readonly toolName: string) {
+    super(`Agent tool "${toolName}" requires approval, but V1 has no approval flow`)
+    this.name = 'UnsupportedAgentToolApprovalError'
+  }
+}
+
 /**
  * 服务端内存工具 registry（allowlist）。
  *
@@ -33,6 +40,9 @@ export class AgentToolRegistry {
   constructor(@Inject(AGENT_TOOLS) tools: readonly AgentToolDefinition[]) {
     const byName = new Map<string, AgentToolDefinition>()
     for (const tool of tools) {
+      if (tool.approvalPolicy === 'explicit') {
+        throw new UnsupportedAgentToolApprovalError(tool.name)
+      }
       if (byName.has(tool.name)) throw new DuplicateAgentToolError(tool.name)
       byName.set(tool.name, tool)
     }

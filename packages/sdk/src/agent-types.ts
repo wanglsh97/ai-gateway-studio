@@ -69,11 +69,23 @@ export interface AgentToolResultPart {
   audit?: Record<string, unknown>
 }
 
+export interface AgentMediaReferencePart {
+  type: 'media-reference'
+  mediaId: string
+  mediaType: 'image' | 'video' | 'audio' | 'file' | 'other'
+  mimeType: string
+  name: string
+  source: 'user' | 'tool' | 'assistant'
+  status: 'available' | 'expired' | 'missing' | 'blocked'
+  description: string
+}
+
 export type AgentMessagePart =
   | AgentTextPart
   | AgentReasoningPart
   | AgentToolCallPart
   | AgentToolResultPart
+  | AgentMediaReferencePart
 
 export interface AgentMessage {
   id: string

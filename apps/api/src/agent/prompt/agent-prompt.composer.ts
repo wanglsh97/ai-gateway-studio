@@ -110,7 +110,7 @@ export class AgentPromptComposer {
           : tools
               .map(
                 (tool) =>
-                  `- ${escapeText(tool.name)}: ${escapeText(tool.description)}（参数和权限以服务端工具 schema 为准）`,
+                  `- ${escapeText(tool.name)} [risk=${tool.riskLevel}, approval=${tool.approvalPolicy}]: ${escapeText(tool.description)}（参数和权限以服务端工具 schema 为准）`,
               )
               .join('\n'),
       ),

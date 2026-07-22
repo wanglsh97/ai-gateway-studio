@@ -23,6 +23,7 @@ export type {
   AgentMessage,
   AgentMessagePart,
   AgentMessageRole,
+  AgentMediaReferencePart,
   AgentReasoningPart,
   AgentRunLimitReason,
   AgentRunStatus,
