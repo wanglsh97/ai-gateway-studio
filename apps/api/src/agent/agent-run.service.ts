@@ -13,6 +13,7 @@ import { PricingService } from '../billing/pricing.service'
 import { RequestLifecycleService } from '../request-lifecycle/request-lifecycle.service'
 import { createAgentModelInvocationPort } from './agent-model-invocation'
 import { AgentActiveRunLock } from './agent-active-run.lock'
+import { assembleAgentHistory } from './context/agent-history-context'
 import { AgentMessageRepository } from './agent-message.repository'
 import { AgentRunEventBus } from './agent-run-event-bus'
 import { AgentRunProjector } from './agent-run.projector'
@@ -115,6 +116,7 @@ export class AgentRunService {
         provider: input.provider,
         contextWindowTokens: input.contextWindowTokens,
       })
+      const persistedHistory = await this.messages.listForThread(input.threadId)
       const agent = new Agent({
         initialState: {
           systemPrompt: composedPrompt.systemPrompt,
@@ -124,6 +126,11 @@ export class AgentRunService {
         streamFn: createPiStreamFn({
           port: boundPort,
           createRequestId: () => randomUUID(),
+          prepareMessages: (currentMessages) => assembleAgentHistory({
+            persistedMessages: persistedHistory,
+            currentRunId: input.runId,
+            currentMessages,
+          }),
         }),
         convertToLlm: (messages) => messages as Message[],
       })

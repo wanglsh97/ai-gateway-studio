@@ -18,6 +18,11 @@ export interface ChatAdapterToolCall {
 export interface ChatAdapterMessage {
   role: 'system' | 'user' | 'assistant' | 'tool'
   content: string
+  /**
+   * 历史 assistant reasoning 的 provider-neutral 表达。支持原生回灌的 Adapter 应映射到
+   * 厂商 reasoning 字段；不支持时由上下文装配器将其降级为低信任 tagged content。
+   */
+  reasoningContent?: string
   toolCallId?: string
   toolName?: string
   toolCalls?: readonly ChatAdapterToolCall[]

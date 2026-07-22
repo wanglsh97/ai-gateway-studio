@@ -62,9 +62,14 @@ function convertPiMessage(message: Message): ChatAdapterMessage {
     const toolCalls = message.content
       .filter((part): part is ToolCall => part.type === 'toolCall')
       .map((part) => ({ id: part.id, name: part.name, arguments: part.arguments }))
+    const reasoningContent = message.content
+      .filter((part): part is ThinkingContent => part.type === 'thinking')
+      .map((part) => part.thinking)
+      .join('')
     return {
       role: 'assistant',
       content: text,
+      ...(reasoningContent ? { reasoningContent } : {}),
       ...(toolCalls.length > 0 ? { toolCalls } : {}),
     }
   }
@@ -272,6 +277,11 @@ export interface PiStreamFnDeps {
   topP?: number
   maxTokens?: number
   now?: () => number
+  /** 每次模型调用（含 tool follow-up）执行的上下文装配/压缩入口。 */
+  prepareMessages?: (
+    messages: readonly ChatAdapterMessage[],
+    tools: readonly ChatAdapterToolDefinition[],
+  ) => Promise<readonly ChatAdapterMessage[]> | readonly ChatAdapterMessage[]
 }
 
 /**
@@ -290,22 +300,28 @@ export function createPiStreamFn(deps: PiStreamFnDeps): StreamFn {
     const stream = createAssistantMessageEventStream()
     const signal = options?.signal ?? new AbortController().signal
 
-    const request: ModelInvocationRequest = {
-      requestId: deps.createRequestId(),
-      modelId: model.id,
-      messages: piContextToInvocationMessages(context),
-      tools: piToolsToDefinitions(context.tools),
-      signal,
-      ...(deps.toolChoice === undefined ? {} : { toolChoice: deps.toolChoice }),
-      ...(deps.temperature === undefined ? {} : { temperature: deps.temperature }),
-      ...(deps.topP === undefined ? {} : { topP: deps.topP }),
-      ...(deps.maxTokens === undefined ? {} : { maxTokens: deps.maxTokens }),
+    const rawMessages = piContextToInvocationMessages(context)
+    const tools = piToolsToDefinitions(context.tools)
+    const invokePrepared = async function* (): AsyncGenerator<ModelStreamEvent> {
+      const messages = await deps.prepareMessages?.(rawMessages, tools) ?? rawMessages
+      const request: ModelInvocationRequest = {
+        requestId: deps.createRequestId(),
+        modelId: model.id,
+        messages,
+        tools,
+        signal,
+        ...(deps.toolChoice === undefined ? {} : { toolChoice: deps.toolChoice }),
+        ...(deps.temperature === undefined ? {} : { temperature: deps.temperature }),
+        ...(deps.topP === undefined ? {} : { topP: deps.topP }),
+        ...(deps.maxTokens === undefined ? {} : { maxTokens: deps.maxTokens }),
+      }
+      yield* deps.port.invoke(request)
     }
     const meta: PiMessageMeta = { api: model.api, provider: model.provider, model: model.id }
 
     void (async () => {
       for await (const event of mapModelStreamToPiEvents(
-        deps.port.invoke(request),
+        invokePrepared(),
         meta,
         signal,
         deps.now,

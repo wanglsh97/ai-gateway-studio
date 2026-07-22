@@ -13,6 +13,7 @@ import type {
   ChatAdapterUsage,
 } from './chat-adapter'
 import { ChatAdapterError } from './chat-adapter'
+import { toOpenAICompatibleMessages } from './openai-compatible-message'
 
 export interface DeepSeekChatAdapterOptions {
   apiKey: string
@@ -52,7 +53,7 @@ export class DeepSeekChatAdapter implements ChatAdapter {
         headers: { authorization: `Bearer ${this.apiKey}` },
         body: {
           model: request.resolvedModel,
-          messages: request.messages.map(({ role, content }) => ({ role, content })),
+          messages: toOpenAICompatibleMessages(request.messages),
           stream: true,
           stream_options: { include_usage: true },
           ...(request.temperature === undefined ? {} : { temperature: request.temperature }),

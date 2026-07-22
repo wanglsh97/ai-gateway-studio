@@ -13,6 +13,7 @@ import type {
   ChatAdapterUsage,
 } from './chat-adapter'
 import { ChatAdapterError } from './chat-adapter'
+import { toOpenAICompatibleMessages } from './openai-compatible-message'
 
 export interface QwenChatAdapterOptions {
   apiKey: string
@@ -101,7 +102,7 @@ export class QwenChatAdapter implements ChatAdapter {
   private requestBody(request: ChatAdapterRequest): Record<string, unknown> {
     return {
       model: request.resolvedModel,
-      messages: request.messages.map(({ role, content }) => ({ role, content })),
+      messages: toOpenAICompatibleMessages(request.messages),
       stream: true,
       stream_options: { include_usage: true },
       ...(request.temperature === undefined ? {} : { temperature: request.temperature }),

@@ -40,6 +40,7 @@ describe('piContextToInvocationMessages', () => {
           role: 'assistant',
           content: [
             { type: 'text', text: '好的' },
+            { type: 'thinking', thinking: '先检查来源' },
             { type: 'toolCall', id: 'call_1', name: 'web_fetch', arguments: { url: 'https://a.test' } },
           ],
           api: 'openai-completions',
@@ -73,6 +74,7 @@ describe('piContextToInvocationMessages', () => {
       {
         role: 'assistant',
         content: '好的',
+        reasoningContent: '先检查来源',
         toolCalls: [{ id: 'call_1', name: 'web_fetch', arguments: { url: 'https://a.test' } }],
       },
       { role: 'tool', toolCallId: 'call_1', toolName: 'web_fetch', content: '网页正文' },
