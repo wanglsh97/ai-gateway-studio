@@ -7,7 +7,7 @@ import { AGENT_MEMORY_PROVIDER, type AgentMemoryProvider } from '../memory/agent
 import { AGENT_SKILL_REGISTRY, type AgentSkillRegistry } from '../skills/agent-skill.registry'
 import { AgentToolRegistry } from '../tools/agent-tool.registry'
 
-export const AGENT_PROMPT_PROFILE_VERSION = 'web-agent-v2'
+export const AGENT_PROMPT_PROFILE_VERSION = 'web-agent-v3'
 
 const COMPONENT_VERSIONS = Object.freeze({
   identity: '2',
@@ -55,7 +55,7 @@ export class AgentPromptComposer {
     now?: Date
   }): Promise<ComposedAgentPrompt> {
     const tools = this.tools.list()
-    const skills = this.skills.list()
+    const skills = await this.skills.listForUser(input.userId)
     const mcpServers = this.mcp.listServers()
     const memories = await this.memory.recall({ userId: input.userId, threadId: input.threadId })
     const now = input.now ?? new Date()

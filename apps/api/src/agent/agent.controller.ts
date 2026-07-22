@@ -10,6 +10,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Put,
   Query,
   Req,
   Res,
@@ -26,11 +27,13 @@ import { AgentRunEventBus } from './agent-run-event-bus'
 import { AgentRunRepository } from './agent-run.repository'
 import { AgentService } from './agent.service'
 import { CreateAgentRunDto } from './dto/create-agent-run.dto'
+import { UpdateAgentSkillDto } from './dto/update-agent-skill.dto'
 import {
   CreateAgentThreadDto,
   ListAgentThreadsQueryDto,
   UpdateAgentThreadDto,
 } from './dto/agent-thread.dto'
+import { AgentSkillService } from './skills/agent-skill.service'
 
 @ApiTags('Agent')
 @ApiCookieAuth(USER_SESSION_COOKIE)
@@ -41,7 +44,36 @@ export class AgentController {
     @Inject(AgentService) private readonly agent: AgentService,
     @Inject(AgentRunRepository) private readonly runs: AgentRunRepository,
     @Inject(AgentRunEventBus) private readonly bus: AgentRunEventBus,
+    @Inject(AgentSkillService) private readonly skills: AgentSkillService,
   ) {}
+
+  @Get('skills')
+  async listSkills(@CurrentUser() user: AuthenticatedUser) {
+    return this.skills.listMarket(user.id)
+  }
+
+  @Put('skills/:skillId/install')
+  async installSkill(@Param('skillId') skillId: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.skills.install(user.id, skillId)
+  }
+
+  @Patch('skills/:skillId')
+  async updateSkill(
+    @Param('skillId') skillId: string,
+    @Body() body: UpdateAgentSkillDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.skills.setEnabled(user.id, skillId, body.enabled)
+  }
+
+  @Delete('skills/:skillId/install')
+  @HttpCode(204)
+  async uninstallSkill(
+    @Param('skillId') skillId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<void> {
+    await this.skills.uninstall(user.id, skillId)
+  }
 
   @Post('threads')
   async createThread(@Body() body: CreateAgentThreadDto, @CurrentUser() user: AuthenticatedUser) {

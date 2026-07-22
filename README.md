@@ -39,6 +39,20 @@ pnpm dev
 - `POST /api/v1/chat/completions`
 - `POST /api/v1/images/generations` 及任务状态/下载
 - `POST /api/v1/prompts/optimize`
+- `/api/v1/agent/*`（持久 Agent 会话、运行事件和 Skill 市场）
+
+## Agent Skill 市场
+
+登录后访问 `/skills` 可以安装、启用、停用或卸载平台维护的 Skill。Skill 内容来自 API 仓库内经过审核的清单，服务启动时会校验 ID、版本、字段长度和工具引用；系统不会扫描本地目录、下载远程包、执行 Skill 代码或把 Skill 当成新的工具权限。
+
+安装状态按 GitHub 用户保存在 `UserAgentSkill`。启用状态从下一次 Agent 模型调用开始生效，`AgentPromptComposer` 会按用户加载已启用 Skill，并把 `skillId@version` 写入当次 prompt manifest。浏览器只接收展示元数据，不接收模型指令正文。
+
+相关 API：
+
+- `GET /api/v1/agent/skills`
+- `PUT /api/v1/agent/skills/:skillId/install`
+- `PATCH /api/v1/agent/skills/:skillId`
+- `DELETE /api/v1/agent/skills/:skillId/install`
 
 `/api/v1/admin/*` 使用另一枚 `aigateway_admin_session` Cookie，与 GitHub 用户 Session 完全隔离。Swagger 只描述 Cookie 认证边界，不展示或接收 OAuth code、GitHub access token、Client Secret 或原始 Session token。
 

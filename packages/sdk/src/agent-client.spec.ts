@@ -8,6 +8,57 @@ import type { AgentStreamEvent } from './agent-types.js'
 const runId = '00000000-0000-4000-8000-0000000000f0'
 const threadId = '00000000-0000-4000-8000-0000000000f1'
 
+describe('AgentClient skills', () => {
+  it('lists, installs, updates and uninstalls Skills with credentials and encoded ids', async () => {
+    const calls: Array<{
+      url: string
+      method: string | undefined
+      body: unknown
+      credentials: RequestCredentials | undefined
+    }> = []
+    const client = createAIGatewayClient({
+      fetch: async (input, init) => {
+        calls.push({
+          url: String(input),
+          method: init?.method,
+          body: init?.body,
+          credentials: init?.credentials,
+        })
+        if (init?.method === 'DELETE') return new Response(null, { status: 204 })
+        const item = {
+          id: 'deep-research',
+          name: '深度研究',
+          version: '1.0.0',
+          description: '研究',
+          category: '研究',
+          allowedTools: ['web_fetch'],
+          installed: init?.method !== 'GET',
+          enabled: init?.method !== 'GET',
+        }
+        return Response.json(init?.method === 'GET' ? [item] : item)
+      },
+    })
+
+    await client.agent.skills.list()
+    await client.agent.skills.install('deep/research')
+    await client.agent.skills.update('deep-research', { enabled: false })
+    await client.agent.skills.uninstall('deep-research')
+
+    assert.equal(calls[0]?.url, '/api/v1/agent/skills')
+    assert.equal(calls[1]?.url, '/api/v1/agent/skills/deep%2Fresearch/install')
+    assert.equal(calls[1]?.method, 'PUT')
+    assert.equal(calls[2]?.method, 'PATCH')
+    assert.equal(calls[2]?.body, JSON.stringify({ enabled: false }))
+    assert.equal(calls[3]?.method, 'DELETE')
+    assert.ok(calls.every((call) => call.credentials === 'same-origin'))
+  })
+
+  it('rejects malformed Skill catalog responses', async () => {
+    const client = createAIGatewayClient({ fetch: async () => Response.json([{ id: 'broken' }]) })
+    await assert.rejects(() => client.agent.skills.list(), AIGatewayProtocolError)
+  })
+})
+
 function sseResponse(frames: string): Response {
   return new Response(frames, {
     status: 200,
@@ -33,9 +84,14 @@ describe('AgentClient threads and runs', () => {
       fetch: async (input, init) => {
         calls.push({ url: String(input), method: init?.method, body: init?.body })
         if (init?.method === 'DELETE') return new Response(null, { status: 204 })
-        if (String(input).includes('/api/v1/agent/threads?') || (init?.method === 'GET' && String(input).endsWith('/threads'))) {
+        if (
+          String(input).includes('/api/v1/agent/threads?') ||
+          (init?.method === 'GET' && String(input).endsWith('/threads'))
+        ) {
           return Response.json({
-            items: [{ id: threadId, title: 't', model: 'qwen3.7-plus', createdAt: '', updatedAt: '' }],
+            items: [
+              { id: threadId, title: 't', model: 'qwen3.7-plus', createdAt: '', updatedAt: '' },
+            ],
             page: 1,
             pageSize: 50,
             total: 1,
@@ -43,7 +99,13 @@ describe('AgentClient threads and runs', () => {
             activeRun: null,
           })
         }
-        return Response.json({ id: threadId, title: 't', model: 'qwen3.7-plus', createdAt: '', updatedAt: '' })
+        return Response.json({
+          id: threadId,
+          title: 't',
+          model: 'qwen3.7-plus',
+          createdAt: '',
+          updatedAt: '',
+        })
       },
     })
 
@@ -67,7 +129,9 @@ describe('AgentClient threads and runs', () => {
     const client = createAIGatewayClient({
       fetch: async () =>
         Response.json({
-          items: [{ id: threadId, title: 't', model: 'qwen3.7-plus', createdAt: '', updatedAt: '' }],
+          items: [
+            { id: threadId, title: 't', model: 'qwen3.7-plus', createdAt: '', updatedAt: '' },
+          ],
           page: 1,
           pageSize: 50,
           total: 1,
@@ -91,7 +155,16 @@ describe('AgentClient threads and runs', () => {
           threadId,
           status: 'running',
           limitReason: null,
-          usage: { inputTokens: null, outputTokens: null, totalTokens: null, estimatedCostCny: null, usageUnknown: false, modelCalls: 0, toolCalls: 0, webFetchCalls: 0 },
+          usage: {
+            inputTokens: null,
+            outputTokens: null,
+            totalTokens: null,
+            estimatedCostCny: null,
+            usageUnknown: false,
+            modelCalls: 0,
+            toolCalls: 0,
+            webFetchCalls: 0,
+          },
           lastSequence: -1,
           createdAt: '',
           startedAt: null,
@@ -110,14 +183,23 @@ describe('AgentClient threads and runs', () => {
   it('throws a typed error envelope for conflict responses', async () => {
     const client = createAIGatewayClient({
       fetch: async () =>
-        new Response(JSON.stringify({ requestId: runId, code: 'CONFLICT', message: '已有运行', retryable: false }), {
-          status: 409,
-          headers: { 'x-request-id': runId },
-        }),
+        new Response(
+          JSON.stringify({
+            requestId: runId,
+            code: 'CONFLICT',
+            message: '已有运行',
+            retryable: false,
+          }),
+          {
+            status: 409,
+            headers: { 'x-request-id': runId },
+          },
+        ),
     })
     await assert.rejects(
       () => client.agent.runs.create(threadId, { input: 'x' }),
-      (error: unknown) => error instanceof AIGatewayError && error.code === 'CONFLICT' && error.status === 409,
+      (error: unknown) =>
+        error instanceof AIGatewayError && error.code === 'CONFLICT' && error.status === 409,
     )
   })
 })
@@ -133,7 +215,10 @@ describe('AgentClient runs.subscribe', () => {
     const client = createAIGatewayClient({ fetch: async () => sseResponse(frames) })
 
     const events = await collect(client.agent.runs.subscribe(runId))
-    assert.deepEqual(events.map((event) => event.sequence), [0, 1, 2, 3])
+    assert.deepEqual(
+      events.map((event) => event.sequence),
+      [0, 1, 2, 3],
+    )
     assert.equal(events.at(-1)?.type, 'run-terminal')
   })
 
@@ -142,7 +227,15 @@ describe('AgentClient runs.subscribe', () => {
     const client = createAIGatewayClient({
       fetch: async (input) => {
         requestedUrl = String(input)
-        return sseResponse(frame({ type: 'run-terminal', sequence: 5, runId, status: 'succeeded', limitReason: null }) + 'data: [DONE]\n\n')
+        return sseResponse(
+          frame({
+            type: 'run-terminal',
+            sequence: 5,
+            runId,
+            status: 'succeeded',
+            limitReason: null,
+          }) + 'data: [DONE]\n\n',
+        )
       },
     })
     const events = await collect(client.agent.runs.subscribe(runId, { after: 4 }))
@@ -164,7 +257,15 @@ describe('AgentClient runs.subscribe', () => {
     const client = createAIGatewayClient({
       fetch: async (_input, init) => {
         seenSignal = init?.signal ?? undefined
-        return sseResponse(frame({ type: 'run-terminal', sequence: 0, runId, status: 'succeeded', limitReason: null }) + 'data: [DONE]\n\n')
+        return sseResponse(
+          frame({
+            type: 'run-terminal',
+            sequence: 0,
+            runId,
+            status: 'succeeded',
+            limitReason: null,
+          }) + 'data: [DONE]\n\n',
+        )
       },
     })
     await collect(client.agent.runs.subscribe(runId, { signal: controller.signal }))

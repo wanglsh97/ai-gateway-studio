@@ -1,8 +1,14 @@
-import { BadRequestException, ConflictException, HttpException, NotFoundException } from '@nestjs/common'
+import {
+  BadRequestException,
+  ConflictException,
+  HttpException,
+  NotFoundException,
+} from '@nestjs/common'
 
 import type { ChatModelCatalog } from '../chat/chat-model-catalog'
 import type { AuthenticatedUser } from '../user-auth/user-session.service'
 import type { AgentActiveRunLock } from './agent-active-run.lock'
+import type { AgentContextSummaryRepository } from './context/agent-context-summary.repository'
 import type { AgentMessageRepository } from './agent-message.repository'
 import type { AgentRunRepository } from './agent-run.repository'
 import type { AgentRunService } from './agent-run.service'
@@ -48,27 +54,41 @@ function setup() {
   const activeRunLock = {
     tryAcquire: jest.fn().mockResolvedValue(true),
     release: jest.fn().mockResolvedValue(undefined),
-    conflict: jest.fn((activeRunId?: string) =>
-      new ConflictException({
-        message: '已有进行中的 Agent 运行，请等待其结束',
-        details:
-          activeRunId === undefined
-            ? { code: 'AGENT_ACTIVE_RUN' }
-            : { code: 'AGENT_ACTIVE_RUN', activeRunId },
-      }),
+    conflict: jest.fn(
+      (activeRunId?: string) =>
+        new ConflictException({
+          message: '已有进行中的 Agent 运行，请等待其结束',
+          details:
+            activeRunId === undefined
+              ? { code: 'AGENT_ACTIVE_RUN' }
+              : { code: 'AGENT_ACTIVE_RUN', activeRunId },
+        }),
     ),
   } as unknown as jest.Mocked<AgentActiveRunLock>
-  const service = new AgentService(threads, runs, messages, models, runService, activeRunLock)
+  const contextSummaries = {
+    findForThread: jest.fn().mockResolvedValue(null),
+  } as unknown as jest.Mocked<AgentContextSummaryRepository>
+  const service = new AgentService(
+    threads,
+    runs,
+    messages,
+    models,
+    runService,
+    activeRunLock,
+    contextSummaries,
+  )
   return { threads, runs, messages, models, runService, activeRunLock, service }
 }
 
-function threadRow(overrides: Partial<{ id: string; title: string; modelId: string; provider: string }> = {}) {
+function threadRow(
+  overrides: Partial<{ id: string; title: string; modelId: string; provider: string }> = {},
+) {
   return {
     id: 'thread-1',
     title: '新的 Agent 会话',
     modelId: 'qwen3.7-plus',
-        provider: 'qwen',
-        contextWindowTokens: 1_000_000,
+    provider: 'qwen',
+    contextWindowTokens: 1_000_000,
     createdAt: new Date('2026-07-20T00:00:00.000Z'),
     updatedAt: new Date('2026-07-20T00:00:00.000Z'),
     ...overrides,
@@ -129,10 +149,7 @@ describe('AgentService', () => {
     })
     ;(runs.findActiveForUser as jest.Mock).mockResolvedValue(null)
     await expect(service.listThreads(user, { page: 1, pageSize: 20 })).resolves.toEqual({
-      items: [
-        expect.objectContaining({ id: 'newer' }),
-        expect.objectContaining({ id: 'older' }),
-      ],
+      items: [expect.objectContaining({ id: 'newer' }), expect.objectContaining({ id: 'older' })],
       page: 1,
       pageSize: 20,
       total: 2,
@@ -271,7 +288,11 @@ describe('AgentService', () => {
     expect(summary.id).toBe('run-1')
     expect(summary.status).toBe('running')
     expect(activeRunLock.tryAcquire).toHaveBeenCalledWith('user-a', expect.any(String))
-    expect(messages.appendUserMessage).toHaveBeenCalledWith('thread-1', 'run-1', '总结 https://a.test')
+    expect(messages.appendUserMessage).toHaveBeenCalledWith(
+      'thread-1',
+      'run-1',
+      '总结 https://a.test',
+    )
     expect(runService.execute).toHaveBeenCalledWith(
       expect.objectContaining({
         runId: 'run-1',

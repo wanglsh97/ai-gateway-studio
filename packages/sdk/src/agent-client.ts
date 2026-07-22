@@ -1,4 +1,5 @@
 import { decodeAgentEvent } from './agent-events.js'
+import type { AgentSkillMarketItem, UpdateAgentSkillRequest } from './agent-skill-types.js'
 import type {
   AgentRunSummary,
   AgentStreamEvent,
@@ -9,11 +10,7 @@ import type {
   CreateAgentThreadRequest,
   UpdateAgentThreadRequest,
 } from './agent-types.js'
-import {
-  AIGatewayAuthenticationError,
-  AIGatewayError,
-  AIGatewayProtocolError,
-} from './errors.js'
+import { AIGatewayAuthenticationError, AIGatewayError, AIGatewayProtocolError } from './errors.js'
 import { readSseData } from './sse.js'
 import type { GatewayError } from './types.js'
 
@@ -32,6 +29,16 @@ export interface AgentThreadListOptions extends RequestOptions {
 }
 
 export interface AgentClient {
+  skills: {
+    list(options?: RequestOptions): Promise<AgentSkillMarketItem[]>
+    install(skillId: string, options?: RequestOptions): Promise<AgentSkillMarketItem>
+    update(
+      skillId: string,
+      input: UpdateAgentSkillRequest,
+      options?: RequestOptions,
+    ): Promise<AgentSkillMarketItem>
+    uninstall(skillId: string, options?: RequestOptions): Promise<void>
+  }
   threads: {
     create(input: CreateAgentThreadRequest, options?: RequestOptions): Promise<AgentThreadSummary>
     list(options?: AgentThreadListOptions): Promise<AgentThreadListPage>
@@ -62,6 +69,47 @@ export function createAgentClient(
   baseUrl: string,
 ): AgentClient {
   return {
+    skills: {
+      list: async (options) => {
+        const value = await requestJson<unknown>(
+          fetchImplementation,
+          'GET',
+          `${baseUrl}/api/v1/agent/skills`,
+          undefined,
+          options,
+        )
+        if (!Array.isArray(value))
+          throw new AIGatewayProtocolError('unknown', 'Agent Skill catalog is not an array')
+        return value.map(decodeSkillMarketItem)
+      },
+      install: async (skillId, options) =>
+        decodeSkillMarketItem(
+          await requestJson(
+            fetchImplementation,
+            'PUT',
+            `${baseUrl}/api/v1/agent/skills/${encodeURIComponent(skillId)}/install`,
+            undefined,
+            options,
+          ),
+        ),
+      update: async (skillId, input, options) =>
+        decodeSkillMarketItem(
+          await requestJson(
+            fetchImplementation,
+            'PATCH',
+            `${baseUrl}/api/v1/agent/skills/${encodeURIComponent(skillId)}`,
+            input,
+            options,
+          ),
+        ),
+      uninstall: (skillId, options) =>
+        requestVoid(
+          fetchImplementation,
+          'DELETE',
+          `${baseUrl}/api/v1/agent/skills/${encodeURIComponent(skillId)}/install`,
+          options,
+        ),
+    },
     threads: {
       create: (input, options) =>
         requestJson(fetchImplementation, 'POST', `${baseUrl}/api/v1/agent/threads`, input, options),
@@ -125,6 +173,35 @@ export function createAgentClient(
   }
 }
 
+function decodeSkillMarketItem(value: unknown): AgentSkillMarketItem {
+  const item = asRecord(value)
+  const allowedTools = item?.allowedTools
+  if (
+    !item ||
+    !stringValue(item.id) ||
+    !stringValue(item.name) ||
+    !stringValue(item.version) ||
+    typeof item.description !== 'string' ||
+    !stringValue(item.category) ||
+    !Array.isArray(allowedTools) ||
+    !allowedTools.every((tool) => typeof tool === 'string') ||
+    typeof item.installed !== 'boolean' ||
+    typeof item.enabled !== 'boolean'
+  ) {
+    throw new AIGatewayProtocolError('unknown', 'Agent Skill response is malformed')
+  }
+  return {
+    id: item.id as string,
+    name: item.name as string,
+    version: item.version as string,
+    description: item.description,
+    category: item.category as string,
+    allowedTools,
+    installed: item.installed,
+    enabled: item.enabled,
+  }
+}
+
 async function requestJson<T>(
   fetchImplementation: typeof globalThis.fetch,
   method: string,
@@ -146,7 +223,11 @@ async function requestJson<T>(
   try {
     return (await response.json()) as T
   } catch (error) {
-    throw new AIGatewayProtocolError(requestId ?? 'unknown', 'Agent response is not valid JSON', error)
+    throw new AIGatewayProtocolError(
+      requestId ?? 'unknown',
+      'Agent response is not valid JSON',
+      error,
+    )
   }
 }
 
@@ -180,7 +261,10 @@ async function* subscribeRunEvents(
   const requestId = response.headers.get('x-request-id')
   if (!response.ok) throw await responseError(response, requestId)
   if (!response.headers.get('content-type')?.toLowerCase().includes('text/event-stream')) {
-    throw new AIGatewayProtocolError(requestId ?? 'unknown', 'Agent events response is not text/event-stream')
+    throw new AIGatewayProtocolError(
+      requestId ?? 'unknown',
+      'Agent events response is not text/event-stream',
+    )
   }
   if (!response.body) {
     throw new AIGatewayProtocolError(requestId ?? 'unknown', 'Agent events response has no body')
@@ -211,7 +295,10 @@ function parseJson(data: string, runId: string): unknown {
   }
 }
 
-async function responseError(response: Response, headerRequestId: string | null): Promise<AIGatewayError> {
+async function responseError(
+  response: Response,
+  headerRequestId: string | null,
+): Promise<AIGatewayError> {
   let body: unknown
   try {
     body = await response.json()
@@ -225,7 +312,8 @@ async function responseError(response: Response, headerRequestId: string | null)
     requestId,
     code: stringValue(record?.code) ?? `HTTP_${response.status}`,
     message: stringValue(record?.message) ?? `Agent request failed with HTTP ${response.status}`,
-    retryable: booleanValue(record?.retryable) ?? (response.status === 429 || response.status >= 500),
+    retryable:
+      booleanValue(record?.retryable) ?? (response.status === 429 || response.status >= 500),
     ...(details === undefined ? {} : { details }),
   }
   return response.status === 401

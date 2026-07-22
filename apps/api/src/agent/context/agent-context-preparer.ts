@@ -15,7 +15,7 @@ export interface PreparedAgentContext {
 
 @Injectable()
 export class AgentContextPreparer {
-  constructor(private readonly estimator = new AgentTokenEstimator()) {}
+  private readonly estimator = new AgentTokenEstimator()
 
   prepare(input: {
     contextWindowTokens: number

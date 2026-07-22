@@ -20,7 +20,10 @@ import { AgentService } from './agent.service'
 import { AgentStartupCleanupService } from './agent-startup-cleanup.service'
 import { AgentThreadRepository } from './agent-thread.repository'
 import { AgentPromptComposer } from './prompt/agent-prompt.composer'
-import { AGENT_SKILL_REGISTRY, EmptyAgentSkillRegistry } from './skills/agent-skill.registry'
+import { AGENT_SKILL_REGISTRY } from './skills/agent-skill.registry'
+import { AgentSkillRepository } from './skills/agent-skill.repository'
+import { AgentSkillService } from './skills/agent-skill.service'
+import { PlatformAgentSkillCatalog } from './skills/platform-agent-skill.catalog'
 import { AGENT_TOOLS, AgentToolRegistry } from './tools/agent-tool.registry'
 import type { AgentToolDefinition } from './tools/agent-tool'
 import { webFetchFixtureTool } from './tools/web-fetch-fixture.tool'
@@ -55,8 +58,10 @@ function resolveAgentTools(): readonly AgentToolDefinition[] {
     AgentService,
     AgentStartupCleanupService,
     AgentPromptComposer,
-    EmptyAgentSkillRegistry,
-    { provide: AGENT_SKILL_REGISTRY, useExisting: EmptyAgentSkillRegistry },
+    PlatformAgentSkillCatalog,
+    AgentSkillRepository,
+    AgentSkillService,
+    { provide: AGENT_SKILL_REGISTRY, useExisting: AgentSkillService },
     EmptyAgentMcpRegistry,
     { provide: AGENT_MCP_REGISTRY, useExisting: EmptyAgentMcpRegistry },
     EmptyAgentMemoryProvider,

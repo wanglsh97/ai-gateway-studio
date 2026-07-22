@@ -18,12 +18,13 @@ describe('AgentPromptComposer', () => {
 
   it('assembles versioned trust layers from actual registries', async () => {
     const skills: AgentSkillRegistry = {
-      list: () => [
+      listForUser: async () => [
         {
           id: 'research',
           name: 'Research',
           version: '2',
           description: '研究',
+          category: 'Research',
           instructions: '先核对 <source>。',
           allowedTools: ['probe'],
         },
@@ -68,7 +69,7 @@ describe('AgentPromptComposer', () => {
   it('does not claim empty future capabilities', async () => {
     const composer = new AgentPromptComposer(
       new AgentToolRegistry([]),
-      { list: () => [] },
+      { listForUser: async () => [] },
       { listServers: () => [] },
       { recall: async () => [] },
     )
@@ -87,10 +88,10 @@ describe('AgentPromptComposer', () => {
     expect(result.systemPrompt).not.toContain('<mcp_context>')
   })
 
-  it('matches the reviewed V2 English golden prompt hash', async () => {
+  it('matches the reviewed V3 English golden prompt hash', async () => {
     const composer = new AgentPromptComposer(
       new AgentToolRegistry([]),
-      { list: () => [] },
+      { listForUser: async () => [] },
       { listServers: () => [] },
       { recall: async () => [] },
     )

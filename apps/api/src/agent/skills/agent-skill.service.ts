@@ -1,0 +1,74 @@
+import type { AgentSkillMarketItem } from '@aigateway/sdk'
+import { Inject, Injectable, NotFoundException } from '@nestjs/common'
+
+import type { AgentSkillDescriptor, AgentSkillRegistry } from './agent-skill.registry'
+import { AgentSkillRepository } from './agent-skill.repository'
+import { PlatformAgentSkillCatalog } from './platform-agent-skill.catalog'
+
+@Injectable()
+export class AgentSkillService implements AgentSkillRegistry {
+  constructor(
+    @Inject(PlatformAgentSkillCatalog) private readonly catalog: PlatformAgentSkillCatalog,
+    @Inject(AgentSkillRepository) private readonly repository: AgentSkillRepository,
+  ) {}
+
+  async listMarket(userId: string): Promise<AgentSkillMarketItem[]> {
+    const installed = new Map(
+      (await this.repository.listForUser(userId)).map((state) => [state.skillId, state.enabled]),
+    )
+    return this.catalog.list().map((skill) => toMarketItem(skill, installed.get(skill.id)))
+  }
+
+  async listForUser(userId: string): Promise<readonly AgentSkillDescriptor[]> {
+    const enabled = new Set(
+      (await this.repository.listForUser(userId))
+        .filter((state) => state.enabled)
+        .map((state) => state.skillId),
+    )
+    return this.catalog.list().filter((skill) => enabled.has(skill.id))
+  }
+
+  async install(userId: string, skillId: string): Promise<AgentSkillMarketItem> {
+    const skill = this.requireSkill(skillId)
+    const state = await this.repository.install(userId, skillId)
+    return toMarketItem(skill, state.enabled)
+  }
+
+  async setEnabled(
+    userId: string,
+    skillId: string,
+    enabled: boolean,
+  ): Promise<AgentSkillMarketItem> {
+    const skill = this.requireSkill(skillId)
+    const state = await this.repository.setEnabled(userId, skillId, enabled)
+    if (!state) throw new NotFoundException('Skill 尚未安装')
+    return toMarketItem(skill, state.enabled)
+  }
+
+  async uninstall(userId: string, skillId: string): Promise<void> {
+    this.requireSkill(skillId)
+    await this.repository.uninstall(userId, skillId)
+  }
+
+  private requireSkill(skillId: string): AgentSkillDescriptor {
+    const skill = this.catalog.find(skillId)
+    if (!skill) throw new NotFoundException('Skill 不存在或已下架')
+    return skill
+  }
+}
+
+function toMarketItem(
+  skill: AgentSkillDescriptor,
+  enabled: boolean | undefined,
+): AgentSkillMarketItem {
+  return {
+    id: skill.id,
+    name: skill.name,
+    version: skill.version,
+    description: skill.description,
+    category: skill.category,
+    allowedTools: skill.allowedTools,
+    installed: enabled !== undefined,
+    enabled: enabled ?? false,
+  }
+}
