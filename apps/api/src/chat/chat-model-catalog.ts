@@ -10,6 +10,7 @@ export interface ChatModelDefinition {
   displayName: string
   provider: TextModelAlias
   upstreamModelId: string
+  contextWindowTokens: number
 }
 
 @Injectable()

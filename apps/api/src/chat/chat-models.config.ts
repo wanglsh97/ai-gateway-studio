@@ -5,6 +5,8 @@ export interface ChatModelConfig {
   displayName: string
   provider: TextModelAlias
   upstreamModelId: string
+  /** 厂商公开文档确认的最大输入+输出上下文窗口。 */
+  contextWindowTokens: number
 }
 
 /**
@@ -18,24 +20,28 @@ export const CHAT_MODELS = Object.freeze([
     displayName: 'Qwen3.7-Plus',
     provider: 'qwen',
     upstreamModelId: 'qwen3.7-plus',
+    contextWindowTokens: 1_000_000,
   },
   {
     id: 'glm-5.2',
     displayName: 'GLM-5.2',
     provider: 'glm',
     upstreamModelId: 'glm-5.2',
+    contextWindowTokens: 1_000_000,
   },
   {
     id: 'deepseek-v4-pro',
     displayName: 'DeepSeek-V4-Pro',
     provider: 'deepseek',
     upstreamModelId: 'deepseek-v4-pro',
+    contextWindowTokens: 1_000_000,
   },
   {
     id: 'kimi-k3',
     displayName: 'Kimi K3',
     provider: 'kimi',
     upstreamModelId: 'kimi-k3',
+    contextWindowTokens: 1_000_000,
   },
 ] satisfies readonly ChatModelConfig[])
 
@@ -51,6 +57,9 @@ export function validateChatModels(models: readonly ChatModelConfig[]): void {
       throw new Error(`Chat 模型 ID 不合法：${model.id}`)
     }
     if (ids.has(model.id)) throw new Error(`Chat 模型 ID 重复：${model.id}`)
+    if (!Number.isSafeInteger(model.contextWindowTokens) || model.contextWindowTokens <= 0) {
+      throw new Error(`Chat 模型 context window 不合法：${model.id}`)
+    }
     ids.add(model.id)
     providers.add(model.provider)
   }

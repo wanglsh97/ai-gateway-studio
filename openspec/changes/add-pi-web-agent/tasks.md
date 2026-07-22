@@ -65,7 +65,7 @@
 
 ## 6. 分层 System Prompt 与上下文压缩
 
-- [ ] 6.1 为模型目录增加经验证的 `contextWindowTokens`，实现包含工具 schema、输出和安全预留的 `AgentTokenEstimator/ContextBudget`，覆盖精确/保守估算及 60/75/88% 阈值测试
+- [x] 6.1 为模型目录增加经验证的 `contextWindowTokens`，实现包含工具 schema、输出和安全预留的 `AgentTokenEstimator/ContextBudget`，覆盖精确/保守估算及 60/75/88% 阈值测试
 - [ ] 6.2 实现版本化 `AgentPromptComposer`，按固定信任层级动态组装核心策略、运行时、真实 Tool、Skill/MCP/Memory 空端口与 manifest，并移除 `AgentRunService` 的硬编码 prompt
 - [ ] 6.3 为 Tool contract 增加风险/审批元数据并拒绝尚不支持的显式审批工具；为 SDK 消息新增 `media-reference` part 和安全 placeholder 转换
 - [ ] 6.4 在每次模型调用前装配 PostgreSQL 历史、当前 Pi context 和最近 4/最少 2 turns；回灌带低信任边界的历史 reasoning，并覆盖跨 run 多轮、工具 follow-up 和未完成工具保留测试

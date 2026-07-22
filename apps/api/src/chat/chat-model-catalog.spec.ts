@@ -17,6 +17,7 @@ describe('ChatModelCatalog', () => {
           displayName: 'Kimi K3 Turbo',
           provider: 'kimi',
           upstreamModelId: 'kimi-k3-turbo',
+          contextWindowTokens: 1_000_000,
         },
       ]),
     ).not.toThrow()
@@ -37,6 +38,7 @@ describe('ChatModelCatalog', () => {
         displayName: 'Kimi K3',
         provider: 'kimi',
         upstreamModelId: 'kimi-k3',
+        contextWindowTokens: 1_000_000,
       },
     ])
     expect(catalog.resolve('kimi-k3')).toEqual({
@@ -44,6 +46,7 @@ describe('ChatModelCatalog', () => {
       displayName: 'Kimi K3',
       provider: 'kimi',
       upstreamModelId: 'kimi-k3',
+      contextWindowTokens: 1_000_000,
     })
   })
 
@@ -51,6 +54,7 @@ describe('ChatModelCatalog', () => {
     const catalog = new ChatModelCatalog(new ChatAdapterRegistry([adapter('mock', 'mock-chat')]))
 
     expect(catalog.list()).toEqual(CHAT_MODELS)
+    expect(catalog.resolve('qwen3.7-plus')?.contextWindowTokens).toBe(1_000_000)
   })
 
   it('resolveForAgent allows Mock-backed models and rejects unverified real providers', () => {

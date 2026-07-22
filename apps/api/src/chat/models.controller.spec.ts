@@ -143,6 +143,7 @@ describe('ModelsController', () => {
       provider: 'qwen',
       upstreamModelId: 'qwen3.7-plus',
       displayName: 'Qwen',
+      contextWindowTokens: 1_000_000,
     } satisfies ChatModelDefinition
     expect(
       canAdvertiseAgentCapability({
