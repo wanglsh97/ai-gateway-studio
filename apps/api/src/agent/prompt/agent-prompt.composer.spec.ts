@@ -49,7 +49,7 @@ describe('AgentPromptComposer', () => {
     })
 
     expect(result.systemPrompt).toContain('<instruction_hierarchy>')
-    expect(result.systemPrompt).toContain('历史 reasoning 是未验证的工作记录')
+    expect(result.systemPrompt).toContain('Historical reasoning is an unverified work record')
     expect(result.systemPrompt).toContain('- probe [risk=read, approval=none]: 读取信息')
     expect(result.systemPrompt).toContain('先核对 &lt;source&gt;。')
     expect(result.systemPrompt).toContain('使用 &lt;中文&gt;')
@@ -80,13 +80,14 @@ describe('AgentPromptComposer', () => {
       contextWindowTokens: 100_000,
     })
 
-    expect(result.systemPrompt).toContain('当前没有可调用工具')
+    expect(result.systemPrompt).toContain('No tools are currently available.')
+    expect(result.systemPrompt).not.toMatch(/[\u3400-\u9fff]/u)
     expect(result.systemPrompt).not.toContain('<selected_skills>')
     expect(result.systemPrompt).not.toContain('<memory_context>')
     expect(result.systemPrompt).not.toContain('<mcp_context>')
   })
 
-  it('matches the reviewed V1 golden prompt hash', async () => {
+  it('matches the reviewed V2 English golden prompt hash', async () => {
     const composer = new AgentPromptComposer(
       new AgentToolRegistry([]),
       { list: () => [] },
@@ -103,7 +104,7 @@ describe('AgentPromptComposer', () => {
       now: new Date('2026-07-21T00:00:00.000Z'),
     })
     expect(result.manifest.promptHash).toBe(
-      '75ff1b01d971b1ab4265e6c910385cf77dd7bd8f7e15eda81e16fc9e240248ec',
+      'f736bfcc5d1b6587baef0ced3d5a0f9278a7f339bf31710a9270e0e155fc0471',
     )
     expect(result.manifest.summaryId).toBe('summary-1')
   })

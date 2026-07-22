@@ -3,6 +3,13 @@
 ### Requirement: Agent system prompt is composed from versioned trust layers
 The Agent runtime SHALL use one version-controlled Prompt Composer for every model. It SHALL dynamically compose platform core policy, product execution policy, runtime context, actual registered tools, selected platform skills, user memory context, conversation summary, and current conversation messages in a fixed trust order. Model-specific renderers MAY change formatting and bounded length but MUST NOT change authorization, safety, or product behavior.
 
+All platform-authored model-facing prompt templates SHALL be written in English, including the main Agent system prompt, forced-summary prompt, built-in tool descriptions and schemas, and tool-result trust wrappers. Dynamic user, Skill, Memory, MCP, and external content SHALL retain its original language and trust classification. The response contract SHALL still instruct the model to answer in the user's current language unless requested otherwise.
+
+#### Scenario: English templates preserve multilingual user content
+- **GIVEN** the platform prompt templates are English and a user message or dynamic context entry is written in another language
+- **WHEN** the Agent context package is composed
+- **THEN** all platform-authored instructions remain English, the dynamic content retains its original language, and the model is instructed to respond in the user's current language
+
 #### Scenario: Empty future integrations do not create fictional capabilities
 - **GIVEN** the V1 Skill, MCP, and Memory ports return empty collections
 - **WHEN** an Agent run is composed

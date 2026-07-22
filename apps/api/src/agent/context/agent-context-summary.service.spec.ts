@@ -1,5 +1,12 @@
-import type { ModelInvocationPort, ModelInvocationRequest, ModelStreamEvent } from '../../chat/model-invocation.port'
-import { AgentContextCompressionFailedError, AgentContextSummaryService } from './agent-context-summary.service'
+import type {
+  ModelInvocationPort,
+  ModelInvocationRequest,
+  ModelStreamEvent,
+} from '../../chat/model-invocation.port'
+import {
+  AgentContextCompressionFailedError,
+  AgentContextSummaryService,
+} from './agent-context-summary.service'
 
 const valid = JSON.stringify({
   userGoals: ['ship'],
@@ -39,20 +46,30 @@ describe('AgentContextSummaryService', () => {
       signal: new AbortController().signal,
     })
     expect(requests).toHaveLength(2)
-    expect(requests.every((request) => request.toolChoice === 'none' && request.tools?.length === 0))
-      .toBe(true)
-    expect(requests.every((request) => request.modelId === 'qwen' && request.allowFailover === false))
-      .toBe(true)
+    expect(
+      requests.every((request) => request.toolChoice === 'none' && request.tools?.length === 0),
+    ).toBe(true)
+    expect(
+      requests.every((request) => request.modelId === 'qwen' && request.allowFailover === false),
+    ).toBe(true)
+    expect(
+      requests.every((request) => !/[\u3400-\u9fff]/u.test(request.messages[0]?.content ?? '')),
+    ).toBe(true)
+    expect(requests[1]?.messages[1]?.content).toContain(
+      'The previous output failed schema validation',
+    )
     expect(result.content.userGoals).toEqual(['ship'])
     expect(result.usage.totalTokens).toBe(15)
   })
 
   it('ends after the retry also fails', async () => {
-    await expect(new AgentContextSummaryService().generate({
-      port: port(['bad', 'still bad'], []),
-      modelId: 'qwen',
-      messages: [],
-      signal: new AbortController().signal,
-    })).rejects.toBeInstanceOf(AgentContextCompressionFailedError)
+    await expect(
+      new AgentContextSummaryService().generate({
+        port: port(['bad', 'still bad'], []),
+        modelId: 'qwen',
+        messages: [],
+        signal: new AbortController().signal,
+      }),
+    ).rejects.toBeInstanceOf(AgentContextCompressionFailedError)
   })
 })

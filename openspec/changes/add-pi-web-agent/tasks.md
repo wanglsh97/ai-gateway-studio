@@ -73,3 +73,4 @@
 - [x] 6.6 新增唯一 `AgentContextSummary` migration/repository 与 V1 JSON Schema，使用当前模型执行禁用工具的强制摘要、失败重试一次、事务覆盖和 `context_window` 终止
 - [x] 6.7 扩展 SDK/API 的 `context-budget`、`context-compressed` 与最新摘要契约，在 `/agent` Composer 展示占用率、时间线展示压缩事件、详情展示结构化摘要
 - [ ] 6.8 添加 Prompt golden/manifest、历史恢复、三层压缩、摘要污染/Schema 失败、两次失败终止、事件重连和 UI 测试，并运行相关单测、PostgreSQL 集成、typecheck、lint、build 与 strict OpenSpec 校验
+- [x] 6.9 将平台维护的主 Agent、强制摘要及内置工具模型可见 Prompt 统一为英文，保留动态内容原始语言，并更新版本、golden test 与规格

@@ -17,7 +17,7 @@ export const WEB_FETCH_TOOL_PARAMETERS: Record<string, unknown> = {
     url: {
       type: 'string',
       minLength: 1,
-      description: '要抓取的公网 HTTP/HTTPS URL。',
+      description: 'The public HTTP/HTTPS URL to fetch.',
     },
   },
 }

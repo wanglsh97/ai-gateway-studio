@@ -132,6 +132,8 @@ Reasoning 默认折叠并显示“不完整或不准确”的说明；仅当 pro
 
 `AgentRunService` 不再持有完整 system prompt 常量，而是调用 `AgentPromptComposer` 生成 `systemPrompt + messages + tools + manifest`。所有 Agent 模型共享同一组语义组件；renderer 只能按模型能力调整标签、格式和长度，不能改变权限、安全边界和产品行为。组件存放在仓库内并随代码发布，管理员不能在线修改。
 
+平台维护的模型可见 Prompt 模板统一使用英文，包括主 Agent system prompt、强制压缩 summary prompt、内置工具描述、参数描述和工具结果安全封装。用户消息以及动态注入的 Skill、Memory、MCP 和外部内容保持原始语言并继续受对应信任边界约束；最终回答仍默认跟随用户当前语言。Prompt 语言调整必须更新 profile/component version 或 prompt hash，并通过 golden test 审核。
+
 Prompt 按以下信任层级装配：平台核心规则 → 产品执行策略 → 平台签名 Skill → 当前用户指令 → Memory → 历史消息/摘要 → MCP、网页、文件与工具结果。后四类均不能授予权限；MCP 描述和所有工具结果始终是不可信数据。Skill 不能扩展 Tool allowlist，Memory 不能覆盖当前用户指令。
 
 Composer manifest 至少包含 profile version/hash、组件版本、Skill 版本、Memory ID、summary ID、工具名和 context 预算。`AgentRun` 保存 manifest/hash，实际发送给模型的消息继续由独立 RequestLog 保存，不在 AgentRun 重复完整 prompt。

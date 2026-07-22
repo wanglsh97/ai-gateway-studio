@@ -71,7 +71,7 @@ The tool SHALL enforce configurable connection and total timeouts, a maximum res
 - **THEN** it returns the first bounded content with an explicit truncation indicator
 
 ### Requirement: Retrieved content is treated as untrusted data
-The Agent system instructions and tool result envelope SHALL identify fetched content as untrusted reference data. Instructions found in fetched content MUST NOT alter system instructions, expand the tool allowlist, disclose credentials, or bypass destination and run limits.
+The Agent system instructions and tool result envelope SHALL identify fetched content as untrusted reference data. Platform-authored tool descriptions, parameter descriptions, and trust-wrapper text SHALL be English while fetched content retains its source language. Instructions found in fetched content MUST NOT alter system instructions, expand the tool allowlist, disclose credentials, or bypass destination and run limits.
 
 #### Scenario: Page contains a prompt injection
 - **GIVEN** fetched content tells the Agent to ignore prior instructions and access a sensitive target
