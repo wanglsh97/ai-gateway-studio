@@ -1,7 +1,13 @@
 'use client'
 
 import { createAIGatewayClient } from '@aigateway/sdk'
-import type { TextModelAlias, TextModelId } from '@aigateway/sdk'
+import type {
+  AgentContextBudgetState,
+  AgentContextSummary,
+  AgentStreamEvent,
+  TextModelAlias,
+  TextModelId,
+} from '@aigateway/sdk'
 import {
   AssistantRuntimeProvider,
   AuiIf,
@@ -95,6 +101,11 @@ function AgentConsole() {
     setUserActiveRun,
   } = useAgentWorkspace()
   const activeThreadId = useAgentActiveThreadId()
+  const [contextBudget, setContextBudget] = useState<AgentContextBudgetState | null>(null)
+  const [contextSummary, setContextSummary] = useState<AgentContextSummary | null>(null)
+  const [compressionEvents, setCompressionEvents] = useState<
+    Extract<AgentStreamEvent, { type: 'context-compressed' }>[]
+  >([])
 
   const skipHydrationRef = useRef(false)
   const contextRef = useRef({
@@ -103,12 +114,17 @@ function AgentConsole() {
     onThreadCreated: (() => undefined) as (thread: Parameters<typeof prependThread>[0]) => void,
     onRunCreated: (() => undefined) as (run: { id: string; threadId: string }) => void,
     onRunFinished: () => undefined,
+    onContextBudget: (_budget: AgentContextBudgetState) => undefined,
+    onContextCompressed: (_event: Extract<AgentStreamEvent, { type: 'context-compressed' }>) => undefined,
   })
 
   contextRef.current.threadId = activeThreadId
   contextRef.current.model = selectedModel
   contextRef.current.onThreadCreated = (thread) => {
     skipHydrationRef.current = true
+    setContextBudget(null)
+    setContextSummary(null)
+    setCompressionEvents([])
     prependThread(thread)
     openThread(thread.id)
   }
@@ -137,6 +153,15 @@ function AgentConsole() {
   contextRef.current.onRunFinished = () => {
     setUserActiveRun(null)
     void refreshThreads().catch(() => undefined)
+  }
+  contextRef.current.onContextBudget = setContextBudget
+  contextRef.current.onContextCompressed = (event) => {
+    setCompressionEvents((current) => [...current, event])
+    if (event.summaryId && contextRef.current.threadId) {
+      void client.agent.threads.get(contextRef.current.threadId).then((thread) => {
+        setContextSummary(thread.contextSummary)
+      }).catch(() => undefined)
+    }
   }
 
   const modelOptions = useMemo<ModelOption[]>(
@@ -177,7 +202,13 @@ function AgentConsole() {
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
-      <ThreadHydrator skipHydrationRef={skipHydrationRef} />
+      <ThreadHydrator
+        skipHydrationRef={skipHydrationRef}
+        onContextBudget={setContextBudget}
+        onContextSummary={setContextSummary}
+        onCompressionEvent={(event) => setCompressionEvents((current) => [...current, event])}
+        onResetCompressionEvents={() => setCompressionEvents([])}
+      />
       <WebFetchToolUI />
       <AgentPageShell>
         <AgentConsolePanel label="智能体">
@@ -215,9 +246,11 @@ function AgentConsole() {
                   )
                 }
               </ThreadPrimitive.Messages>
+              <AgentContextTimeline events={compressionEvents} summary={contextSummary} />
             </AgentThreadViewport>
             <AgentScrollToBottom />
             <AgentComposerDock>
+              <AgentContextBudgetBadge budget={contextBudget} summary={contextSummary} />
               {userActiveRun && userActiveRun.threadId !== activeThreadId ? (
                 <AgentActiveRunHint message="另一会话正在运行，请等待结束后再提交" />
               ) : null}
@@ -262,7 +295,19 @@ function AgentConsole() {
   )
 }
 
-function ThreadHydrator({ skipHydrationRef }: { skipHydrationRef: { current: boolean } }) {
+function ThreadHydrator({
+  skipHydrationRef,
+  onContextBudget,
+  onContextSummary,
+  onCompressionEvent,
+  onResetCompressionEvents,
+}: {
+  skipHydrationRef: { current: boolean }
+  onContextBudget: (budget: AgentContextBudgetState | null) => void
+  onContextSummary: (summary: AgentContextSummary | null) => void
+  onCompressionEvent: (event: Extract<AgentStreamEvent, { type: 'context-compressed' }>) => void
+  onResetCompressionEvents: () => void
+}) {
   const api = useAui()
   const activeThreadId = useAgentActiveThreadId()
   const { setSelectedModel, setUserActiveRun, refreshThreads } = useAgentWorkspace()
@@ -286,11 +331,17 @@ function ThreadHydrator({ skipHydrationRef }: { skipHydrationRef: { current: boo
           api.thread().reset([])
           setInterruptedNotice(null)
           setResumeNotice(null)
+          onContextBudget(null)
+          onContextSummary(null)
+          onResetCompressionEvents()
           return
         }
         const thread = await client.agent.threads.get(activeThreadId)
         if (cancelled) return
         setSelectedModel(thread.model)
+        onContextSummary(thread.contextSummary)
+        onContextBudget(null)
+        onResetCompressionEvents()
 
         if (isResumableActiveRun(thread.activeRun)) {
           setUserActiveRun(thread.activeRun)
@@ -306,6 +357,8 @@ function ThreadHydrator({ skipHydrationRef }: { skipHydrationRef: { current: boo
           })) {
             if (cancelled) return
             view = foldEventsFromCursor([event], afterSequence, view)
+            if (event.type === 'context-budget') onContextBudget(event)
+            if (event.type === 'context-compressed') onCompressionEvent(event)
             afterSequence = event.sequence
             api.thread().reset(
               agentMessagesToThreadMessages(mergeThreadMessagesWithRunView(thread.messages, view)),
@@ -346,6 +399,79 @@ function ThreadHydrator({ skipHydrationRef }: { skipHydrationRef: { current: boo
   if (interruptedNotice) return <AgentInterruptedBanner message={interruptedNotice} />
   if (resumeNotice) return <AgentInterruptedBanner message={resumeNotice} />
   return null
+}
+
+function AgentContextBudgetBadge({
+  budget,
+  summary,
+}: {
+  budget: AgentContextBudgetState | null
+  summary: AgentContextSummary | null
+}) {
+  if (!budget && !summary) return null
+  const percentage = budget
+    ? Math.min(999, Math.round((budget.usedTokens / Math.max(1, budget.usableTokens)) * 100))
+    : null
+  return (
+    <details className="mx-1 rounded-xl border border-line/80 bg-surface-inset/60 px-3 py-2 text-xs text-ink-muted">
+      <summary className="cursor-pointer select-none font-semibold text-ink">
+        {percentage === null ? '上下文摘要可用' : `上下文 ${budget?.estimated ? '约 ' : ''}${percentage}% · ${budget?.level}`}
+      </summary>
+      {budget ? (
+        <p className="mt-2 tabular-nums">
+          {budget.usedTokens.toLocaleString()} / {budget.usableTokens.toLocaleString()} 可用 Token
+          （模型窗口 {budget.contextWindowTokens.toLocaleString()}）
+        </p>
+      ) : null}
+      {summary ? <AgentSummaryDetail summary={summary} /> : null}
+    </details>
+  )
+}
+
+function AgentContextTimeline({
+  events,
+  summary,
+}: {
+  events: Extract<AgentStreamEvent, { type: 'context-compressed' }>[]
+  summary: AgentContextSummary | null
+}) {
+  if (events.length === 0) return null
+  return (
+    <div className="mx-auto w-full max-w-3xl space-y-2 px-4 pb-3" aria-label="上下文压缩时间线">
+      {events.map((event) => (
+        <details key={`${event.runId}-${event.sequence}`} className="rounded-xl border border-dashed border-line bg-surface px-3 py-2 text-xs text-ink-muted">
+          <summary className="cursor-pointer font-semibold text-ink">
+            上下文已{event.level === 'forced' ? '强制摘要' : event.level === 'moderate' ? '中度压缩' : '轻量压缩'}
+            {event.revision ? ` · 摘要 r${event.revision}` : ''}
+          </summary>
+          <p className="mt-1">{event.notes.join(' · ')}</p>
+          {event.summaryId && summary?.id === event.summaryId ? <AgentSummaryDetail summary={summary} /> : null}
+        </details>
+      ))}
+    </div>
+  )
+}
+
+function AgentSummaryDetail({ summary }: { summary: AgentContextSummary }) {
+  const content = summary.content
+  return (
+    <div className="mt-3 space-y-2 border-t border-line pt-2 text-left">
+      <p>摘要 revision {summary.revision} · 覆盖至消息 #{summary.coveredThroughSequence}</p>
+      <SummaryItems label="用户目标" values={content.userGoals} />
+      <SummaryItems label="用户约束" values={content.userConstraints} />
+      <SummaryItems label="开放问题" values={content.openQuestions} />
+      <SummaryItems label="压缩说明" values={content.compressionNotes} />
+      {content.recentOutcome ? <p><span className="font-semibold text-ink">最近结果：</span>{content.recentOutcome}</p> : null}
+      <pre className="max-h-64 overflow-auto whitespace-pre-wrap rounded-lg bg-surface-inset p-2 text-[0.68rem]">
+        {JSON.stringify(content, null, 2)}
+      </pre>
+    </div>
+  )
+}
+
+function SummaryItems({ label, values }: { label: string; values: string[] }) {
+  if (values.length === 0) return null
+  return <p><span className="font-semibold text-ink">{label}：</span>{values.join('；')}</p>
 }
 
 function AgentStopButton() {

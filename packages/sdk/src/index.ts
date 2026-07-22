@@ -22,6 +22,10 @@ export {
 export type {
   AgentMessage,
   AgentMessagePart,
+  AgentContextBudgetState,
+  AgentContextCompressionLevel,
+  AgentContextSummary,
+  AgentContextSummaryContent,
   AgentMessageRole,
   AgentMediaReferencePart,
   AgentReasoningPart,

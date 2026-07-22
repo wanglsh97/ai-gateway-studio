@@ -113,6 +113,30 @@ describe('reduceAgentEvents', () => {
     assert.equal(limited.limitReason, 'web_fetch_calls')
   })
 
+  it('restores context budget and compression timeline from replayed events', () => {
+    const state = reduceAgentEvents(initialAgentRunViewState(), [
+      {
+        type: 'context-budget',
+        sequence: 0,
+        runId,
+        usedTokens: 75,
+        usableTokens: 100,
+        contextWindowTokens: 128,
+        estimated: true,
+        level: 'moderate',
+      },
+      {
+        type: 'context-compressed',
+        sequence: 1,
+        runId,
+        level: 'moderate',
+        notes: ['removed-completed-reasoning'],
+      },
+    ])
+    assert.equal(state.contextBudget?.usedTokens, 75)
+    assert.equal(state.compressionEvents[0]?.level, 'moderate')
+  })
+
   it('classifies active statuses', () => {
     assert.equal(isActiveStatus('running'), true)
     assert.equal(isActiveStatus('cancelling'), true)

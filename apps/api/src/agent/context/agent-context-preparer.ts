@@ -10,6 +10,7 @@ export interface PreparedAgentContext {
   messages: ChatAdapterMessage[]
   budget: AgentContextBudget
   compressionNotes: string[]
+  appliedCompressionLevel: 'none' | 'light' | 'moderate'
 }
 
 @Injectable()
@@ -24,7 +25,12 @@ export class AgentContextPreparer {
   }): PreparedAgentContext {
     const before = calculateAgentContextBudget({ ...input, estimator: this.estimator })
     if (before.level === 'none' || before.level === 'forced') {
-      return { messages: input.messages.map((message) => ({ ...message })), budget: before, compressionNotes: [] }
+      return {
+        messages: input.messages.map((message) => ({ ...message })),
+        budget: before,
+        compressionNotes: [],
+        appliedCompressionLevel: 'none',
+      }
     }
     const compressed = compressAgentContext(input.messages, before.level)
     const budget = calculateAgentContextBudget({
@@ -32,6 +38,11 @@ export class AgentContextPreparer {
       messages: compressed.messages,
       estimator: this.estimator,
     })
-    return { messages: compressed.messages, budget, compressionNotes: compressed.notes }
+    return {
+      messages: compressed.messages,
+      budget,
+      compressionNotes: compressed.notes,
+      appliedCompressionLevel: before.level,
+    }
   }
 }

@@ -71,5 +71,5 @@
 - [x] 6.4 在每次模型调用前装配 PostgreSQL 历史、当前 Pi context 和最近 4/最少 2 turns；回灌带低信任边界的历史 reasoning，并覆盖跨 run 多轮、工具 follow-up 和未完成工具保留测试
 - [x] 6.5 实现 none/light/moderate 确定性压缩，覆盖 reasoning、工具进度/结果、失败尝试、多媒体 placeholder、顺序不变和当前用户输入不丢失
 - [x] 6.6 新增唯一 `AgentContextSummary` migration/repository 与 V1 JSON Schema，使用当前模型执行禁用工具的强制摘要、失败重试一次、事务覆盖和 `context_window` 终止
-- [ ] 6.7 扩展 SDK/API 的 `context-budget`、`context-compressed` 与最新摘要契约，在 `/agent` Composer 展示占用率、时间线展示压缩事件、详情展示结构化摘要
+- [x] 6.7 扩展 SDK/API 的 `context-budget`、`context-compressed` 与最新摘要契约，在 `/agent` Composer 展示占用率、时间线展示压缩事件、详情展示结构化摘要
 - [ ] 6.8 添加 Prompt golden/manifest、历史恢复、三层压缩、摘要污染/Schema 失败、两次失败终止、事件重连和 UI 测试，并运行相关单测、PostgreSQL 集成、typecheck、lint、build 与 strict OpenSpec 校验

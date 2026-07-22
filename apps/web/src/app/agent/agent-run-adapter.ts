@@ -1,5 +1,6 @@
 import type {
   AgentMessage,
+  AgentContextBudgetState,
   AgentRunStatus,
   AgentStreamEvent,
   AgentThreadSummary,
@@ -19,6 +20,8 @@ export interface AgentRunAdapterContext {
   onThreadCreated: (thread: AgentThreadSummary) => void
   onRunCreated?: (run: { id: string; threadId: string }) => void
   onRunFinished?: () => void
+  onContextBudget?: (budget: AgentContextBudgetState) => void
+  onContextCompressed?: (event: Extract<AgentStreamEvent, { type: 'context-compressed' }>) => void
 }
 
 export interface AgentRunMetadata extends Record<string, unknown> {
@@ -75,6 +78,7 @@ export function createAgentRunAdapter(
       context.onRunCreated?.({ id: run.id, threadId })
       const metadata: AgentRunMetadata = { model: context.model, runId: run.id }
       const parts: MutablePart[] = []
+      let runError: Error | null = null
 
       // 仅断开本端 SSE；浏览器刷新/卸载不得调用 cancel（规范：断线不取消进程内 run）。
       // 显式「停止」由 UI 先调 cancel API，再触发本 abortSignal。
@@ -83,17 +87,27 @@ export function createAgentRunAdapter(
           after: -1,
           signal: abortSignal,
         })) {
+          if (event.type === 'context-budget') context.onContextBudget?.(event)
+          if (event.type === 'context-compressed') context.onContextCompressed?.(event)
           applyAgentEvent(parts, metadata, event)
           const content = toAssistantParts(parts)
           if (event.type === 'run-terminal') {
+            const incomplete =
+              event.status === 'failed' ||
+              event.status === 'interrupted' ||
+              event.status === 'limit_reached'
             const result: ChatModelRunResult = {
               content,
               metadata: { custom: { ...metadata } },
               status:
                 event.status === 'cancelled'
                   ? { type: 'incomplete', reason: 'cancelled' }
-                  : event.status === 'failed' || event.status === 'interrupted'
-                    ? { type: 'incomplete', reason: 'error' }
+                  : incomplete
+                    ? {
+                        type: 'incomplete',
+                        reason: 'error',
+                        ...(runError === null ? {} : { error: runError.message }),
+                      }
                     : { type: 'complete', reason: 'stop' },
             }
             yield result
@@ -101,10 +115,12 @@ export function createAgentRunAdapter(
             return
           }
           if (event.type === 'error') {
-            throw new Error(event.error.message)
+            runError = new Error(event.error.message)
+            continue
           }
           yield { content, metadata: { custom: { ...metadata } } }
         }
+        if (runError) throw runError
       } catch (error) {
         if (abortSignal.aborted) {
           // 本地停止读取；服务端 run 继续。不把状态标成 cancelled。

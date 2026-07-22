@@ -101,6 +101,29 @@ export class AgentRunProjector {
     }
   }
 
+  contextBudget(input: {
+    usedTokens: number
+    usableTokens: number
+    contextWindowTokens: number
+    estimated: boolean
+    level: 'none' | 'light' | 'moderate' | 'forced'
+    summaryId?: string
+  }): AgentStreamEvent[] {
+    if (this.finished) return []
+    return [this.emit({ type: 'context-budget', ...input })]
+  }
+
+  contextCompressed(input: {
+    level: 'light' | 'moderate' | 'forced'
+    notes: string[]
+    summaryId?: string
+    revision?: number
+    coveredThroughSequence?: number
+  }): AgentStreamEvent[] {
+    if (this.finished) return []
+    return [this.emit({ type: 'context-compressed', ...input })]
+  }
+
   /** 终结 run，产出 usage 与终态事件。幂等：重复调用返回空。 */
   finalize(
     status: AgentRunTerminalStatus,

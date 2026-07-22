@@ -162,7 +162,27 @@ export class AgentRunService {
                 messages: assembled,
                 tools,
               })
-              if (prepared.budget.level !== 'forced') return prepared.messages
+              await persistAndPublish(projector.contextBudget({
+                usedTokens: prepared.budget.usedTokens,
+                usableTokens: prepared.budget.usableTokens,
+                contextWindowTokens: prepared.budget.contextWindowTokens,
+                estimated: prepared.budget.estimated,
+                level: prepared.budget.level,
+                ...(activeSummary === null ? {} : { summaryId: activeSummary.id }),
+              }))
+              if (prepared.budget.level !== 'forced') {
+                if (
+                  prepared.compressionNotes.length > 0 &&
+                  prepared.appliedCompressionLevel !== 'none'
+                ) {
+                  await persistAndPublish(projector.contextCompressed({
+                    level: prepared.appliedCompressionLevel,
+                    notes: prepared.compressionNotes,
+                    ...(activeSummary === null ? {} : { summaryId: activeSummary.id }),
+                  }))
+                }
+                return prepared.messages
+              }
 
               const candidates = selectMessagesForForcedSummary(
                 persistedHistory,
@@ -203,6 +223,13 @@ export class AgentRunService {
                 outputTokens: generated.usage.outputTokens,
                 totalTokens: generated.usage.totalTokens,
               })
+              await persistAndPublish(projector.contextCompressed({
+                level: 'forced',
+                notes: ['structured-summary-updated', 'historical-reasoning-omitted'],
+                summaryId: activeSummary.id,
+                revision: activeSummary.revision,
+                coveredThroughSequence: boundary,
+              }))
               const afterSummary = assembleAgentHistory({
                 persistedMessages: persistedHistory,
                 currentRunId: input.runId,
@@ -218,6 +245,14 @@ export class AgentRunService {
                 tools,
               })
               if (recounted.budget.level === 'forced') throw new AgentContextWindowExceededError()
+              await persistAndPublish(projector.contextBudget({
+                usedTokens: recounted.budget.usedTokens,
+                usableTokens: recounted.budget.usableTokens,
+                contextWindowTokens: recounted.budget.contextWindowTokens,
+                estimated: recounted.budget.estimated,
+                level: recounted.budget.level,
+                summaryId: activeSummary.id,
+              }))
               return recounted.messages
             } catch (error) {
               if (error instanceof AgentContextLimitError) contextLimitError = error

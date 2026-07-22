@@ -62,6 +62,35 @@ export function decodeAgentEvent(value: unknown, expectedRunId?: string): AgentS
       return { type, ...base, messageId: id(record.messageId), delta: text(record.delta) }
     case 'reasoning-delta':
       return { type, ...base, messageId: id(record.messageId), delta: text(record.delta) }
+    case 'context-budget': {
+      const summaryId = optionalId(record.summaryId)
+      return {
+        type,
+        ...base,
+        usedTokens: count(record.usedTokens),
+        usableTokens: count(record.usableTokens),
+        contextWindowTokens: count(record.contextWindowTokens),
+        estimated: bool(record.estimated),
+        level: compressionLevel(record.level),
+        ...(summaryId === undefined ? {} : { summaryId }),
+      }
+    }
+    case 'context-compressed': {
+      const level = compressionLevel(record.level)
+      if (level === 'none') throw protocol('Compressed context level cannot be none')
+      const summaryId = optionalId(record.summaryId)
+      const revision = optionalCount(record.revision)
+      const coveredThroughSequence = optionalCount(record.coveredThroughSequence)
+      return {
+        type,
+        ...base,
+        level,
+        notes: stringArray(record.notes, 'context compression notes'),
+        ...(summaryId === undefined ? {} : { summaryId }),
+        ...(revision === undefined ? {} : { revision }),
+        ...(coveredThroughSequence === undefined ? {} : { coveredThroughSequence }),
+      }
+    }
     case 'message-end':
       return { type, ...base, messageId: id(record.messageId) }
     case 'tool-call':
@@ -160,6 +189,28 @@ function limitReason(value: unknown): AgentRunLimitReason | null {
     throw protocol('Agent run limit reason is invalid')
   }
   return reason as AgentRunLimitReason
+}
+
+function compressionLevel(value: unknown): 'none' | 'light' | 'moderate' | 'forced' {
+  if (value === 'none' || value === 'light' || value === 'moderate' || value === 'forced') return value
+  throw protocol('Agent context compression level is invalid')
+}
+
+function optionalId(value: unknown): string | undefined {
+  if (value === undefined) return undefined
+  return id(value)
+}
+
+function optionalCount(value: unknown): number | undefined {
+  if (value === undefined) return undefined
+  return count(value)
+}
+
+function stringArray(value: unknown, name: string): string[] {
+  if (!Array.isArray(value) || value.some((item) => typeof item !== 'string')) {
+    throw protocol(`${name} is invalid`)
+  }
+  return value
 }
 
 function role(value: unknown): AgentMessageRole {

@@ -18,6 +18,7 @@ import { ChatModelCatalog } from '../chat/chat-model-catalog'
 import type { AgentRun } from '../generated/prisma/client'
 import type { AuthenticatedUser } from '../user-auth/user-session.service'
 import { AgentActiveRunLock } from './agent-active-run.lock'
+import { AgentContextSummaryRepository } from './context/agent-context-summary.repository'
 import {
   AGENT_DEFAULT_THREAD_TITLE,
   AGENT_THREAD_LIST_DEFAULT_PAGE,
@@ -28,7 +29,7 @@ import { AgentRunRepository } from './agent-run.repository'
 import { AgentRunService } from './agent-run.service'
 import { deriveAgentThreadTitle } from './agent-title'
 import { AgentThreadRepository } from './agent-thread.repository'
-import { toMessage, toRunSummary, toThreadSummary } from './agent.mappers'
+import { toContextSummary, toMessage, toRunSummary, toThreadSummary } from './agent.mappers'
 
 @Injectable()
 export class AgentService {
@@ -41,6 +42,8 @@ export class AgentService {
     @Inject(ChatModelCatalog) private readonly models: ChatModelCatalog,
     @Inject(AgentRunService) private readonly runService: AgentRunService,
     @Inject(AgentActiveRunLock) private readonly activeRunLock: AgentActiveRunLock,
+    @Inject(AgentContextSummaryRepository)
+    private readonly contextSummaries: AgentContextSummaryRepository,
   ) {}
 
   async createThread(
@@ -90,10 +93,11 @@ export class AgentService {
     const summary = await this.threads.findSummaryForOwner(threadId, user.id)
     if (!summary) throw new NotFoundException('Agent 会话不存在')
 
-    const [messages, activeRun, lastRun] = await Promise.all([
+    const [messages, activeRun, lastRun, contextSummary] = await Promise.all([
       this.messages.listForThread(threadId),
       this.runs.findActiveForThread(threadId),
       this.runs.findLatestForThread(threadId),
+      this.contextSummaries.findForThread(threadId),
     ])
 
     return {
@@ -101,6 +105,7 @@ export class AgentService {
       messages: messages.map(toMessage),
       activeRun: activeRun ? toRunSummary(activeRun) : null,
       lastRun: lastRun ? toRunSummary(lastRun) : null,
+      contextSummary: contextSummary ? toContextSummary(contextSummary) : null,
     }
   }
 

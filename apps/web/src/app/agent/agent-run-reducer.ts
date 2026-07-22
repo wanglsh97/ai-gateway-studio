@@ -6,6 +6,7 @@ import type {
   AgentRunUsage,
   AgentStreamEvent,
   GatewayError,
+  AgentContextBudgetState,
 } from '@aigateway/sdk'
 
 /**
@@ -20,10 +21,20 @@ export interface AgentRunViewState {
   messages: AgentMessage[]
   usage: AgentRunUsage | null
   error: GatewayError | null
+  contextBudget: AgentContextBudgetState | null
+  compressionEvents: Extract<AgentStreamEvent, { type: 'context-compressed' }>[]
 }
 
 export function initialAgentRunViewState(): AgentRunViewState {
-  return { status: 'idle', limitReason: null, messages: [], usage: null, error: null }
+  return {
+    status: 'idle',
+    limitReason: null,
+    messages: [],
+    usage: null,
+    error: null,
+    contextBudget: null,
+    compressionEvents: [],
+  }
 }
 
 export function reduceAgentEvent(
@@ -48,6 +59,10 @@ export function reduceAgentEvent(
       return appendDelta(state, event.messageId, 'text', event.delta)
     case 'reasoning-delta':
       return appendDelta(state, event.messageId, 'reasoning', event.delta)
+    case 'context-budget':
+      return { ...state, contextBudget: event }
+    case 'context-compressed':
+      return { ...state, compressionEvents: [...state.compressionEvents, event] }
     case 'tool-call':
       return upsertAssistantPart(state, event.messageId, {
         type: 'tool-call',

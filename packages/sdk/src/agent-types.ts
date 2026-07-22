@@ -136,6 +136,44 @@ export interface AgentThread extends AgentThreadSummary {
   activeRun: AgentRunSummary | null
   /** 该会话最近一次 run（含已终结）；用于展示 interrupted 等终态。 */
   lastRun: AgentRunSummary | null
+  contextSummary: AgentContextSummary | null
+}
+
+export type AgentContextCompressionLevel = 'none' | 'light' | 'moderate' | 'forced'
+
+export interface AgentContextSummaryContent {
+  userGoals: string[]
+  userConstraints: string[]
+  decisions: { decision: string; rationale?: string }[]
+  facts: { statement: string; source: string }[]
+  openQuestions: string[]
+  pendingTasks: { task: string; status: 'pending' | 'in_progress' | 'blocked' }[]
+  toolFindings: { toolName: string; finding: string }[]
+  referencedArtifacts: { name: string; reference: string }[]
+  recentOutcome: string
+  compressionNotes: string[]
+}
+
+export interface AgentContextSummary {
+  id: string
+  revision: number
+  coveredThroughSequence: number
+  schemaVersion: string
+  modelId: string
+  content: AgentContextSummaryContent
+  inputTokens: number | null
+  outputTokens: number | null
+  totalTokens: number | null
+  updatedAt: string
+}
+
+export interface AgentContextBudgetState {
+  usedTokens: number
+  usableTokens: number
+  contextWindowTokens: number
+  estimated: boolean
+  level: AgentContextCompressionLevel
+  summaryId?: string
 }
 
 export interface CreateAgentThreadRequest {
@@ -174,6 +212,17 @@ export type AgentStreamEvent =
     }
   | { type: 'text-delta'; sequence: number; runId: string; messageId: string; delta: string }
   | { type: 'reasoning-delta'; sequence: number; runId: string; messageId: string; delta: string }
+  | ({ type: 'context-budget'; sequence: number; runId: string } & AgentContextBudgetState)
+  | {
+      type: 'context-compressed'
+      sequence: number
+      runId: string
+      level: Exclude<AgentContextCompressionLevel, 'none'>
+      notes: string[]
+      summaryId?: string
+      revision?: number
+      coveredThroughSequence?: number
+    }
   | { type: 'message-end'; sequence: number; runId: string; messageId: string }
   | {
       type: 'tool-call'

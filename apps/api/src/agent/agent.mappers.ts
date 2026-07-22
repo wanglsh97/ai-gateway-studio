@@ -6,12 +6,14 @@ import type {
   AgentRunStatus,
   AgentRunSummary,
   AgentThreadSummary,
+  AgentContextSummary as AgentContextSummaryDto,
 } from '@aigateway/sdk'
 
 import type {
   AgentMessage as AgentMessageRow,
   AgentMessageRole as PrismaMessageRole,
   AgentRun,
+  AgentContextSummary,
   AgentRunLimitReason as PrismaLimitReason,
   AgentRunStatus as PrismaRunStatus,
 } from '../generated/prisma/client'
@@ -80,5 +82,20 @@ export function toMessage(row: AgentMessageRow): AgentMessage {
     role: MESSAGE_ROLE_MAP[row.role],
     parts: (row.parts as unknown as AgentMessagePart[]) ?? [],
     createdAt: row.createdAt.toISOString(),
+  }
+}
+
+export function toContextSummary(row: AgentContextSummary): AgentContextSummaryDto {
+  return {
+    id: row.id,
+    revision: row.revision,
+    coveredThroughSequence: row.coveredThroughSequence,
+    schemaVersion: row.schemaVersion,
+    modelId: row.modelId,
+    content: row.content as unknown as AgentContextSummaryDto['content'],
+    inputTokens: row.inputTokens,
+    outputTokens: row.outputTokens,
+    totalTokens: row.totalTokens,
+    updatedAt: row.updatedAt.toISOString(),
   }
 }
