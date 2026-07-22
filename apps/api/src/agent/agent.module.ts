@@ -14,6 +14,7 @@ import { AgentRunService } from './agent-run.service'
 import { AgentService } from './agent.service'
 import { AgentStartupCleanupService } from './agent-startup-cleanup.service'
 import { AgentThreadRepository } from './agent-thread.repository'
+import { AGENT_SKILL_REGISTRY, EmptyAgentSkillRegistry } from './skills/agent-skill.registry'
 import { AGENT_TOOLS, AgentToolRegistry } from './tools/agent-tool.registry'
 import type { AgentToolDefinition } from './tools/agent-tool'
 import { webFetchFixtureTool } from './tools/web-fetch-fixture.tool'
@@ -44,6 +45,8 @@ function resolveAgentTools(): readonly AgentToolDefinition[] {
     AgentRunService,
     AgentService,
     AgentStartupCleanupService,
+    EmptyAgentSkillRegistry,
+    { provide: AGENT_SKILL_REGISTRY, useExisting: EmptyAgentSkillRegistry },
     {
       provide: AGENT_TOOLS,
       useFactory: (): readonly AgentToolDefinition[] => resolveAgentTools(),

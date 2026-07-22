@@ -53,7 +53,7 @@
 
 ## 5. Skill/MCP/Memory 扩展边界与交付
 
-- [ ] 5.1 定义 `AgentSkillRegistry` 端口和返回空集合的 V1 实现，验证 Agent 启动不会扫描本地 skill 目录或注入未注册内容
+- [x] 5.1 定义 `AgentSkillRegistry` 端口和返回空集合的 V1 实现，验证 Agent 启动不会扫描本地 skill 目录或注入未注册内容
 - [ ] 5.2 定义 `AgentMcpRegistry` 端口和返回空集合的 V1 实现，验证 Agent 启动不会连接 MCP、读取凭证或动态发现工具
 - [ ] 5.2a 定义 `AgentMemoryProvider` 端口和返回空集合的 V1 实现，验证 Agent 启动不会扫描、提取或持久化长期 Memory
 - [ ] 5.3 更新 PRD、技术方案、README、`.env.example`、Swagger 和部署说明，明确 `/agent`、Pi 服务端边界、运行预算、数据保留、API 重启中断及 MCP/skills 后续范围
