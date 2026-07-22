@@ -6,6 +6,7 @@ import { RedisModule } from '../redis/redis.module'
 import { RequestLifecycleModule } from '../request-lifecycle/request-lifecycle.module'
 import { UserAuthModule } from '../user-auth/user-auth.module'
 import { AgentActiveRunLock } from './agent-active-run.lock'
+import { AgentContextPreparer } from './context/agent-context-preparer'
 import { AgentController } from './agent.controller'
 import { AgentMessageRepository } from './agent-message.repository'
 import { AGENT_MCP_REGISTRY, EmptyAgentMcpRegistry } from './mcp/agent-mcp.registry'
@@ -45,6 +46,7 @@ function resolveAgentTools(): readonly AgentToolDefinition[] {
     AgentMessageRepository,
     AgentRunEventBus,
     AgentActiveRunLock,
+    AgentContextPreparer,
     AgentRunService,
     AgentService,
     AgentStartupCleanupService,

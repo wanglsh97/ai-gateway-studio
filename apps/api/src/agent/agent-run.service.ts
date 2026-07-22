@@ -14,6 +14,7 @@ import { RequestLifecycleService } from '../request-lifecycle/request-lifecycle.
 import { createAgentModelInvocationPort } from './agent-model-invocation'
 import { AgentActiveRunLock } from './agent-active-run.lock'
 import { assembleAgentHistory } from './context/agent-history-context'
+import { AgentContextPreparer } from './context/agent-context-preparer'
 import { AgentMessageRepository } from './agent-message.repository'
 import { AgentRunEventBus } from './agent-run-event-bus'
 import { AgentRunProjector } from './agent-run.projector'
@@ -70,6 +71,7 @@ export class AgentRunService {
     @Inject(AgentRunEventBus) private readonly bus: AgentRunEventBus,
     @Inject(AgentActiveRunLock) private readonly activeRunLock: AgentActiveRunLock,
     @Inject(AgentPromptComposer) private readonly promptComposer: AgentPromptComposer,
+    @Inject(AgentContextPreparer) private readonly contextPreparer: AgentContextPreparer,
   ) {}
 
   isRunning(runId: string): boolean {
@@ -126,11 +128,15 @@ export class AgentRunService {
         streamFn: createPiStreamFn({
           port: boundPort,
           createRequestId: () => randomUUID(),
-          prepareMessages: (currentMessages) => assembleAgentHistory({
-            persistedMessages: persistedHistory,
-            currentRunId: input.runId,
-            currentMessages,
-          }),
+          prepareMessages: (currentMessages, tools) => this.contextPreparer.prepare({
+            contextWindowTokens: input.contextWindowTokens,
+            messages: assembleAgentHistory({
+              persistedMessages: persistedHistory,
+              currentRunId: input.runId,
+              currentMessages,
+            }),
+            tools,
+          }).messages,
         }),
         convertToLlm: (messages) => messages as Message[],
       })
