@@ -12,6 +12,9 @@
 - 持久化 provider 明确返回的 reasoning part，并在页面中默认折叠展示；不诱导、推断或伪造模型未返回的隐藏推理。
 - 每次 Agent 内部模型调用继续生成独立 `RequestLog/BillingRecord`，`AgentRun` 聚合 Token、人民币费用、模型调用次数和工具调用次数。
 - 为后续 skill registry 和 MCP registry 预留稳定端口与模块边界，但本 change 不实现 skill 发现/加载、MCP 连接、凭证管理或用户配置界面。
+- 将 Agent system prompt 从运行服务中的硬编码常量重构为版本化、可测试的服务端 Prompt Composer。Composer 按固定信任层级动态装配平台核心规则、产品执行策略、运行时上下文、真实工具能力、平台 Skill、用户 Memory 和会话上下文；所有模型共享同一语义组装方法，只允许 renderer 做格式和长度适配。
+- 每次模型调用前根据模型目录声明的最大 context window 计算可用输入预算，并将持久会话历史回灌模型。上下文达到阈值后依次执行轻量、中度和强制压缩；强制压缩使用当前会话模型生成版本化结构化摘要，原始消息继续保留。
+- 为未来 Skill、MCP 和 Memory 提供空实现端口，并为 Tool contract 增加风险与审批元数据；V1 不动态加载 Skill、不连接 MCP、不提取长期 Memory，也不注册需要审批的写入或破坏性工具。
 - 首版不实现会话分享、工具审批/风险分级、运行中追加消息、JavaScript 网页渲染、后台 Worker 或 API 重启后的 Agent run 恢复。
 
 ## Capabilities
@@ -21,6 +24,7 @@
 - `web-agent`: 通用 `/agent` 入口、Pi 服务端 Agent loop、模型选择、运行生命周期、流式事件、reasoning 展示、运行限制和计费聚合。
 - `agent-sessions`: 用户隔离的持久会话、消息 parts、历史列表、重命名、删除、刷新恢复和单用户 active run 约束。
 - `agent-tools`: 服务端工具注册契约、tool-call/tool-result 生命周期、安全的 `web_fetch` 纵向切片，以及未来 skills/MCP 的扩展边界。
+- `agent-context`: 分层 system prompt、会话历史装配、模型上下文预算、渐进压缩、结构化摘要、上下文占用事件，以及 Skill/MCP/Memory 的空扩展端口。
 
 ### Modified Capabilities
 
@@ -32,6 +36,7 @@
 - `apps/api` 新增 Agent、Agent Session、Agent Tool 模块，并扩展内部模型调用端口以支持结构化 tool calling 和 provider reasoning；厂商协议仍限制在 Adapter 层。
 - `packages/sdk` 新增 Agent thread/run/event 客户端契约；Web 仍只通过 `@aigateway/sdk` 访问公开业务 API。
 - Prisma 新增 Agent 会话、消息、运行、事件和工具调用相关表及正式 migration；PostgreSQL 是运行记录真源，Redis 仅用于用户级 active run 锁和短期取消状态。
+- Prisma 新增每个 thread 至多一条的 `AgentContextSummary`；摘要覆盖更新不删除原始消息，每次模型压缩调用继续通过 RequestLog/BillingRecord 审计。
 - 新增 Pi agent core 及网页正文抽取所需依赖；不引入 `pi-coding-agent`、TUI、BullMQ、独立 Worker 或浏览器自动化集群。
 - 首个验收闭环为：`/agent` → `@aigateway/sdk` → NestJS AgentModule → Pi harness → Mock tool-calling model → `web_fetch` → 后续模型 turn → SSE/event cursor → PostgreSQL 日志与费用。
 - 回滚时可隐藏 `/agent` 导航并停止 Agent API；现有 `/chat`、`/image`、`/prompt` 不依赖新模块。新增数据库表保留以避免破坏性回滚，后续版本再通过 migration 清理。

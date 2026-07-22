@@ -51,13 +51,25 @@
 - [ ] 4.7 验证首 delta 前 failover 不拼接不同 provider 的 text/reasoning/tool-call，首事件后失败以规范化 Agent 错误终结
 - [ ] 4.8 执行预算、日志计费、真实 Adapter contract、Agent 流式 E2E、typecheck、lint 和 build
 
-## 5. Skill/MCP 扩展边界与交付
+## 5. Skill/MCP/Memory 扩展边界与交付
 
 - [ ] 5.1 定义 `AgentSkillRegistry` 端口和返回空集合的 V1 实现，验证 Agent 启动不会扫描本地 skill 目录或注入未注册内容
 - [ ] 5.2 定义 `AgentMcpRegistry` 端口和返回空集合的 V1 实现，验证 Agent 启动不会连接 MCP、读取凭证或动态发现工具
+- [ ] 5.2a 定义 `AgentMemoryProvider` 端口和返回空集合的 V1 实现，验证 Agent 启动不会扫描、提取或持久化长期 Memory
 - [ ] 5.3 更新 PRD、技术方案、README、`.env.example`、Swagger 和部署说明，明确 `/agent`、Pi 服务端边界、运行预算、数据保留、API 重启中断及 MCP/skills 后续范围
 - [ ] 5.4 为 Nginx Agent event SSE 配置关闭 buffering/cache、合理 read timeout 和同源路由，并验证域名/IP 下 cursor 重连
 - [ ] 5.5 增加部署 draining 流程：停止接收新 Agent run、最多等待 120 秒并明确中断剩余 run，不引入 Worker 或队列
 - [ ] 5.6 运行 Agent 全量单元、contract、PostgreSQL/Redis 集成、流式 E2E、页面 E2E、隐私边界、typecheck、lint、build 和 Docker/Nginx 冒烟
 - [ ] 5.7 备份 PostgreSQL 后执行 migration 与回滚演练，以 feature flag 隐藏 `/agent` 验证现有 Chat/Image/Prompt 不依赖 Agent 模块
 - [ ] 5.8 对 `add-pi-web-agent` 执行 OpenSpec strict 校验并确认所有 checkbox 只在对应实现与验证完成后勾选
+
+## 6. 分层 System Prompt 与上下文压缩
+
+- [ ] 6.1 为模型目录增加经验证的 `contextWindowTokens`，实现包含工具 schema、输出和安全预留的 `AgentTokenEstimator/ContextBudget`，覆盖精确/保守估算及 60/75/88% 阈值测试
+- [ ] 6.2 实现版本化 `AgentPromptComposer`，按固定信任层级动态组装核心策略、运行时、真实 Tool、Skill/MCP/Memory 空端口与 manifest，并移除 `AgentRunService` 的硬编码 prompt
+- [ ] 6.3 为 Tool contract 增加风险/审批元数据并拒绝尚不支持的显式审批工具；为 SDK 消息新增 `media-reference` part 和安全 placeholder 转换
+- [ ] 6.4 在每次模型调用前装配 PostgreSQL 历史、当前 Pi context 和最近 4/最少 2 turns；回灌带低信任边界的历史 reasoning，并覆盖跨 run 多轮、工具 follow-up 和未完成工具保留测试
+- [ ] 6.5 实现 none/light/moderate 确定性压缩，覆盖 reasoning、工具进度/结果、失败尝试、多媒体 placeholder、顺序不变和当前用户输入不丢失
+- [ ] 6.6 新增唯一 `AgentContextSummary` migration/repository 与 V1 JSON Schema，使用当前模型执行禁用工具的强制摘要、失败重试一次、事务覆盖和 `context_window` 终止
+- [ ] 6.7 扩展 SDK/API 的 `context-budget`、`context-compressed` 与最新摘要契约，在 `/agent` Composer 展示占用率、时间线展示压缩事件、详情展示结构化摘要
+- [ ] 6.8 添加 Prompt golden/manifest、历史恢复、三层压缩、摘要污染/Schema 失败、两次失败终止、事件重连和 UI 测试，并运行相关单测、PostgreSQL 集成、typecheck、lint、build 与 strict OpenSpec 校验
