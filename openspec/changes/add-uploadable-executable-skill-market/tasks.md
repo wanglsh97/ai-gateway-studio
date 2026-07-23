@@ -3,7 +3,7 @@
 - [x] 1.1 为 `@aigateway/sdk` 定义 Skill 市场项、添加状态、手动选择、激活事件、Shell/文件工具事件和标准错误契约，并添加序列化测试
 - [x] 1.2 新增 `Skill`、`SkillReview`、`UserFile` 及 AgentRun/AgentToolCall 扩展字段的 Prisma migration，验证全局名称、用户添加唯一约束和关联删除边界
 - [x] 1.3 定义 `SkillObjectStorePort` 与确定性内存实现，支持包元数据、`SKILL.md`、文件树、输入文件和结果文件 fixture
-- [ ] 1.4 定义 `SandboxRuntimePort` 与确定性 Fake Adapter，覆盖创建、命令、文件、取消、预算超限、销毁和泄漏查询
+- [x] 1.4 定义 `SandboxRuntimePort` 与确定性 Fake Adapter，覆盖创建、命令、文件、取消、预算超限、销毁和泄漏查询
 - [ ] 1.5 实现最小 Skill repository/service：一个预置 published Skill、用户幂等添加、50 个上限、手动激活和当前包 SHA-256 manifest
 - [ ] 1.6 将 Agent Tool registry 接入 `activate_skill`、Fake Shell 和文件工具，保证所有调用仍经过 Pi harness、Run 状态机和持久化事件
 - [ ] 1.7 扩展 Agent Run API 与 SDK，使手动选择的 Skill 完成 Mock tool call → Fake Sandbox → tool result → follow-up 模型 turn → SSE cursor
