@@ -6,6 +6,7 @@ import { AppController } from './app.controller'
 import { AdminAuthModule } from './admin/auth/admin-auth.module'
 import { AdminDashboardModule } from './admin/dashboard/admin-dashboard.module'
 import { AdminRequestLogsModule } from './admin/logs/admin-request-logs.module'
+import { AdminSkillReviewModule } from './admin/skills/admin-skill-review.module'
 import { AdminTablesModule } from './admin/tables/admin-tables.module'
 import { AgentModule } from './agent/agent.module'
 import { ChatModule } from './chat/chat.module'
@@ -41,6 +42,7 @@ import { UserAuthModule } from './user-auth/user-auth.module'
     AdminAuthModule,
     AdminDashboardModule,
     AdminRequestLogsModule,
+    AdminSkillReviewModule,
     AdminTablesModule,
   ],
   controllers: [AppController],

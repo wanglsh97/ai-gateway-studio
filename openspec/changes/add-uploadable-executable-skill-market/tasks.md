@@ -24,7 +24,7 @@
 ## 3. 首次审核、市场发现与用户添加
 
 - [x] 3.1 实现全局 Skill 名称校验、首次占用、owner 授权和固定分类枚举，覆盖并发抢名与跨用户覆盖拒绝
-- [ ] 3.2 实现 pending_review → published/rejected 状态机、驳回原因和固定管理员审核 API
+- [x] 3.2 实现 pending_review → published/rejected 状态机、驳回原因和固定管理员审核 API
 - [ ] 3.3 将审核、驳回和管理员下架与 `AdminAuditLog` 放入一致的事务边界，并覆盖失败回滚测试
 - [ ] 3.4 实现 owner 对已发布 Skill 的同 key 直接覆盖和元数据更新，确认不创建 revision、不触发复审且更新 SHA-256
 - [ ] 3.5 实现 owner/admin 立即下架、市场隐藏、既有添加记录保留和新 Run 激活拒绝
