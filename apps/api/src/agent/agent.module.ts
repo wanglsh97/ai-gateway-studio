@@ -40,6 +40,13 @@ import { PrismaSkillPackageProjectionReader } from './skills/storage/skill-packa
 import { SKILL_OBJECT_STORE_PORT } from './skills/storage/skill-object-store.port'
 import { AGENT_TOOLS, AgentToolRegistry } from './tools/agent-tool.registry'
 import { createExecutableSkillTools } from './tools/executable-skill.tools'
+import { InMemorySkillUploadSigner } from './skills/upload/in-memory-skill-upload-signer'
+import { SKILL_UPLOAD_SIGNER_PORT } from './skills/upload/skill-upload-signer.port'
+import { SkillUploadSessionRepository } from './skills/upload/skill-upload-session.repository'
+import {
+  SKILL_UPLOAD_CLOCK,
+  SkillUploadSessionService,
+} from './skills/upload/skill-upload-session.service'
 import type { AgentToolDefinition } from './tools/agent-tool'
 import { webFetchFixtureTool } from './tools/web-fetch-fixture.tool'
 import { webFetchTool } from './tools/web-fetch.tool'
@@ -96,6 +103,20 @@ function resolveAgentTools(sessions: AgentExecutionSessionService): readonly Age
       },
     },
     {
+      provide: SKILL_UPLOAD_SIGNER_PORT,
+      inject: [ConfigService, PrismaSkillPackageProjectionReader],
+      useFactory: (config: ConfigService, projections: PrismaSkillPackageProjectionReader) => {
+        if (config.get<string>('SKILL_OBJECT_STORE_DRIVER') !== 'oss') {
+          return new InMemorySkillUploadSigner()
+        }
+        const { client, bucket } = createAliyunOssClient(config)
+        return new AliyunOssSkillObjectStore(client, bucket, projections)
+      },
+    },
+    SkillUploadSessionRepository,
+    { provide: SKILL_UPLOAD_CLOCK, useValue: () => new Date() },
+    SkillUploadSessionService,
+    {
       provide: FakeSandboxRuntime,
       useFactory: () =>
         new FakeSandboxRuntime({
@@ -132,6 +153,7 @@ function resolveAgentTools(sessions: AgentExecutionSessionService): readonly Age
     AgentToolRegistry,
     ExecutableSkillService,
     AgentExecutionSessionService,
+    SkillUploadSessionService,
   ],
 })
 export class AgentModule {}

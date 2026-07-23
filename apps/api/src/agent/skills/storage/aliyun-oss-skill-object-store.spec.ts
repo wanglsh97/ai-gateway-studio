@@ -87,6 +87,39 @@ describe('AliyunOssSkillObjectStore', () => {
     controller.abort(reason)
     await expect(store.statObject('skills/a.zip', controller.signal)).rejects.toBe(reason)
   })
+
+  it('signs one private PUT object with V4-bound headers', async () => {
+    const fixture = fakeClient()
+    const store = new AliyunOssSkillObjectStore(fixture.client, 'skills', projectionReader())
+    const signed = await store.signSkillUpload({
+      objectKey: 'skill-staging/user-1/session-1/package.zip',
+      contentType: 'application/zip',
+      contentLength: 12,
+      sha256: 'a'.repeat(64),
+      expiresInSeconds: 300,
+    })
+    expect(signed).toMatchObject({
+      url: 'https://private-oss.invalid/signed-put',
+      method: 'PUT',
+      headers: {
+        'content-type': 'application/zip',
+        'x-oss-object-acl': 'private',
+        'x-oss-meta-kind': 'skill-package',
+        'x-oss-meta-sha256': 'a'.repeat(64),
+      },
+    })
+    expect(fixture.signature).toEqual({
+      method: 'PUT',
+      expires: 300,
+      objectName: 'skill-staging/user-1/session-1/package.zip',
+      additionalHeaders: [
+        'content-type',
+        'x-oss-meta-kind',
+        'x-oss-meta-sha256',
+        'x-oss-object-acl',
+      ],
+    })
+  })
 })
 
 interface FakeObject {
@@ -103,6 +136,7 @@ function fakeClient(
   client: OssClientPort
   calls: string[]
   putOptions?: unknown
+  signature?: unknown
 } {
   const calls: string[] = []
   const objects = new Map(Object.entries(options.objects ?? {}))
@@ -110,6 +144,7 @@ function fakeClient(
     client: OssClientPort
     calls: string[]
     putOptions?: unknown
+    signature?: unknown
   } = {
     calls,
     client: {
@@ -155,6 +190,10 @@ function fakeClient(
         calls.push(`delete:${name}`)
         objects.delete(name)
         return {}
+      },
+      async signatureUrlV4(method, expires, _request, objectName, additionalHeaders) {
+        result.signature = { method, expires, objectName, additionalHeaders }
+        return 'https://private-oss.invalid/signed-put'
       },
     },
   }

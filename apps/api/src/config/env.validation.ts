@@ -73,6 +73,8 @@ const environmentSchema = z
     ),
     OSS_INTERNAL: booleanFromEnv.default(false),
     OSS_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(120_000).default(30_000),
+    SKILL_UPLOAD_TTL_SECONDS: z.coerce.number().int().min(60).max(900).default(300),
+    SKILL_STAGING_CLEANUP_BATCH: z.coerce.number().int().min(1).max(500).default(100),
     MOCK_PROVIDER_ENABLED: booleanFromEnv.default(true),
     QWEN_ENABLED: booleanFromEnv.default(false),
     GLM_ENABLED: booleanFromEnv.default(false),

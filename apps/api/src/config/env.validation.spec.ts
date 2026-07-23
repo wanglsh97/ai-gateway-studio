@@ -35,6 +35,8 @@ describe('validateEnvironment', () => {
     expect(environment.SKILL_OBJECT_STORE_DRIVER).toBe('memory')
     expect(environment.OSS_INTERNAL).toBe(false)
     expect(environment.OSS_TIMEOUT_MS).toBe(30_000)
+    expect(environment.SKILL_UPLOAD_TTL_SECONDS).toBe(300)
+    expect(environment.SKILL_STAGING_CLEANUP_BATCH).toBe(100)
   })
 
   it('requires complete server-only OSS configuration when the production adapter is selected', () => {

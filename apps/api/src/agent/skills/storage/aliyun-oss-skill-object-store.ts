@@ -16,6 +16,12 @@ import {
   PrismaSkillPackageProjectionReader,
   type SkillPackageProjectionReader,
 } from './skill-package-projection.reader'
+import type {
+  SignedSkillUpload,
+  SignSkillUploadInput,
+  SkillUploadSignerPort,
+} from '../upload/skill-upload-signer.port'
+import { requiredHeaders } from '../upload/in-memory-skill-upload-signer'
 
 interface OssResponse {
   status?: number
@@ -32,10 +38,19 @@ export interface OssClientPort {
     options: { mime: string; meta: Record<string, string>; headers: Record<string, string> },
   ): Promise<unknown>
   delete(name: string): Promise<unknown>
+  signatureUrlV4(
+    method: 'PUT',
+    expires: number,
+    request: { headers: Record<string, string> },
+    objectName: string,
+    additionalHeaders: string[],
+  ): Promise<string>
 }
 
 @Injectable()
-export class AliyunOssSkillObjectStore implements SkillObjectStorePort, OnModuleInit {
+export class AliyunOssSkillObjectStore
+  implements SkillObjectStorePort, SkillUploadSignerPort, OnModuleInit
+{
   constructor(
     private readonly client: OssClientPort,
     private readonly bucket: string,
@@ -47,6 +62,24 @@ export class AliyunOssSkillObjectStore implements SkillObjectStorePort, OnModule
     const { acl } = await this.client.getBucketACL(this.bucket)
     if (acl !== 'private') {
       throw new Error(`OSS Bucket 必须为 private，当前 ACL 为 ${acl || 'unknown'}`)
+    }
+  }
+
+  async signSkillUpload(input: SignSkillUploadInput): Promise<SignedSkillUpload> {
+    assertObjectKey(input.objectKey)
+    const headers = requiredHeaders(input)
+    const url = await this.client.signatureUrlV4(
+      'PUT',
+      input.expiresInSeconds,
+      { headers },
+      input.objectKey,
+      Object.keys(headers).sort(),
+    )
+    return {
+      url,
+      method: 'PUT',
+      headers,
+      expiresAt: new Date(Date.now() + input.expiresInSeconds * 1_000).toISOString(),
     }
   }
 
