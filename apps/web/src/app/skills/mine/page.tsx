@@ -71,10 +71,7 @@ function MySkills() {
             首次发布需审核；发布后的覆盖更新不会再次送审。
           </p>
         </div>
-        <Link
-          href="/skills/upload"
-          className="rounded-xl bg-brand px-5 py-3 text-sm font-bold text-white"
-        >
+        <Link href="/skills" className="rounded-xl bg-brand px-5 py-3 text-sm font-bold text-white">
           上传新 Skill
         </Link>
       </div>
@@ -88,7 +85,7 @@ function MySkills() {
       ) : items.length === 0 ? (
         <section className="mt-10 rounded-3xl border border-dashed border-line p-14 text-center">
           <p className="font-bold">你还没有上传 Skill</p>
-          <Link href="/skills/upload" className="mt-4 inline-block text-sm font-bold text-brand">
+          <Link href="/skills" className="mt-4 inline-block text-sm font-bold text-brand">
             创建第一个
           </Link>
         </section>

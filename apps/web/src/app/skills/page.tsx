@@ -11,6 +11,8 @@ import { useCallback, useEffect, useState } from 'react'
 
 import { useAuthenticationFailure } from '../../components/use-authentication-failure'
 import { useUserSession } from '../../components/user-session-provider'
+import type { SkillFolderFile } from './skill-folder-package'
+import { SkillUploadDialog } from './skill-upload-dialog'
 
 const client = createAIGatewayClient()
 const categoryLabels: Record<AgentSkillCategory, string> = {
@@ -35,6 +37,7 @@ export default function SkillsPage() {
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState('')
   const [error, setError] = useState('')
+  const [uploadFiles, setUploadFiles] = useState<SkillFolderFile[] | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -67,6 +70,23 @@ export default function SkillsPage() {
   useEffect(() => {
     void load()
   }, [load])
+
+  async function chooseSkillFolder() {
+    const pickerWindow = window as DirectoryPickerWindow
+    if (!pickerWindow.showDirectoryPicker) {
+      setError('当前浏览器不支持文件夹选择，请使用最新版 Chrome 或 Edge')
+      return
+    }
+
+    try {
+      const directory = await pickerWindow.showDirectoryPicker({ mode: 'read' })
+      const files = await readDirectoryFiles(directory)
+      if (files.length > 0) setUploadFiles(files)
+    } catch (cause) {
+      if (cause instanceof DOMException && cause.name === 'AbortError') return
+      setError(cause instanceof Error ? cause.message : '无法读取所选 Skill 文件夹')
+    }
+  }
 
   async function toggle(name: string) {
     setBusy(name)
@@ -110,9 +130,9 @@ export default function SkillsPage() {
           <Link className={secondaryButton} href="/skills/mine">
             我的 Skill
           </Link>
-          <Link className={primaryButton} href="/skills/upload">
+          <button type="button" className={primaryButton} onClick={() => void chooseSkillFolder()}>
             上传 Skill
-          </Link>
+          </button>
         </div>
       </header>
 
@@ -255,6 +275,14 @@ export default function SkillsPage() {
           下一页
         </button>
       </nav>
+
+      {uploadFiles ? (
+        <SkillUploadDialog
+          selectedFiles={uploadFiles}
+          onChooseFolder={() => void chooseSkillFolder()}
+          onClose={() => setUploadFiles(null)}
+        />
+      ) : null}
     </main>
   )
 }
@@ -265,3 +293,45 @@ const primaryButton =
   'liquid-button inline-flex min-h-10 items-center justify-center rounded-xl px-4 text-xs font-bold text-white transition hover:-translate-y-0.5 disabled:opacity-50'
 const secondaryButton =
   'liquid-glass-soft inline-flex min-h-10 items-center justify-center rounded-xl px-4 text-xs font-bold text-ink-muted transition hover:border-brand/30 hover:text-brand disabled:opacity-40'
+
+interface DirectoryPickerWindow extends Window {
+  showDirectoryPicker?(options?: { mode?: 'read' | 'readwrite' }): Promise<DirectoryHandle>
+}
+
+interface DirectoryHandle {
+  readonly kind: 'directory'
+  readonly name: string
+  values(): AsyncIterableIterator<DirectoryEntryHandle>
+}
+
+interface FileHandle {
+  readonly kind: 'file'
+  readonly name: string
+  getFile(): Promise<File>
+}
+
+type DirectoryEntryHandle = DirectoryHandle | FileHandle
+
+async function readDirectoryFiles(
+  directory: DirectoryHandle,
+  parentPath = directory.name,
+): Promise<SkillFolderFile[]> {
+  const files: SkillFolderFile[] = []
+  for await (const entry of directory.values()) {
+    const path = `${parentPath}/${entry.name}`
+    if (entry.kind === 'directory') {
+      files.push(...(await readDirectoryFiles(entry, path)))
+      continue
+    }
+
+    const file = await entry.getFile()
+    files.push({
+      arrayBuffer: () => file.arrayBuffer(),
+      name: file.name,
+      size: file.size,
+      text: () => file.text(),
+      webkitRelativePath: path,
+    })
+  }
+  return files
+}
