@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import type { ReactNode } from 'react'
 
 import { AgentWorkspaceProvider } from '../components/agent-workspace-provider'
@@ -13,6 +13,11 @@ export const metadata: Metadata = {
     template: '%s · AI Gateway Studio',
   },
   description: '统一体验 Chat、文生图与 Prompt 优化能力',
+}
+
+export const viewport: Viewport = {
+  width: 1440,
+  initialScale: 1,
 }
 
 const themeScript = `

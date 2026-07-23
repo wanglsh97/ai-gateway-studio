@@ -127,7 +127,7 @@ export default function HomePage() {
             <span className="h-px w-8 liquid-spectrum" />
             AI 能力工作台
           </p>
-          <h1 className="mt-7 font-display text-[clamp(3.4rem,6.7vw,6.6rem)] leading-[0.92] font-semibold tracking-[-0.07em] text-ink">
+          <h1 className="mt-7 font-display text-[clamp(3.4rem,5.8vw,6.3rem)] leading-[0.92] font-semibold tracking-[-0.07em] text-ink">
             想法，穿过
             <br />
             <span className="bg-[linear-gradient(95deg,#2764ff_0%,#8b7cff_52%,#2bbba8_100%)] bg-clip-text text-transparent">

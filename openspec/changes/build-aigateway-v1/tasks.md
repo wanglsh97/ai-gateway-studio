@@ -118,7 +118,7 @@
 
 ### 公共页面基础与最小 Chat 闭环
 
-- [x] 3.1 初始化 `apps/web` Next.js 用户端，完成首页、导航、响应式布局和亮/暗主题
+- [x] 3.1 初始化 `apps/web` Next.js 用户端，完成首页、桌面导航、PC-only 布局和亮/暗主题
 - [x] 3.2 实现 `/chat` 最小单模型页面：输入、发送、增量内容、loading 和 error
 - [x] 3.3 Web Chat 仅通过 workspace `@aigateway/sdk` 调用，不在组件中复制 SSE/parser 或引用 provider 类型
 - [x] 3.4 实现停止生成和清空对话，取消后 UI 立即停止追加并与数据库 cancelled 状态一致
@@ -132,7 +132,7 @@
 - [x] 3.9 在 SDK 实现 2–3 模型 compare helper，为每个模型创建独立请求和 AbortController
 - [x] 3.10 实现多模型对比布局，每列独立显示 delta、loading、usage/cost、error 和停止操作
 - [x] 3.11 添加对比 E2E，覆盖三路不同速度、单路失败、单路取消、全部取消和禁止 failover
-- [x] 3.12 验证窄屏、桌面、亮色和暗色主题下的 Chat 可用性与流式状态
+- [x] 3.12 验证最低 1366px 桌面布局、亮色和暗色主题下的 Chat 可用性与流式状态
 - [x] 3.23 使用 assistant-ui LocalRuntime 和 primitives 重构单模型 Agent 会话，保留 SDK SSE、取消、usage 与安全 Markdown 边界
 - [x] 3.24 将右侧 Chat 模块调整为完整消息画布，把模型、对比和参数控制收进底部 Composer，并展示 AI 内容提醒
 - [x] 3.25 移除 Composer 输入框自身的粗焦点描边，仅由 Composer 卡片提供统一的细焦点状态
@@ -161,5 +161,6 @@
 - [x] 3.22 添加用户端完整回归：Chat 单模型/对比、Image、Prompt、取消、错误和对应数据库记录
 - [x] 3.23 验证公网 IP 与域名使用同源 `/api` 配置，无需构建两套前端
 - [x] 3.24 验证用户端和 Dashboard 聚合响应不返回完整 Prompt，公开页面不能读取任何管理接口数据
-- [x] 3.25 完成用户端桌面/移动端验收，确认三项能力均能在 Mock 模式独立演示，真实模型可按 alias 单独启停
-- [x] 3.30 将用户端共享外壳、首页、登录、Chat、文生图、Prompt、Skill 与 API 页面统一为白色 Liquid Glass 视觉系统，并完成桌面/移动端截图验收
+- [x] 3.25 完成用户端 PC 桌面验收，确认三项能力均能在 Mock 模式独立演示，真实模型可按 alias 单独启停
+- [x] 3.30 将用户端共享外壳、首页、登录、Chat、文生图、Prompt、Skill 与 API 页面统一为白色 Liquid Glass 视觉系统，并完成 PC 桌面截图验收
+- [x] 3.31 移除移动端导航和窄屏重排入口，将用户端固定为最低 1366px 的 PC-only 桌面布局

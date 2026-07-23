@@ -98,6 +98,10 @@
     --theme-success: #47b89a;
   }
 
+  html {
+    min-width: 1366px;
+  }
+
   .dark {
     color-scheme: dark;
 
@@ -139,6 +143,7 @@
   body {
     margin: 0;
     min-height: 100vh;
+    min-width: 1366px;
     background:
       radial-gradient(circle at 82% 5%, rgb(139 124 255 / 0.12), transparent 28rem),
       radial-gradient(circle at 15% 90%, rgb(80 216 195 / 0.12), transparent 30rem),

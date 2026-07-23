@@ -41,13 +41,11 @@ function UserWorkspace({ children }: Readonly<{ children: ReactNode }>) {
   const pathname = usePathname()
   const session = useUserSession()
   const [collapsed, setCollapsed] = useState(false)
-  const [mobileOpen, setMobileOpen] = useState(false)
   const [avatarFailed, setAvatarFailed] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const userMenuRef = useRef<HTMLDivElement | null>(null)
 
-  useEffect(() => setMobileOpen(false), [pathname])
   useEffect(() => setAvatarFailed(false), [session.user?.avatarUrl])
   useEffect(() => {
     if (!userMenuOpen) return
@@ -78,35 +76,11 @@ function UserWorkspace({ children }: Readonly<{ children: ReactNode }>) {
   }
 
   return (
-    <div className="relative min-h-screen">
-      <header className="liquid-glass sticky top-0 z-50 flex h-[4.5rem] items-center justify-between border-x-0 border-t-0 px-4 md:hidden">
-        <Brand />
-        <button
-          type="button"
-          className={cn(shellIconButtonClass, focusRing)}
-          aria-label="打开边栏"
-          aria-expanded={mobileOpen}
-          onClick={() => setMobileOpen(true)}
-        >
-          <MenuIcon />
-        </button>
-      </header>
-
-      {mobileOpen && (
-        <button
-          type="button"
-          className="fixed inset-0 z-[55] block bg-[rgb(20_15_30/0.4)] backdrop-blur-[2px] md:hidden"
-          aria-label="关闭边栏"
-          onClick={() => setMobileOpen(false)}
-        />
-      )}
-
+    <div className="relative min-h-screen min-w-[1366px]">
       <aside
         className={cn(
           'liquid-glass fixed inset-y-0 left-0 z-[60] flex flex-col rounded-r-[2rem] border-y-0 border-l-0 p-4 transition-[width,transform] duration-200',
           collapsed ? 'w-[5.25rem]' : 'w-[17rem]',
-          'max-md:w-[min(18rem,86vw)] max-md:-translate-x-[105%]',
-          mobileOpen && 'max-md:translate-x-0',
         )}
       >
         <div
@@ -134,12 +108,9 @@ function UserWorkspace({ children }: Readonly<{ children: ReactNode }>) {
               <button
                 type="button"
                 className={cn(shellIconButtonClass, focusRing)}
-                aria-label="关闭边栏"
-                title="关闭边栏"
-                onClick={() => {
-                  if (window.matchMedia('(max-width: 767px)').matches) setMobileOpen(false)
-                  else setCollapsed(true)
-                }}
+                aria-label="收起边栏"
+                title="收起边栏"
+                onClick={() => setCollapsed(true)}
               >
                 <CollapseIcon collapsed={false} />
               </button>
@@ -282,7 +253,7 @@ function UserWorkspace({ children }: Readonly<{ children: ReactNode }>) {
 
       <div
         className={cn(
-          'min-h-screen transition-[margin-left] duration-200 max-md:ml-0',
+          'min-h-screen transition-[margin-left] duration-200',
           collapsed ? 'ml-[5.25rem]' : 'ml-[17rem]',
         )}
       >
@@ -717,13 +688,6 @@ function UserIcon() {
     <Icon>
       <circle cx="12" cy="8" r="4" />
       <path d="M4 21a8 8 0 0 1 16 0" />
-    </Icon>
-  )
-}
-function MenuIcon() {
-  return (
-    <Icon>
-      <path d="M4 7h16M4 12h16M4 17h16" />
     </Icon>
   )
 }

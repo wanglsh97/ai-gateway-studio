@@ -4,10 +4,10 @@ const baseUrl = 'http://localhost:3000'
 const browser = await chromium.launch({ headless: true })
 
 for (const [name, width] of [
-  ['mobile', 390],
+  ['minimum-pc', 1366],
   ['desktop', 1440],
 ]) {
-  const context = await browser.newContext({ viewport: { width, height: 844 } })
+  const context = await browser.newContext({ viewport: { width, height: 900 } })
   const page = await context.newPage()
   const errors = []
   page.on('pageerror', (e) => errors.push(e.message))
