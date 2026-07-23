@@ -23,7 +23,13 @@ import { AgentPromptComposer } from './prompt/agent-prompt.composer'
 import { AGENT_SKILL_REGISTRY } from './skills/agent-skill.registry'
 import { AgentSkillRepository } from './skills/agent-skill.repository'
 import { AgentSkillService } from './skills/agent-skill.service'
+import { ExecutableSkillBootstrap } from './skills/executable-skill.bootstrap'
+import { MOCK_EXECUTABLE_SKILL_PACKAGE } from './skills/executable-skill.fixture'
+import { ExecutableSkillRepository } from './skills/executable-skill.repository'
+import { ExecutableSkillService } from './skills/executable-skill.service'
 import { PlatformAgentSkillCatalog } from './skills/platform-agent-skill.catalog'
+import { InMemorySkillObjectStore } from './skills/storage/in-memory-skill-object-store'
+import { SKILL_OBJECT_STORE_PORT } from './skills/storage/skill-object-store.port'
 import { AGENT_TOOLS, AgentToolRegistry } from './tools/agent-tool.registry'
 import type { AgentToolDefinition } from './tools/agent-tool'
 import { webFetchFixtureTool } from './tools/web-fetch-fixture.tool'
@@ -62,6 +68,14 @@ function resolveAgentTools(): readonly AgentToolDefinition[] {
     AgentSkillRepository,
     AgentSkillService,
     { provide: AGENT_SKILL_REGISTRY, useExisting: AgentSkillService },
+    ExecutableSkillRepository,
+    ExecutableSkillService,
+    ExecutableSkillBootstrap,
+    {
+      provide: SKILL_OBJECT_STORE_PORT,
+      useFactory: () =>
+        new InMemorySkillObjectStore({ skillPackages: [MOCK_EXECUTABLE_SKILL_PACKAGE] }),
+    },
     EmptyAgentMcpRegistry,
     { provide: AGENT_MCP_REGISTRY, useExisting: EmptyAgentMcpRegistry },
     EmptyAgentMemoryProvider,
@@ -80,6 +94,7 @@ function resolveAgentTools(): readonly AgentToolDefinition[] {
     AgentRunService,
     AgentActiveRunLock,
     AgentToolRegistry,
+    ExecutableSkillService,
   ],
 })
 export class AgentModule {}
