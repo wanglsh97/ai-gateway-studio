@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common'
 
 import { PrismaService } from '../../database/prisma.service'
+import { Prisma } from '../../generated/prisma/client'
 
 export type SkillReviewOutcome = 'approved' | 'rejected'
 
@@ -26,6 +27,7 @@ export interface AdminSkillReviewRepositoryPort {
     reviewer: string,
     now: Date,
   ): Promise<PendingSkillReviewRecord>
+  delist(skillId: string, reviewer: string, now: Date): Promise<PendingSkillReviewRecord>
 }
 
 const REVIEW_SKILL_SELECT = {
@@ -100,17 +102,83 @@ export class AdminSkillReviewRepository implements AdminSkillReviewRepositoryPor
           packageSha256: current.packageSha256,
         },
       })
-      return tx.skill.findUniqueOrThrow({ where: { id: skillId }, select: REVIEW_SKILL_SELECT })
+      const updated = await tx.skill.findUniqueOrThrow({
+        where: { id: skillId },
+        select: REVIEW_SKILL_SELECT,
+      })
+      await writeAudit(
+        tx,
+        reviewer,
+        skillId,
+        outcome === 'approved' ? 'approve' : 'reject',
+        current,
+        updated,
+      )
+      return updated
+    })
+  }
+
+  async delist(skillId: string, reviewer: string, now: Date): Promise<PendingSkillReviewRecord> {
+    return this.prisma.$transaction(async (tx) => {
+      const current = await tx.skill.findUnique({
+        where: { id: skillId },
+        select: REVIEW_SKILL_SELECT,
+      })
+      if (!current) throw new SkillReviewPersistenceError('SKILL_NOT_FOUND', 'Skill 不存在')
+      if (current.status !== 'PUBLISHED') {
+        throw new SkillReviewPersistenceError(
+          'SKILL_DELIST_INVALID_TRANSITION',
+          '只有已发布的 Skill 可以下架',
+        )
+      }
+      const updated = await tx.skill.update({
+        where: { id: skillId },
+        data: { status: 'DELISTED', delistedAt: now },
+        select: REVIEW_SKILL_SELECT,
+      })
+      await writeAudit(tx, reviewer, skillId, 'delist', current, updated)
+      return updated
     })
   }
 }
 
 export class SkillReviewPersistenceError extends Error {
   constructor(
-    readonly code: 'SKILL_NOT_FOUND' | 'SKILL_REVIEW_INVALID_TRANSITION' | 'SKILL_PACKAGE_MISSING',
+    readonly code:
+      | 'SKILL_NOT_FOUND'
+      | 'SKILL_REVIEW_INVALID_TRANSITION'
+      | 'SKILL_PACKAGE_MISSING'
+      | 'SKILL_DELIST_INVALID_TRANSITION',
     message: string,
   ) {
     super(message)
     this.name = 'SkillReviewPersistenceError'
   }
+}
+
+async function writeAudit(
+  transaction: Prisma.TransactionClient,
+  reviewer: string,
+  skillId: string,
+  operation: 'approve' | 'reject' | 'delist',
+  before: PendingSkillReviewRecord,
+  after: PendingSkillReviewRecord,
+): Promise<void> {
+  await transaction.adminAuditLog.create({
+    data: {
+      actor: reviewer,
+      action: 'UPDATE',
+      targetTable: 'Skill',
+      targetId: skillId,
+      beforeData: snapshot(before),
+      afterData: {
+        ...(snapshot(after) as Prisma.InputJsonObject),
+        reviewOperation: operation,
+      },
+    },
+  })
+}
+
+function snapshot(value: unknown): Prisma.InputJsonValue {
+  return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue
 }

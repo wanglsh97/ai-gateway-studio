@@ -37,6 +37,14 @@ describe('AdminSkillReviewService', () => {
       code: 'SKILL_REJECTION_REASON_INVALID',
     })
   })
+
+  it('delists through the fixed administrator boundary', async () => {
+    const repository = new MemoryReviewRepository()
+    await expect(
+      new AdminSkillReviewService(repository as never).delist('skill-1'),
+    ).resolves.toMatchObject({ status: 'DELISTED' })
+    expect(repository.lastDecision).toMatchObject({ outcome: 'delisted', reviewer: 'root' })
+  })
 })
 
 class MemoryReviewRepository implements AdminSkillReviewRepositoryPort {
@@ -53,7 +61,9 @@ class MemoryReviewRepository implements AdminSkillReviewRepositoryPort {
     updatedAt: new Date(0),
   }
 
-  lastDecision: { outcome: SkillReviewOutcome; reason: string | null; reviewer: string } | undefined
+  lastDecision:
+    | { outcome: SkillReviewOutcome | 'delisted'; reason: string | null; reviewer: string }
+    | undefined
 
   async listPending(): Promise<PendingSkillReviewRecord[]> {
     return this.record.status === 'PENDING_REVIEW' ? [this.record] : []
@@ -70,6 +80,12 @@ class MemoryReviewRepository implements AdminSkillReviewRepositoryPort {
       ...this.record,
       status: outcome === 'approved' ? 'PUBLISHED' : 'REJECTED',
     }
+    return this.record
+  }
+
+  async delist(_skillId: string, reviewer: string): Promise<PendingSkillReviewRecord> {
+    this.lastDecision = { outcome: 'delisted', reason: null, reviewer }
+    this.record = { ...this.record, status: 'DELISTED' }
     return this.record
   }
 }

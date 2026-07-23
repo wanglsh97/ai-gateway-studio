@@ -35,6 +35,17 @@ export class AdminSkillReviewService {
     return this.decide(skillId, 'rejected', normalized)
   }
 
+  async delist(skillId: string): Promise<PendingSkillReviewRecord> {
+    try {
+      return await this.repository.delist(skillId, 'root', new Date())
+    } catch (error) {
+      if (error instanceof SkillReviewPersistenceError) {
+        throw new AdminSkillReviewError(error.code, error.message)
+      }
+      throw error
+    }
+  }
+
   private async decide(
     skillId: string,
     outcome: 'approved' | 'rejected',
@@ -59,6 +70,7 @@ export class AdminSkillReviewError extends Error {
       | 'SKILL_NOT_FOUND'
       | 'SKILL_REVIEW_INVALID_TRANSITION'
       | 'SKILL_PACKAGE_MISSING'
+      | 'SKILL_DELIST_INVALID_TRANSITION'
       | 'SKILL_REJECTION_REASON_INVALID',
     message: string,
   ) {

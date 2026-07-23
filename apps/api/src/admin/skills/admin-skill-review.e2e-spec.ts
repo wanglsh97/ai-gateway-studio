@@ -97,6 +97,13 @@ describe('Admin Skill review API E2E', () => {
       retryable: false,
     })
 
+    const delisted = await fetch(`${baseUrl}/api/v1/admin/skills/${approveSkill.id}/delist`, {
+      method: 'POST',
+      headers: { cookie },
+    })
+    expect(delisted.status).toBe(201)
+    await expect(delisted.json()).resolves.toMatchObject({ status: 'DELISTED' })
+
     await expect(prisma.skillReview.findMany({ orderBy: { createdAt: 'asc' } })).resolves.toEqual([
       expect.objectContaining({
         skillId: approveSkill.id,
@@ -111,6 +118,82 @@ describe('Admin Skill review API E2E', () => {
         reason: '缺少可复现的使用说明',
       }),
     ])
+
+    await expect(
+      prisma.adminAuditLog.findMany({
+        where: { targetTable: 'Skill' },
+        orderBy: { createdAt: 'asc' },
+      }),
+    ).resolves.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          actor: 'root',
+          action: 'UPDATE',
+          targetId: approveSkill.id,
+          beforeData: expect.objectContaining({ status: 'PENDING_REVIEW' }),
+          afterData: expect.objectContaining({
+            status: 'PUBLISHED',
+            reviewOperation: 'approve',
+          }),
+        }),
+        expect.objectContaining({
+          actor: 'root',
+          action: 'UPDATE',
+          targetId: rejectSkill.id,
+          beforeData: expect.objectContaining({ status: 'PENDING_REVIEW' }),
+          afterData: expect.objectContaining({
+            status: 'REJECTED',
+            reviewOperation: 'reject',
+          }),
+        }),
+        expect.objectContaining({
+          actor: 'root',
+          action: 'UPDATE',
+          targetId: approveSkill.id,
+          beforeData: expect.objectContaining({ status: 'PUBLISHED' }),
+          afterData: expect.objectContaining({
+            status: 'DELISTED',
+            reviewOperation: 'delist',
+          }),
+        }),
+      ]),
+    )
+  })
+
+  it('rolls back the Skill transition and review when audit persistence fails', async () => {
+    const owner = await prisma.user.create({
+      data: {
+        githubId: `review-rollback-${randomUUID().slice(0, 8)}`,
+        githubUsername: 'review-rollback-owner',
+        lastLoginAt: new Date(),
+      },
+    })
+    const skill = await createPendingSkill(prisma, owner.id, 'rollback-me')
+    const cookie = await login(baseUrl)
+
+    await installAuditFailureTrigger(prisma)
+    try {
+      const response = await fetch(`${baseUrl}/api/v1/admin/skills/${skill.id}/approve`, {
+        method: 'POST',
+        headers: { cookie },
+      })
+      expect(response.status).toBe(500)
+
+      await expect(
+        prisma.skill.findUniqueOrThrow({ where: { id: skill.id } }),
+      ).resolves.toMatchObject({
+        status: 'PENDING_REVIEW',
+        publishedAt: null,
+      })
+      await expect(prisma.skillReview.count({ where: { skillId: skill.id } })).resolves.toBe(0)
+      await expect(
+        prisma.adminAuditLog.count({
+          where: { targetTable: 'Skill', targetId: skill.id },
+        }),
+      ).resolves.toBe(0)
+    } finally {
+      await removeAuditFailureTrigger(prisma)
+    }
   })
 })
 
@@ -141,4 +224,32 @@ function createPendingSkill(prisma: PrismaService, ownerId: string, name: string
       packageUpdatedAt: new Date(),
     },
   })
+}
+
+async function installAuditFailureTrigger(prisma: PrismaService): Promise<void> {
+  await prisma.$executeRawUnsafe(`
+    CREATE OR REPLACE FUNCTION fail_skill_audit_test()
+    RETURNS trigger AS $$
+    BEGIN
+      IF NEW."targetTable" = 'Skill' THEN
+        RAISE EXCEPTION 'intentional skill audit failure';
+      END IF;
+      RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql
+  `)
+  await prisma.$executeRawUnsafe(`
+    CREATE TRIGGER fail_skill_audit_test_trigger
+    BEFORE INSERT ON "AdminAuditLog"
+    FOR EACH ROW EXECUTE FUNCTION fail_skill_audit_test()
+  `)
+}
+
+async function removeAuditFailureTrigger(prisma: PrismaService): Promise<void> {
+  await prisma.$executeRawUnsafe(`
+    DROP TRIGGER IF EXISTS fail_skill_audit_test_trigger ON "AdminAuditLog"
+  `)
+  await prisma.$executeRawUnsafe(`
+    DROP FUNCTION IF EXISTS fail_skill_audit_test()
+  `)
 }

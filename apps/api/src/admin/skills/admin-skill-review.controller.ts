@@ -43,6 +43,15 @@ export class AdminSkillReviewController {
       throwReviewHttpError(error)
     }
   }
+
+  @Post(':skillId/delist')
+  async delist(@Param('skillId', ParseUUIDPipe) skillId: string) {
+    try {
+      return await this.reviews.delist(skillId)
+    } catch (error) {
+      throwReviewHttpError(error)
+    }
+  }
 }
 
 function throwReviewHttpError(error: unknown): never {
