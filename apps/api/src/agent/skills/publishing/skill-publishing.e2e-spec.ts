@@ -6,12 +6,14 @@ import { Test } from '@nestjs/testing'
 import { AppModule } from '../../../app.module'
 import { PrismaService } from '../../../database/prisma.service'
 import { cleanupUserTestData } from '../../../user-auth/user-auth.e2e-helpers'
+import { ExecutableSkillService } from '../executable-skill.service'
 import { SkillPublishingService } from './skill-publishing.service'
 
 describe('Skill publishing claim PostgreSQL E2E', () => {
   let app: INestApplication
   let prisma: PrismaService
   let service: SkillPublishingService
+  let executableSkills: ExecutableSkillService
 
   beforeAll(async () => {
     const module = await Test.createTestingModule({ imports: [AppModule] }).compile()
@@ -19,6 +21,7 @@ describe('Skill publishing claim PostgreSQL E2E', () => {
     await app.init()
     prisma = app.get(PrismaService)
     service = app.get(SkillPublishingService)
+    executableSkills = app.get(ExecutableSkillService)
   })
 
   beforeEach(async () => {
@@ -162,6 +165,54 @@ describe('Skill publishing claim PostgreSQL E2E', () => {
       packageObjectKey: claimed.packageObjectKey,
       packageSha256: 'b'.repeat(64),
       packageSizeBytes: 20n,
+    })
+  })
+
+  it('keeps existing adds after owner delisting while hiding and rejecting new activation', async () => {
+    const owner = await createUser(prisma, 'delist-owner')
+    const user = await createUser(prisma, 'delist-user')
+    const upload = await createFinalizedUpload(prisma, owner.id, 'delist')
+    const skill = await service.claim(owner.id, {
+      uploadSessionId: upload.id,
+      name: 'owner-delist-skill',
+      title: 'Owner delist',
+      description: 'Owner delist behavior.',
+      category: 'development',
+    })
+    await prisma.skill.update({
+      where: { id: skill.id },
+      data: { status: 'PUBLISHED', publishedAt: new Date() },
+    })
+    await executableSkills.add(user.id, skill.name)
+
+    await expect(service.delistOwned(owner.id, skill.name)).resolves.toMatchObject({
+      status: 'DELISTED',
+    })
+    await expect(executableSkills.listCandidates(user.id)).resolves.toEqual([])
+    await expect(executableSkills.activateManually(user.id, [skill.name])).rejects.toMatchObject({
+      code: 'SKILL_NOT_ADDED',
+    })
+    await expect(
+      prisma.skill.count({ where: { name: skill.name, status: 'PUBLISHED' } }),
+    ).resolves.toBe(0)
+    await expect(
+      prisma.userAgentSkill.count({ where: { userId: user.id, marketSkillId: skill.id } }),
+    ).resolves.toBe(1)
+    await expect(
+      prisma.skill.findUniqueOrThrow({ where: { id: skill.id } }),
+    ).resolves.toMatchObject({
+      status: 'DELISTED',
+      addCount: 1,
+    })
+
+    await executableSkills.remove(user.id, skill.name)
+    await expect(
+      prisma.userAgentSkill.count({ where: { userId: user.id, marketSkillId: skill.id } }),
+    ).resolves.toBe(0)
+    await expect(
+      prisma.skill.findUniqueOrThrow({ where: { id: skill.id } }),
+    ).resolves.toMatchObject({
+      addCount: 0,
     })
   })
 })

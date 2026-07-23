@@ -35,6 +35,7 @@ export interface ClaimedSkillRecord {
 export interface SkillPublishingRepositoryPort {
   claim(input: ClaimSkillInput): Promise<ClaimedSkillRecord>
   updatePublished(input: UpdatePublishedSkillInput): Promise<ClaimedSkillRecord>
+  delistOwned(userId: string, name: string, now: Date): Promise<ClaimedSkillRecord>
   findByName(name: string): Promise<ClaimedSkillRecord | null>
 }
 
@@ -177,6 +178,30 @@ export class SkillPublishingRepository implements SkillPublishingRepositoryPort 
     })
   }
 
+  async delistOwned(userId: string, name: string, now: Date): Promise<ClaimedSkillRecord> {
+    return this.prisma.$transaction(async (tx) => {
+      const current = await tx.skill.findUnique({
+        where: { name },
+        select: CLAIMED_SKILL_SELECT,
+      })
+      if (!current) throw new SkillClaimPersistenceError('SKILL_NOT_FOUND', 'Skill 不存在')
+      if (current.ownerId !== userId) {
+        throw new SkillClaimPersistenceError('SKILL_NOT_OWNER', '只有 Skill owner 可以下架')
+      }
+      if (current.status !== 'PUBLISHED') {
+        throw new SkillClaimPersistenceError(
+          'SKILL_DELIST_INVALID_TRANSITION',
+          '只有已发布的 Skill 可以下架',
+        )
+      }
+      return tx.skill.update({
+        where: { id: current.id },
+        data: { status: 'DELISTED', delistedAt: now },
+        select: CLAIMED_SKILL_SELECT,
+      })
+    })
+  }
+
   findByName(name: string): Promise<ClaimedSkillRecord | null> {
     return this.prisma.skill.findUnique({ where: { name }, select: CLAIMED_SKILL_SELECT })
   }
@@ -190,7 +215,8 @@ export class SkillClaimPersistenceError extends Error {
       | 'SKILL_UPLOAD_ALREADY_USED'
       | 'SKILL_NOT_FOUND'
       | 'SKILL_NOT_OWNER'
-      | 'SKILL_NOT_PUBLISHED',
+      | 'SKILL_NOT_PUBLISHED'
+      | 'SKILL_DELIST_INVALID_TRANSITION',
     message: string,
   ) {
     super(message)

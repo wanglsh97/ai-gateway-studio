@@ -100,6 +100,27 @@ describe('SkillPublishingService', () => {
       packageSha256: 'b'.repeat(64),
     })
   })
+
+  it('allows only the owner to delist a published Skill', async () => {
+    const repository = new MemoryPublishingRepository()
+    const service = new SkillPublishingService(repository as never)
+    const skill = await repository.claim({
+      userId: 'owner-1',
+      uploadSessionId: 'upload-1',
+      name: 'delist-skill',
+      title: 'Delist',
+      description: 'Delist description',
+      category: 'development',
+    })
+    skill.status = 'PUBLISHED'
+
+    await expect(service.delistOwned('other-user', skill.name)).rejects.toMatchObject({
+      code: 'SKILL_NOT_OWNER',
+    })
+    await expect(service.delistOwned('owner-1', skill.name)).resolves.toMatchObject({
+      status: 'DELISTED',
+    })
+  })
 })
 
 class MemoryPublishingRepository implements SkillPublishingRepositoryPort {
@@ -145,6 +166,19 @@ class MemoryPublishingRepository implements SkillPublishingRepositoryPort {
       packageSha256: 'b'.repeat(64),
       packageSizeBytes: 2n,
     })
+    return skill
+  }
+
+  async delistOwned(userId: string, name: string): Promise<ClaimedSkillRecord> {
+    const skill = this.skills.get(name)
+    if (!skill) throw new SkillClaimPersistenceError('SKILL_NOT_FOUND', 'not found')
+    if (skill.ownerId !== userId) {
+      throw new SkillClaimPersistenceError('SKILL_NOT_OWNER', 'not owner')
+    }
+    if (skill.status !== 'PUBLISHED') {
+      throw new SkillClaimPersistenceError('SKILL_DELIST_INVALID_TRANSITION', 'not published')
+    }
+    skill.status = 'DELISTED'
     return skill
   }
 }

@@ -46,7 +46,7 @@ export class ExecutableSkillService {
   }
 
   async remove(userId: string, name: string): Promise<void> {
-    const skill = await this.repository.findAddedPublishedByName(userId, name)
+    const skill = await this.repository.findAddedByName(userId, name)
     if (!skill) return
     await this.repository.removeForUser(userId, skill.id)
   }

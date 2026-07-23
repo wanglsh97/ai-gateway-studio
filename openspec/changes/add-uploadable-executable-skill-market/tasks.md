@@ -27,7 +27,7 @@
 - [x] 3.2 实现 pending_review → published/rejected 状态机、驳回原因和固定管理员审核 API
 - [x] 3.3 将审核、驳回和管理员下架与 `AdminAuditLog` 放入一致的事务边界，并覆盖失败回滚测试
 - [x] 3.4 实现 owner 对已发布 Skill 的同 key 直接覆盖和元数据更新，确认不创建 revision、不触发复审且更新 SHA-256
-- [ ] 3.5 实现 owner/admin 立即下架、市场隐藏、既有添加记录保留和新 Run 激活拒绝
+- [x] 3.5 实现 owner/admin 立即下架、市场隐藏、既有添加记录保留和新 Run 激活拒绝
 - [ ] 3.6 实现公开分页、关键词搜索、固定分类筛选、最新/添加人数排序和 Skill 详情 API
 - [ ] 3.7 将 `UserAgentSkill` 迁移为无 enabled 的添加状态，实现幂等添加/移除、50 个上限、跨用户隔离和 addCount 一致性
 - [ ] 3.8 扩展 `@aigateway/sdk` 的市场、owner、添加/移除和管理员审核 client，覆盖 URL、credentials、分页和错误 envelope

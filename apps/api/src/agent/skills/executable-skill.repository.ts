@@ -16,6 +16,7 @@ export interface ExecutableSkillRecord {
 export interface ExecutableSkillRepositoryPort {
   ensureMockPublishedSkill(): Promise<ExecutableSkillRecord>
   findPublishedByName(name: string): Promise<ExecutableSkillRecord | null>
+  findAddedByName(userId: string, name: string): Promise<ExecutableSkillRecord | null>
   findAddedPublishedByName(userId: string, name: string): Promise<ExecutableSkillRecord | null>
   listAddedPublished(userId: string): Promise<ExecutableSkillRecord[]>
   addForUser(userId: string, skill: ExecutableSkillRecord, limit: number): Promise<boolean>
@@ -86,6 +87,14 @@ export class ExecutableSkillRepository implements ExecutableSkillRepositoryPort 
   ): Promise<ExecutableSkillRecord | null> {
     const row = await this.prisma.userAgentSkill.findFirst({
       where: { userId, marketSkill: { name, status: 'PUBLISHED' } },
+      select: { marketSkill: { select: SKILL_SELECT } },
+    })
+    return row?.marketSkill ?? null
+  }
+
+  async findAddedByName(userId: string, name: string): Promise<ExecutableSkillRecord | null> {
+    const row = await this.prisma.userAgentSkill.findFirst({
+      where: { userId, marketSkill: { name } },
       select: { marketSkill: { select: SKILL_SELECT } },
     })
     return row?.marketSkill ?? null

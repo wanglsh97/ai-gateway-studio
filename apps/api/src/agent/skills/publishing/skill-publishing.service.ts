@@ -69,6 +69,18 @@ export class SkillPublishingService {
     }
   }
 
+  async delistOwned(userId: string, name: string): Promise<ClaimedSkillRecord> {
+    validateName(name)
+    try {
+      return await this.repository.delistOwned(userId, name, new Date())
+    } catch (error) {
+      if (error instanceof SkillClaimPersistenceError) {
+        throw new SkillPublishingError(error.code, error.message)
+      }
+      throw error
+    }
+  }
+
   async requireOwner(userId: string, name: string): Promise<ClaimedSkillRecord> {
     validateName(name)
     const skill = await this.repository.findByName(name)
@@ -93,7 +105,8 @@ export class SkillPublishingError extends Error {
       | 'SKILL_UPLOAD_ALREADY_USED'
       | 'SKILL_NOT_FOUND'
       | 'SKILL_NOT_OWNER'
-      | 'SKILL_NOT_PUBLISHED',
+      | 'SKILL_NOT_PUBLISHED'
+      | 'SKILL_DELIST_INVALID_TRANSITION',
     message: string,
   ) {
     super(message)

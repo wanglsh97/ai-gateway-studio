@@ -42,6 +42,11 @@ class FakeExecutableSkillRepository implements ExecutableSkillRepositoryPort {
     return skill && this.added.get(userId)?.has(skill.id) ? skill : null
   }
 
+  async findAddedByName(userId: string, name: string): Promise<ExecutableSkillRecord | null> {
+    const skill = this.published.get(name)
+    return skill && this.added.get(userId)?.has(skill.id) ? skill : null
+  }
+
   async listAddedPublished(userId: string): Promise<ExecutableSkillRecord[]> {
     const ids = this.added.get(userId) ?? new Set()
     return [...this.published.values()]
