@@ -2,6 +2,7 @@
 
 import { createAIGatewayClient } from '@aigateway/sdk'
 import type { AgentSkillMarketItem } from '@aigateway/sdk'
+import Link from 'next/link'
 import { useCallback, useEffect, useState } from 'react'
 
 import { ProtectedUserPage } from '../../components/protected-user-page'
@@ -94,10 +95,18 @@ function SkillMarket() {
             模型调用开始加载，但不会增加工具权限。
           </p>
         </div>
-        <span className="shrink-0 border-b border-line pb-2.5 text-xs text-ink-faint md:pl-10">
-          <strong className="mr-1 text-2xl text-ink dark:text-white">{installedCount}</strong> /{' '}
-          {skills.length} 已安装
-        </span>
+        <div className="flex shrink-0 items-center gap-4">
+          <span className="border-b border-line pb-2.5 text-xs text-ink-faint md:pl-10">
+            <strong className="mr-1 text-2xl text-ink dark:text-white">{installedCount}</strong> /{' '}
+            {skills.length} 已安装
+          </span>
+          <Link
+            href="/skills/upload"
+            className="rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-hover focus-visible:outline-3 focus-visible:outline-brand-focus focus-visible:outline-offset-3"
+          >
+            上传 Skill
+          </Link>
+        </div>
       </header>
 
       {error ? (
