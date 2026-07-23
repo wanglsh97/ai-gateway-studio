@@ -16,6 +16,14 @@ import type {
 } from './agent-types.js'
 import { AIGatewayAuthenticationError, AIGatewayError, AIGatewayProtocolError } from './errors.js'
 import { readSseData } from './sse.js'
+import {
+  createBrowserSkillUploadTransport,
+  uploadSkillPackage,
+  type FinalizedSkillUpload,
+  type SkillDirectUploadTransport,
+  type SkillPackageUploadOptions,
+  type SkillUploadSession,
+} from './skill-upload.js'
 import type { GatewayError } from './types.js'
 
 export interface RequestOptions {
@@ -43,6 +51,7 @@ export interface AgentClient {
       options?: RequestOptions,
     ): Promise<AgentSkillMarketItem>
     uninstall(skillId: string, options?: RequestOptions): Promise<void>
+    uploadPackage(body: Blob, options?: SkillPackageUploadOptions): Promise<FinalizedSkillUpload>
   }
   threads: {
     create(input: CreateAgentThreadRequest, options?: RequestOptions): Promise<AgentThreadSummary>
@@ -72,7 +81,9 @@ export interface AgentClient {
 export function createAgentClient(
   fetchImplementation: typeof globalThis.fetch,
   baseUrl: string,
+  options: { skillUploadTransport?: SkillDirectUploadTransport } = {},
 ): AgentClient {
+  const directUpload = options.skillUploadTransport ?? createBrowserSkillUploadTransport()
   return {
     skills: {
       list: async (options) => {
@@ -126,6 +137,30 @@ export function createAgentClient(
           `${baseUrl}/api/v1/agent/skills/${encodeURIComponent(skillId)}/install`,
           options,
         ),
+      uploadPackage: (body, uploadOptions) =>
+        uploadSkillPackage(body, uploadOptions, {
+          createSession: async (input, signal) =>
+            decodeSkillUploadSession(
+              await requestJson(
+                fetchImplementation,
+                'POST',
+                `${baseUrl}/api/v1/agent/skills/uploads`,
+                input,
+                { ...(signal === undefined ? {} : { signal }) },
+              ),
+            ),
+          upload: directUpload,
+          finalize: async (sessionId, signal) =>
+            decodeFinalizedSkillUpload(
+              await requestJson(
+                fetchImplementation,
+                'POST',
+                `${baseUrl}/api/v1/agent/skills/uploads/${encodeURIComponent(sessionId)}/finalize`,
+                undefined,
+                { ...(signal === undefined ? {} : { signal }) },
+              ),
+            ),
+        }),
     },
     threads: {
       create: (input, options) =>
@@ -187,6 +222,60 @@ export function createAgentClient(
       subscribe: (runId, options) =>
         subscribeRunEvents(fetchImplementation, baseUrl, runId, options),
     },
+  }
+}
+
+function decodeSkillUploadSession(value: unknown): SkillUploadSession {
+  const session = asRecord(value)
+  const upload = asRecord(session?.upload)
+  const headers = asRecord(upload?.headers)
+  if (
+    !session ||
+    !stringValue(session.id) ||
+    !numberValue(session.expectedSizeBytes) ||
+    !stringValue(session.expectedSha256) ||
+    !stringValue(session.expiresAt) ||
+    !upload ||
+    !stringValue(upload.url) ||
+    upload.method !== 'PUT' ||
+    !stringValue(upload.expiresAt) ||
+    !headers ||
+    !Object.values(headers).every((header) => typeof header === 'string')
+  ) {
+    throw new AIGatewayProtocolError('unknown', 'Skill upload session response is malformed')
+  }
+  return {
+    id: session.id as string,
+    expectedSizeBytes: session.expectedSizeBytes as number,
+    expectedSha256: session.expectedSha256 as string,
+    expiresAt: session.expiresAt as string,
+    upload: {
+      url: upload.url as string,
+      method: 'PUT',
+      expiresAt: upload.expiresAt as string,
+      headers: headers as Record<string, string>,
+    },
+  }
+}
+
+function decodeFinalizedSkillUpload(value: unknown): FinalizedSkillUpload {
+  const result = asRecord(value)
+  if (
+    !result ||
+    !stringValue(result.sessionId) ||
+    result.status !== 'finalized' ||
+    !numberValue(result.sizeBytes) ||
+    !stringValue(result.sha256) ||
+    !stringValue(result.finalizedAt)
+  ) {
+    throw new AIGatewayProtocolError('unknown', 'Finalized Skill upload response is malformed')
+  }
+  return {
+    sessionId: result.sessionId as string,
+    status: 'finalized',
+    sizeBytes: result.sizeBytes as number,
+    sha256: result.sha256 as string,
+    finalizedAt: result.finalizedAt as string,
   }
 }
 
@@ -369,4 +458,8 @@ function stringValue(value: unknown): string | undefined {
 
 function booleanValue(value: unknown): boolean | undefined {
   return typeof value === 'boolean' ? value : undefined
+}
+
+function numberValue(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : undefined
 }

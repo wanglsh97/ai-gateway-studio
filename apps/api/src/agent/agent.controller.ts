@@ -2,9 +2,11 @@ import type { AgentStreamEvent } from '@aigateway/sdk'
 import {
   Body,
   Controller,
+  HttpException,
   Delete,
   Get,
   HttpCode,
+  HttpStatus,
   Inject,
   Param,
   ParseUUIDPipe,
@@ -27,6 +29,7 @@ import { AgentRunEventBus } from './agent-run-event-bus'
 import { AgentRunRepository } from './agent-run.repository'
 import { AgentService } from './agent.service'
 import { CreateAgentRunDto } from './dto/create-agent-run.dto'
+import { CreateSkillUploadSessionDto } from './dto/skill-upload.dto'
 import { UpdateAgentSkillDto } from './dto/update-agent-skill.dto'
 import {
   CreateAgentThreadDto,
@@ -35,6 +38,10 @@ import {
 } from './dto/agent-thread.dto'
 import { AgentSkillService } from './skills/agent-skill.service'
 import { ExecutableSkillService } from './skills/executable-skill.service'
+import {
+  SkillUploadSessionError,
+  SkillUploadSessionService,
+} from './skills/upload/skill-upload-session.service'
 
 @ApiTags('Agent')
 @ApiCookieAuth(USER_SESSION_COOKIE)
@@ -47,6 +54,7 @@ export class AgentController {
     @Inject(AgentRunEventBus) private readonly bus: AgentRunEventBus,
     @Inject(AgentSkillService) private readonly skills: AgentSkillService,
     @Inject(ExecutableSkillService) private readonly executableSkills: ExecutableSkillService,
+    @Inject(SkillUploadSessionService) private readonly skillUploads: SkillUploadSessionService,
   ) {}
 
   @Get('skills')
@@ -81,6 +89,52 @@ export class AgentController {
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<void> {
     await this.skills.uninstall(user.id, skillId)
+  }
+
+  @Post('skills/uploads')
+  async createSkillUpload(
+    @Body() body: CreateSkillUploadSessionDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    try {
+      const created = await this.skillUploads.create(user.id, body)
+      return {
+        id: created.session.id,
+        expectedSizeBytes: Number(created.session.expectedSizeBytes),
+        expectedSha256: created.session.expectedSha256,
+        expiresAt: created.session.expiresAt.toISOString(),
+        upload: created.upload,
+      }
+    } catch (error) {
+      throwSkillUploadHttpError(error)
+    }
+  }
+
+  @Post('skills/uploads/:sessionId/finalize')
+  async finalizeSkillUpload(
+    @Param('sessionId', ParseUUIDPipe) sessionId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    try {
+      const finalized = await this.skillUploads.finalize(user.id, sessionId)
+      if (
+        finalized.status !== 'FINALIZED' ||
+        finalized.observedSizeBytes === null ||
+        finalized.observedSha256 === null ||
+        finalized.finalizedAt === null
+      ) {
+        throw new SkillUploadSessionError('UPLOAD_FINALIZE_CONFLICT', '上传会话缺少终态元数据')
+      }
+      return {
+        sessionId: finalized.id,
+        status: 'finalized' as const,
+        sizeBytes: Number(finalized.observedSizeBytes),
+        sha256: finalized.observedSha256,
+        finalizedAt: finalized.finalizedAt.toISOString(),
+      }
+    } catch (error) {
+      throwSkillUploadHttpError(error)
+    }
   }
 
   @Post('threads')
@@ -240,4 +294,22 @@ function parseCursor(after: string | undefined): number {
   const parsed = Number.parseInt(after, 10)
   if (Number.isNaN(parsed) || parsed < -1) return -1
   return parsed
+}
+
+function throwSkillUploadHttpError(error: unknown): never {
+  if (!(error instanceof SkillUploadSessionError)) throw error
+  const status =
+    error.code === 'UPLOAD_SESSION_NOT_FOUND'
+      ? HttpStatus.NOT_FOUND
+      : error.code === 'UPLOAD_OBJECT_MISMATCH'
+        ? HttpStatus.BAD_REQUEST
+        : HttpStatus.CONFLICT
+  throw new HttpException(
+    {
+      code: error.code,
+      message: error.message,
+      retryable: error.retryable,
+    },
+    status,
+  )
 }

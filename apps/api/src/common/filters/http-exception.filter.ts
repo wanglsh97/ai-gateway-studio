@@ -37,9 +37,15 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
     response.status(status).json({
       requestId,
-      code: this.toCode(status),
+      code:
+        typeof bodyRecord?.code === 'string' && bodyRecord.code
+          ? bodyRecord.code
+          : this.toCode(status),
       message,
-      retryable: status === 429 || status >= 500,
+      retryable:
+        typeof bodyRecord?.retryable === 'boolean'
+          ? bodyRecord.retryable
+          : status === 429 || status >= 500,
       ...(details === undefined ? {} : { details }),
     })
   }

@@ -19,6 +19,7 @@ import {
 import { readSseData } from './sse.js'
 import { createAgentClient } from './agent-client.js'
 import type { AgentClient } from './agent-client.js'
+import type { SkillDirectUploadTransport } from './skill-upload.js'
 
 export interface RequestOptions {
   signal?: AbortSignal
@@ -34,6 +35,7 @@ export interface CreateAIGatewayClientOptions {
   baseUrl?: string
   fetch?: typeof globalThis.fetch
   credentials?: 'omit' | 'same-origin' | 'include'
+  skillUploadTransport?: SkillDirectUploadTransport
 }
 
 export interface ChatCompareRequest {
@@ -108,7 +110,11 @@ export function createAIGatewayClient(options: CreateAIGatewayClientOptions = {}
     models: {
       list: (requestOptions) => listModels(fetchWithCredentials, baseUrl, requestOptions),
     },
-    agent: createAgentClient(fetchWithCredentials, baseUrl),
+    agent: createAgentClient(fetchWithCredentials, baseUrl, {
+      ...(options.skillUploadTransport === undefined
+        ? {}
+        : { skillUploadTransport: options.skillUploadTransport }),
+    }),
   }
 }
 

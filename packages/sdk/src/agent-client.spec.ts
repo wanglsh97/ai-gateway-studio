@@ -3,6 +3,7 @@ import { describe, it } from 'node:test'
 
 import { createAIGatewayClient } from './client.js'
 import { AIGatewayError, AIGatewayProtocolError } from './errors.js'
+import { SkillUploadTransportError } from './skill-upload.js'
 import type { AgentStreamEvent } from './agent-types.js'
 
 const runId = '00000000-0000-4000-8000-0000000000f0'
@@ -70,7 +71,67 @@ describe('AgentClient skills', () => {
     const client = createAIGatewayClient({ fetch: async () => Response.json([{ id: 'broken' }]) })
     await assert.rejects(() => client.agent.skills.list(), AIGatewayProtocolError)
   })
+
+  it('creates metadata sessions, uploads bytes only to OSS and finalizes through the SDK', async () => {
+    const apiBodies: unknown[] = []
+    const apiUrls: string[] = []
+    let uploads = 0
+    let uploadedBody: Blob | undefined
+    const client = createAIGatewayClient({
+      fetch: async (input, init) => {
+        apiUrls.push(String(input))
+        apiBodies.push(init?.body)
+        const body = init?.body === undefined ? undefined : JSON.parse(String(init.body))
+        if (String(input).endsWith('/finalize')) {
+          return Response.json({
+            sessionId: 'session-1',
+            status: 'finalized',
+            sizeBytes: 3,
+            sha256: bodySha256,
+            finalizedAt: '2026-07-23T00:01:00.000Z',
+          })
+        }
+        assert.equal(body.sizeBytes, 3)
+        assert.equal(body.sha256, bodySha256)
+        return Response.json({
+          id: 'session-1',
+          expectedSizeBytes: 3,
+          expectedSha256: bodySha256,
+          expiresAt: '2026-07-23T00:05:00.000Z',
+          upload: {
+            url: 'https://bucket.oss.example/staging?signature=redacted',
+            method: 'PUT',
+            headers: { 'content-type': 'application/zip' },
+            expiresAt: '2026-07-23T00:05:00.000Z',
+          },
+        })
+      },
+      skillUploadTransport: async (request) => {
+        uploads += 1
+        uploadedBody = request.body
+        if (uploads === 1) throw new SkillUploadTransportError('temporary', true, 503)
+        request.onProgress?.(request.body.size, request.body.size)
+      },
+    })
+
+    const selectedPackage = new Blob(['zip'], { type: 'application/zip' })
+    const result = await client.agent.skills.uploadPackage(selectedPackage, {
+      maxRetries: 1,
+      retryDelayMs: 0,
+    })
+
+    assert.equal(result.status, 'finalized')
+    assert.equal(uploads, 2)
+    assert.equal(uploadedBody, selectedPackage)
+    assert.equal(apiUrls.length, 2)
+    assert.ok(apiUrls[0]?.endsWith('/api/v1/agent/skills/uploads'))
+    assert.ok(apiUrls[1]?.endsWith('/api/v1/agent/skills/uploads/session-1/finalize'))
+    assert.ok(apiBodies.every((body) => typeof body === 'string' || body === undefined))
+    assert.ok(apiBodies.every((body) => !String(body).includes('zip')))
+  })
 })
+
+const bodySha256 = '4a70fe9aa6436e02c2dea340fbd1e352e4ef2d8ce6ca52ad25d4b95471fc8bf2'
 
 function sseResponse(frames: string): Response {
   return new Response(frames, {

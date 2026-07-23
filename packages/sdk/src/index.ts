@@ -15,6 +15,23 @@ export type {
   AgentEventSubscribeOptions,
   AgentThreadListOptions,
 } from './agent-client.js'
+export {
+  createBrowserSkillUploadTransport,
+  MAX_SKILL_PACKAGE_UPLOAD_BYTES,
+  sha256Hex,
+  SkillUploadTransportError,
+} from './skill-upload.js'
+export type {
+  CreateSkillUploadSessionRequest,
+  FinalizedSkillUpload,
+  SignedSkillUploadRequest,
+  SkillDirectUploadRequest,
+  SkillDirectUploadTransport,
+  SkillPackageUploadOptions,
+  SkillUploadProgress,
+  SkillUploadSession,
+  SkillUploadXmlHttpRequest,
+} from './skill-upload.js'
 export { AGENT_SKILL_ADD_STATES, AGENT_SKILL_PUBLICATION_STATUSES } from './agent-skill-types.js'
 export type {
   AgentSkillCandidate,
