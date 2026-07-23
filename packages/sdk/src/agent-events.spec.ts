@@ -6,6 +6,8 @@ import type { AgentStreamEvent } from './agent-types.js'
 import { AIGatewayProtocolError } from './errors.js'
 
 const runId = '00000000-0000-4000-8000-00000000abcd'
+const packageSha256 = 'a'.repeat(64)
+const outputSha256 = 'b'.repeat(64)
 
 const events: AgentStreamEvent[] = [
   { type: 'run-status', sequence: 0, runId, status: 'running' },
@@ -41,7 +43,14 @@ const events: AgentStreamEvent[] = [
     toolName: 'web_fetch',
     args: { url: 'https://example.com' },
   },
-  { type: 'tool-status', sequence: 7, runId, toolCallId: 't1', toolName: 'web_fetch', status: 'running' },
+  {
+    type: 'tool-status',
+    sequence: 7,
+    runId,
+    toolCallId: 't1',
+    toolName: 'web_fetch',
+    status: 'running',
+  },
   {
     type: 'tool-result',
     sequence: 8,
@@ -53,10 +62,48 @@ const events: AgentStreamEvent[] = [
     summary: '已抓取 example.com',
     audit: { finalUrl: 'https://example.com/', status: 200, bytes: 1234 },
   },
-  { type: 'message-end', sequence: 9, runId, messageId: 'm1' },
+  {
+    type: 'skill-activation',
+    sequence: 9,
+    runId,
+    status: 'succeeded',
+    source: 'manual',
+    skillId: 'skill-1',
+    skillName: 'data-cleaner',
+    packageSha256,
+  },
+  {
+    type: 'shell-execution',
+    sequence: 10,
+    runId,
+    toolCallId: 't2',
+    status: 'succeeded',
+    sandboxId: 'sandbox-1',
+    command: 'node scripts/clean.mjs',
+    workingDirectory: '/workspace/skills/data-cleaner',
+    exitCode: 0,
+    durationMs: 321,
+    stdout: { bytes: 8, truncated: false, content: '完成\n' },
+    stderr: { bytes: 0, truncated: false, content: '' },
+    limitReason: null,
+  },
+  {
+    type: 'file-operation',
+    sequence: 11,
+    runId,
+    toolCallId: 't3',
+    status: 'succeeded',
+    operation: 'export-output',
+    direction: 'output',
+    fileId: 'file-1',
+    path: '/workspace/output/result.csv',
+    size: 42,
+    sha256: outputSha256,
+  },
+  { type: 'message-end', sequence: 12, runId, messageId: 'm1' },
   {
     type: 'usage',
-    sequence: 10,
+    sequence: 13,
     runId,
     usage: {
       inputTokens: 10,
@@ -71,7 +118,7 @@ const events: AgentStreamEvent[] = [
   },
   {
     type: 'run-terminal',
-    sequence: 11,
+    sequence: 14,
     runId,
     status: 'succeeded',
     limitReason: null,
@@ -127,9 +174,36 @@ describe('agent event wire codec', () => {
     })
   })
 
+  it('preserves normalized execution errors on failed sandbox events', () => {
+    const event: AgentStreamEvent = {
+      type: 'shell-execution',
+      sequence: 15,
+      runId,
+      toolCallId: 't4',
+      status: 'failed',
+      sandboxId: 'sandbox-1',
+      command: 'sleep 90',
+      workingDirectory: '/workspace',
+      exitCode: null,
+      durationMs: 60_000,
+      limitReason: 'command_timeout',
+      error: {
+        code: 'SHELL_COMMAND_TIMEOUT',
+        message: '命令执行超过 60 秒',
+        retryable: false,
+        details: { timeoutMs: 60_000 },
+      },
+    }
+    assert.deepEqual(decodeAgentEvent(encodeAgentEvent(event), runId), event)
+  })
+
   it('rejects a runId that does not match the subscribed run', () => {
     assert.throws(
-      () => decodeAgentEvent({ type: 'run-status', sequence: 0, runId: 'other', status: 'running' }, runId),
+      () =>
+        decodeAgentEvent(
+          { type: 'run-status', sequence: 0, runId: 'other', status: 'running' },
+          runId,
+        ),
       AIGatewayProtocolError,
     )
   })
@@ -152,6 +226,20 @@ describe('agent event wire codec', () => {
     )
     assert.throws(
       () => decodeAgentEvent({ type: 'run-status', sequence: 0, runId, status: 'weird' }),
+      AIGatewayProtocolError,
+    )
+    assert.throws(
+      () =>
+        decodeAgentEvent({
+          type: 'skill-activation',
+          sequence: 0,
+          runId,
+          status: 'succeeded',
+          source: 'manual',
+          skillId: 'skill-1',
+          skillName: 'data-cleaner',
+          packageSha256: 'not-a-sha',
+        }),
       AIGatewayProtocolError,
     )
   })

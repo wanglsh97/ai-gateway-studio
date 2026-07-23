@@ -1,14 +1,23 @@
 import {
+  AGENT_EXECUTION_ERROR_CODES,
+  AGENT_FILE_OPERATIONS,
   AGENT_MESSAGE_ROLES,
   AGENT_RUN_LIMIT_REASONS,
   AGENT_RUN_STATUSES,
   AGENT_RUN_TERMINAL_STATUSES,
+  AGENT_SANDBOX_LIMIT_REASONS,
+  AGENT_SKILL_ACTIVATION_STATUSES,
   AGENT_TOOL_CALL_STATUSES,
+  type AgentExecutionError,
+  type AgentFileOperation,
   type AgentMessageRole,
   type AgentRunLimitReason,
   type AgentRunStatus,
   type AgentRunTerminalStatus,
   type AgentRunUsage,
+  type AgentSandboxLimitReason,
+  type AgentShellOutput,
+  type AgentSkillActivationStatus,
   type AgentStreamEvent,
   type AgentToolCallStatus,
 } from './agent-types.js'
@@ -123,6 +132,58 @@ export function decodeAgentEvent(value: unknown, expectedRunId?: string): AgentS
         ...(audit === undefined ? {} : { audit }),
       }
     }
+    case 'skill-activation': {
+      const packageSha256 = optionalSha256(record.packageSha256)
+      const error = optionalExecutionError(record.error)
+      return {
+        type,
+        ...base,
+        status: skillActivationStatus(record.status),
+        source: skillActivationSource(record.source),
+        skillId: id(record.skillId),
+        skillName: id(record.skillName),
+        ...(packageSha256 === undefined ? {} : { packageSha256 }),
+        ...(error === undefined ? {} : { error }),
+      }
+    }
+    case 'shell-execution': {
+      const stdout = optionalShellOutput(record.stdout)
+      const stderr = optionalShellOutput(record.stderr)
+      const error = optionalExecutionError(record.error)
+      return {
+        type,
+        ...base,
+        toolCallId: id(record.toolCallId),
+        status: toolStatus(record.status),
+        sandboxId: id(record.sandboxId),
+        command: text(record.command),
+        workingDirectory: text(record.workingDirectory),
+        exitCode: nullableInteger(record.exitCode),
+        durationMs: nullableCount(record.durationMs),
+        ...(stdout === undefined ? {} : { stdout }),
+        ...(stderr === undefined ? {} : { stderr }),
+        limitReason: sandboxLimitReason(record.limitReason),
+        ...(error === undefined ? {} : { error }),
+      }
+    }
+    case 'file-operation': {
+      const fileId = optionalId(record.fileId)
+      const sha256 = optionalSha256(record.sha256)
+      const error = optionalExecutionError(record.error)
+      return {
+        type,
+        ...base,
+        toolCallId: id(record.toolCallId),
+        status: toolStatus(record.status),
+        operation: fileOperation(record.operation),
+        direction: fileDirection(record.direction),
+        ...(fileId === undefined ? {} : { fileId }),
+        path: text(record.path),
+        size: nullableCount(record.size),
+        ...(sha256 === undefined ? {} : { sha256 }),
+        ...(error === undefined ? {} : { error }),
+      }
+    }
     case 'usage':
       return { type, ...base, usage: decodeUsage(record.usage) }
     case 'error':
@@ -192,7 +253,8 @@ function limitReason(value: unknown): AgentRunLimitReason | null {
 }
 
 function compressionLevel(value: unknown): 'none' | 'light' | 'moderate' | 'forced' {
-  if (value === 'none' || value === 'light' || value === 'moderate' || value === 'forced') return value
+  if (value === 'none' || value === 'light' || value === 'moderate' || value === 'forced')
+    return value
   throw protocol('Agent context compression level is invalid')
 }
 
@@ -229,6 +291,84 @@ function toolStatus(value: unknown): AgentToolCallStatus {
   return status as AgentToolCallStatus
 }
 
+function skillActivationStatus(value: unknown): AgentSkillActivationStatus {
+  const status = stringValue(value)
+  if (!status || !(AGENT_SKILL_ACTIVATION_STATUSES as readonly string[]).includes(status)) {
+    throw protocol('Agent Skill activation status is invalid')
+  }
+  return status as AgentSkillActivationStatus
+}
+
+function skillActivationSource(value: unknown): 'manual' | 'model' {
+  if (value === 'manual' || value === 'model') return value
+  throw protocol('Agent Skill activation source is invalid')
+}
+
+function sandboxLimitReason(value: unknown): AgentSandboxLimitReason | null {
+  if (value === null) return null
+  const reason = stringValue(value)
+  if (!reason || !(AGENT_SANDBOX_LIMIT_REASONS as readonly string[]).includes(reason)) {
+    throw protocol('Agent sandbox limit reason is invalid')
+  }
+  return reason as AgentSandboxLimitReason
+}
+
+function fileOperation(value: unknown): AgentFileOperation {
+  const operation = stringValue(value)
+  if (!operation || !(AGENT_FILE_OPERATIONS as readonly string[]).includes(operation)) {
+    throw protocol('Agent file operation is invalid')
+  }
+  return operation as AgentFileOperation
+}
+
+function fileDirection(value: unknown): 'input' | 'output' | 'internal' {
+  if (value === 'input' || value === 'output' || value === 'internal') return value
+  throw protocol('Agent file direction is invalid')
+}
+
+function optionalExecutionError(value: unknown): AgentExecutionError | undefined {
+  if (value === undefined) return undefined
+  const error = asRecord(value)
+  const code = stringValue(error?.code)
+  const message = stringValue(error?.message)
+  const retryable = error?.retryable
+  if (
+    !error ||
+    !code ||
+    !(AGENT_EXECUTION_ERROR_CODES as readonly string[]).includes(code) ||
+    !message ||
+    typeof retryable !== 'boolean'
+  ) {
+    throw protocol('Agent execution error is invalid')
+  }
+  const details = asRecord(error.details)
+  return {
+    code: code as AgentExecutionError['code'],
+    message,
+    retryable,
+    ...(details === undefined ? {} : { details }),
+  }
+}
+
+function optionalShellOutput(value: unknown): AgentShellOutput | undefined {
+  if (value === undefined) return undefined
+  const output = asRecord(value)
+  if (!output) throw protocol('Agent Shell output is invalid')
+  return {
+    bytes: count(output.bytes),
+    truncated: bool(output.truncated),
+    content: text(output.content),
+  }
+}
+
+function optionalSha256(value: unknown): string | undefined {
+  if (value === undefined) return undefined
+  if (typeof value !== 'string' || !/^[a-f0-9]{64}$/.test(value)) {
+    throw protocol('Agent SHA-256 value is invalid')
+  }
+  return value
+}
+
 function id(value: unknown): string {
   const parsed = stringValue(value)
   if (!parsed) throw protocol('Agent event identifier is invalid')
@@ -254,6 +394,19 @@ function bool(value: unknown): boolean {
 function count(value: unknown): number {
   if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
     throw protocol('Agent usage count must be a non-negative integer')
+  }
+  return value
+}
+
+function nullableCount(value: unknown): number | null {
+  if (value === null) return null
+  return count(value)
+}
+
+function nullableInteger(value: unknown): number | null {
+  if (value === null) return null
+  if (typeof value !== 'number' || !Number.isInteger(value)) {
+    throw protocol('Agent event integer field is invalid')
   }
   return value
 }

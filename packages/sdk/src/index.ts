@@ -15,16 +15,33 @@ export type {
   AgentEventSubscribeOptions,
   AgentThreadListOptions,
 } from './agent-client.js'
-export type { AgentSkillMarketItem, UpdateAgentSkillRequest } from './agent-skill-types.js'
+export { AGENT_SKILL_ADD_STATES, AGENT_SKILL_PUBLICATION_STATUSES } from './agent-skill-types.js'
+export type {
+  AgentSkillAddState,
+  AgentSkillFileEntry,
+  AgentSkillMarketDetail,
+  AgentSkillMarketItem,
+  AgentSkillMarketSummary,
+  AgentSkillPublicationStatus,
+  SelectAgentSkill,
+  UpdateAgentSkillRequest,
+} from './agent-skill-types.js'
 export {
+  AGENT_EXECUTION_ERROR_CODES,
   AGENT_EVENT_SSE_DONE,
+  AGENT_FILE_OPERATIONS,
   AGENT_MESSAGE_ROLES,
   AGENT_RUN_LIMIT_REASONS,
   AGENT_RUN_STATUSES,
   AGENT_RUN_TERMINAL_STATUSES,
+  AGENT_SANDBOX_LIMIT_REASONS,
+  AGENT_SKILL_ACTIVATION_STATUSES,
   AGENT_TOOL_CALL_STATUSES,
 } from './agent-types.js'
 export type {
+  AgentExecutionError,
+  AgentExecutionErrorCode,
+  AgentFileOperation,
   AgentMessage,
   AgentMessagePart,
   AgentContextBudgetState,
@@ -39,6 +56,9 @@ export type {
   AgentRunSummary,
   AgentRunTerminalStatus,
   AgentRunUsage,
+  AgentSandboxLimitReason,
+  AgentShellOutput,
+  AgentSkillActivationStatus,
   AgentStreamEvent,
   AgentTextPart,
   AgentThread,

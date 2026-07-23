@@ -1,4 +1,5 @@
 import type { GatewayError, TextModelId, Usage } from './types.js'
+import type { SelectAgentSkill } from './agent-skill-types.js'
 
 /**
  * Agent 公共契约。
@@ -41,6 +42,63 @@ export type AgentMessageRole = (typeof AGENT_MESSAGE_ROLES)[number]
 
 export const AGENT_TOOL_CALL_STATUSES = ['running', 'succeeded', 'failed', 'cancelled'] as const
 export type AgentToolCallStatus = (typeof AGENT_TOOL_CALL_STATUSES)[number]
+
+export const AGENT_EXECUTION_ERROR_CODES = [
+  'SKILL_NOT_ADDED',
+  'SKILL_NOT_PUBLISHED',
+  'SKILL_PACKAGE_UNAVAILABLE',
+  'SKILL_PACKAGE_INTEGRITY_FAILED',
+  'SKILL_CONTEXT_LIMIT',
+  'SANDBOX_UNAVAILABLE',
+  'SANDBOX_TIMEOUT',
+  'SANDBOX_RESOURCE_LIMIT',
+  'SHELL_COMMAND_TIMEOUT',
+  'SHELL_CALL_LIMIT',
+  'SHELL_OUTPUT_LIMIT',
+  'FILE_NOT_FOUND',
+  'FILE_ACCESS_DENIED',
+  'FILE_SIZE_LIMIT',
+  'RUN_CANCELLED',
+] as const
+export type AgentExecutionErrorCode = (typeof AGENT_EXECUTION_ERROR_CODES)[number]
+
+export interface AgentExecutionError {
+  code: AgentExecutionErrorCode
+  message: string
+  retryable: boolean
+  details?: Record<string, unknown>
+}
+
+export const AGENT_SKILL_ACTIVATION_STATUSES = [
+  'running',
+  'succeeded',
+  'failed',
+  'cancelled',
+] as const
+export type AgentSkillActivationStatus = (typeof AGENT_SKILL_ACTIVATION_STATUSES)[number]
+
+export const AGENT_SANDBOX_LIMIT_REASONS = [
+  'duration',
+  'command_timeout',
+  'processes',
+  'memory',
+  'disk',
+  'egress',
+  'shell_calls',
+  'output',
+] as const
+export type AgentSandboxLimitReason = (typeof AGENT_SANDBOX_LIMIT_REASONS)[number]
+
+export const AGENT_FILE_OPERATIONS = ['stage-input', 'read', 'write', 'export-output'] as const
+export type AgentFileOperation = (typeof AGENT_FILE_OPERATIONS)[number]
+
+export interface AgentShellOutput {
+  /** 截断前已观察到的字节数。 */
+  bytes: number
+  truncated: boolean
+  /** 受单次与 Run 总输出预算约束的可展示文本。 */
+  content: string
+}
 
 export interface AgentTextPart {
   type: 'text'
@@ -187,6 +245,11 @@ export interface UpdateAgentThreadRequest {
 
 export interface CreateAgentRunRequest {
   input: string
+  /**
+   * 在首次模型调用前预激活的、当前用户已添加的 Skill。
+   * 名称全局唯一；省略或传空数组时由模型自行决定是否调用 `activate_skill`。
+   */
+  skills?: SelectAgentSkill[]
 }
 
 /**
@@ -251,6 +314,49 @@ export type AgentStreamEvent =
       isError: boolean
       summary: string
       audit?: Record<string, unknown>
+    }
+  | {
+      type: 'skill-activation'
+      sequence: number
+      runId: string
+      status: AgentSkillActivationStatus
+      source: 'manual' | 'model'
+      skillId: string
+      skillName: string
+      /** 成功激活时记录实际下载并校验过的当前包哈希。 */
+      packageSha256?: string
+      error?: AgentExecutionError
+    }
+  | {
+      type: 'shell-execution'
+      sequence: number
+      runId: string
+      toolCallId: string
+      status: AgentToolCallStatus
+      sandboxId: string
+      command: string
+      workingDirectory: string
+      exitCode: number | null
+      durationMs: number | null
+      stdout?: AgentShellOutput
+      stderr?: AgentShellOutput
+      limitReason: AgentSandboxLimitReason | null
+      error?: AgentExecutionError
+    }
+  | {
+      type: 'file-operation'
+      sequence: number
+      runId: string
+      toolCallId: string
+      status: AgentToolCallStatus
+      operation: AgentFileOperation
+      direction: 'input' | 'output' | 'internal'
+      /** OSS 中的稳定逻辑文件 ID；内部临时文件可省略。 */
+      fileId?: string
+      path: string
+      size: number | null
+      sha256?: string
+      error?: AgentExecutionError
     }
   | { type: 'usage'; sequence: number; runId: string; usage: AgentRunUsage }
   | { type: 'error'; sequence: number; runId: string; error: GatewayError }

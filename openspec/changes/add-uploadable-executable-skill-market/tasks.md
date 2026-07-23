@@ -1,6 +1,6 @@
 ## 1. Mock Skill 执行首个纵向闭环
 
-- [ ] 1.1 为 `@aigateway/sdk` 定义 Skill 市场项、添加状态、手动选择、激活事件、Shell/文件工具事件和标准错误契约，并添加序列化测试
+- [x] 1.1 为 `@aigateway/sdk` 定义 Skill 市场项、添加状态、手动选择、激活事件、Shell/文件工具事件和标准错误契约，并添加序列化测试
 - [ ] 1.2 新增 `Skill`、`SkillReview`、`UserFile` 及 AgentRun/AgentToolCall 扩展字段的 Prisma migration，验证全局名称、用户添加唯一约束和关联删除边界
 - [ ] 1.3 定义 `SkillObjectStorePort` 与确定性内存实现，支持包元数据、`SKILL.md`、文件树、输入文件和结果文件 fixture
 - [ ] 1.4 定义 `SandboxRuntimePort` 与确定性 Fake Adapter，覆盖创建、命令、文件、取消、预算超限、销毁和泄漏查询
