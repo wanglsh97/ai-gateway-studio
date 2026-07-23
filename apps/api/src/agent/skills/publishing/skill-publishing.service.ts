@@ -81,6 +81,10 @@ export class SkillPublishingService {
     }
   }
 
+  listOwned(userId: string): Promise<ClaimedSkillRecord[]> {
+    return this.repository.listOwned(userId)
+  }
+
   async requireOwner(userId: string, name: string): Promise<ClaimedSkillRecord> {
     validateName(name)
     const skill = await this.repository.findByName(name)

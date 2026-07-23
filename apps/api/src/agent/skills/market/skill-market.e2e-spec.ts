@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { AddressInfo } from 'node:net'
 
+import type { AIGatewayClient } from '@aigateway/sdk'
 import type { INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
 
@@ -8,12 +9,18 @@ import { AppModule } from '../../../app.module'
 import { configureApplication } from '../../../configure-app'
 import { PrismaService } from '../../../database/prisma.service'
 import { RateLimitService } from '../../../rate-limit/rate-limit.service'
-import { cleanupUserTestData } from '../../../user-auth/user-auth.e2e-helpers'
+import {
+  cleanupUserTestData,
+  createAuthenticatedClient,
+  FIXTURE_GITHUB_ID,
+  provisionFixtureUserSession,
+} from '../../../user-auth/user-auth.e2e-helpers'
 
 describe('Public Skill market API E2E', () => {
   let app: INestApplication
   let baseUrl: string
   let prisma: PrismaService
+  let client: AIGatewayClient
 
   beforeAll(async () => {
     const module = await Test.createTestingModule({ imports: [AppModule] })
@@ -32,6 +39,7 @@ describe('Public Skill market API E2E', () => {
 
   beforeEach(async () => {
     await cleanupUserTestData(prisma)
+    client = createAuthenticatedClient(baseUrl, await provisionFixtureUserSession(app))
   })
 
   afterAll(async () => {
@@ -157,6 +165,38 @@ describe('Public Skill market API E2E', () => {
       code: 'SKILL_NOT_FOUND',
       retryable: false,
     })
+  })
+
+  it('protects owner and add routes while the SDK adds, removes and lists owned Skills', async () => {
+    const owner = await prisma.user.findUniqueOrThrow({ where: { githubId: FIXTURE_GITHUB_ID } })
+    const skill = await createSkill(prisma, owner.id, {
+      name: `market-owner-${randomUUID().slice(0, 8)}`,
+      title: 'Owner utility',
+      category: 'development',
+      addCount: 0,
+      publishedAt: new Date(),
+    })
+
+    const anonymous = await fetch(`${baseUrl}/api/v1/skills/owner`)
+    expect(anonymous.status).toBe(401)
+    await expect(client.skills.owner.list()).resolves.toEqual([
+      expect.objectContaining({
+        id: skill.id,
+        name: skill.name,
+        publicationStatus: 'published',
+      }),
+    ])
+
+    await client.skills.add(skill.name)
+    await client.skills.add(skill.name)
+    await expect(
+      prisma.userAgentSkill.count({ where: { userId: owner.id, marketSkillId: skill.id } }),
+    ).resolves.toBe(1)
+    await client.skills.remove(skill.name)
+    await client.skills.remove(skill.name)
+    await expect(
+      prisma.userAgentSkill.count({ where: { userId: owner.id, marketSkillId: skill.id } }),
+    ).resolves.toBe(0)
   })
 })
 

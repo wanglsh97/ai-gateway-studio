@@ -150,6 +150,10 @@ class MemoryPublishingRepository implements SkillPublishingRepositoryPort {
     return this.skills.get(name) ?? null
   }
 
+  async listOwned(userId: string): Promise<ClaimedSkillRecord[]> {
+    return [...this.skills.values()].filter((skill) => skill.ownerId === userId)
+  }
+
   async updatePublished(input: UpdatePublishedSkillInput): Promise<ClaimedSkillRecord> {
     const skill = this.skills.get(input.name)
     if (!skill) throw new SkillClaimPersistenceError('SKILL_NOT_FOUND', 'not found')

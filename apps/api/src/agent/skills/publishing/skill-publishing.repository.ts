@@ -36,6 +36,7 @@ export interface SkillPublishingRepositoryPort {
   claim(input: ClaimSkillInput): Promise<ClaimedSkillRecord>
   updatePublished(input: UpdatePublishedSkillInput): Promise<ClaimedSkillRecord>
   delistOwned(userId: string, name: string, now: Date): Promise<ClaimedSkillRecord>
+  listOwned(userId: string): Promise<ClaimedSkillRecord[]>
   findByName(name: string): Promise<ClaimedSkillRecord | null>
 }
 
@@ -199,6 +200,14 @@ export class SkillPublishingRepository implements SkillPublishingRepositoryPort 
         data: { status: 'DELISTED', delistedAt: now },
         select: CLAIMED_SKILL_SELECT,
       })
+    })
+  }
+
+  listOwned(userId: string): Promise<ClaimedSkillRecord[]> {
+    return this.prisma.skill.findMany({
+      where: { ownerId: userId },
+      select: CLAIMED_SKILL_SELECT,
+      orderBy: { updatedAt: 'desc' },
     })
   }
 

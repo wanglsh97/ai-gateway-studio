@@ -20,6 +20,12 @@ import { readSseData } from './sse.js'
 import { createAgentClient } from './agent-client.js'
 import type { AgentClient } from './agent-client.js'
 import type { SkillDirectUploadTransport } from './skill-upload.js'
+import {
+  createAdminSkillClient,
+  createSkillMarketClient,
+  type AdminSkillClient,
+  type SkillMarketClient,
+} from './skill-market-client.js'
 
 export interface RequestOptions {
   signal?: AbortSignal
@@ -75,6 +81,10 @@ export interface AIGatewayClient {
     list(options?: RequestOptions): Promise<ModelSummary[]>
   }
   agent: AgentClient
+  skills: SkillMarketClient
+  admin: {
+    skills: AdminSkillClient
+  }
 }
 
 export function createAIGatewayClient(options: CreateAIGatewayClientOptions = {}): AIGatewayClient {
@@ -115,6 +125,10 @@ export function createAIGatewayClient(options: CreateAIGatewayClientOptions = {}
         ? {}
         : { skillUploadTransport: options.skillUploadTransport }),
     }),
+    skills: createSkillMarketClient(fetchWithCredentials, baseUrl),
+    admin: {
+      skills: createAdminSkillClient(fetchWithCredentials, baseUrl),
+    },
   }
 }
 

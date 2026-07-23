@@ -327,7 +327,7 @@ function decodeSkillCandidate(value: unknown): AgentSkillCandidate {
   }
 }
 
-async function requestJson<T>(
+export async function requestJson<T>(
   fetchImplementation: typeof globalThis.fetch,
   method: string,
   url: string,
@@ -356,7 +356,7 @@ async function requestJson<T>(
   }
 }
 
-async function requestVoid(
+export async function requestVoid(
   fetchImplementation: typeof globalThis.fetch,
   method: string,
   url: string,

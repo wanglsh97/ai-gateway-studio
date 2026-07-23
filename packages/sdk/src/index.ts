@@ -22,6 +22,17 @@ export {
   SkillUploadTransportError,
 } from './skill-upload.js'
 export type {
+  AdminSkillClient,
+  AdminSkillReviewRecord,
+  OwnerSkillRecord,
+  SkillMarketClient,
+  SkillMarketListOptions,
+  SkillMarketPage,
+  SkillMarketRequestOptions,
+  SubmitSkillRequest,
+  UpdatePublishedSkillRequest,
+} from './skill-market-client.js'
+export type {
   CreateSkillUploadSessionRequest,
   FinalizedSkillUpload,
   SignedSkillUploadRequest,
