@@ -47,19 +47,21 @@ Suggested entities:
 
 Skill and file objects use a private OSS bucket. NestJS signs narrow upload/download operations and never returns OSS management credentials. PostgreSQL never stores ZIP or user-file bytes.
 
-### Decision 3: The browser uploads directly through scoped OSS credentials
+### Decision 3: The browser packages a selected folder and uploads directly through scoped OSS credentials
 
-For a first upload, NestJS reserves the global name, creates a staging record and signs one staging object. Finalization verifies expected object metadata and package constraints, then opens administrator review. Approval promotes it to `skills/{name}/package.zip`.
+The upload page accepts a directory rather than a prebuilt archive. The browser removes the selected directory's outer path, requires `SKILL.md` at the resulting package root, creates a ZIP locally and then follows the existing direct-upload protocol. Package bytes still do not pass through NestJS.
+
+For a first upload, NestJS reserves the global name read from the root `SKILL.md`, creates a staging record and signs one staging object. Finalization verifies expected object metadata and package constraints, then opens administrator review. Approval promotes it to `skills/{name}/package.zip`.
 
 For an already published Skill, only its owner may obtain a signed PUT for the existing published object. Successful finalization updates the recorded hash, size and market metadata immediately. This implements the explicitly accepted direct-overwrite behavior.
 
-Abandoned `skill-staging/` objects receive an OSS lifecycle rule. Icon objects and user files use separate prefixes so package overwrite cannot affect user artifacts.
+Abandoned `skill-staging/` objects receive an OSS lifecycle rule. User files use a separate prefix so package overwrite cannot affect user artifacts.
 
-### Decision 4: Market metadata stays outside the traditional package
+### Decision 4: Traditional Skill metadata seeds the market form
 
-The upload form owns immutable global name plus editable title, description, fixed category and icon. The package only needs a root `SKILL.md` and conventional optional directories such as `scripts/`, `references/`, `assets/` and `templates/`. No `marketplace.json` is introduced.
+The root `SKILL.md` YAML frontmatter owns the immutable global `name`; the upload page does not expose a separate global-name field. After folder selection, YAML `name` becomes the default market title and YAML `description` becomes the default market description. The user may edit the market title, description and fixed category without changing the package identity. The package may contain conventional optional directories such as `scripts/`, `references/`, `assets/` and `templates/`. No icon upload or `marketplace.json` is introduced.
 
-Package inspection enforces the accepted ZIP limits and produces a safe file-tree projection. Public detail returns sanitized `SKILL.md` and file metadata only. Administrator review may read bounded textual scripts.
+Client-side folder preparation and server-side package inspection enforce the accepted limits and produce a safe file-tree projection. Public detail returns sanitized `SKILL.md` and file metadata only. Administrator review may read bounded textual scripts.
 
 ### Decision 5: Added Skills are candidates; activation is a runtime transition
 

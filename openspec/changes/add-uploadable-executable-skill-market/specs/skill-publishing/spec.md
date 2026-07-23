@@ -2,7 +2,13 @@
 
 ### Requirement: Authenticated users upload traditional Skill packages directly to private OSS
 
-Every GitHub-authenticated user SHALL be allowed to create a Skill upload. The API SHALL issue a short-lived credential scoped to one private OSS object, and the browser SHALL upload the ZIP without proxying its bytes through NestJS. A package MUST contain `SKILL.md` at its root, MUST be at most 20 MiB compressed and 200 MiB expanded, and MUST contain at most 2,000 files, 50 MiB per file, and 20 directory levels. Symbolic and hard links MUST be rejected.
+Every GitHub-authenticated user SHALL be allowed to create a Skill upload by selecting a traditional Skill folder. The browser SHALL require a root `SKILL.md`, remove the selected folder's outer path, create a ZIP locally, and upload it without proxying its bytes through NestJS using an API-issued short-lived credential scoped to one private OSS object. A package MUST be at most 20 MiB compressed and 200 MiB expanded, and MUST contain at most 2,000 files, 50 MiB per file, and 20 directory levels. Symbolic and hard links MUST be rejected.
+
+#### Scenario: Folder metadata initializes the upload form
+
+- **GIVEN** an authenticated user selects a folder whose root `SKILL.md` has YAML frontmatter with `name` and `description`
+- **WHEN** the browser prepares the folder for upload
+- **THEN** it uses `name` as the hidden immutable Skill identity and default market title, uses `description` as the default market description, and allows the user to edit the market title and description
 
 #### Scenario: A valid package is finalized
 
@@ -18,7 +24,7 @@ Every GitHub-authenticated user SHALL be allowed to create a Skill upload. The A
 
 ### Requirement: Skill names are globally unique and owned by the first publisher
 
-Each Skill SHALL have an immutable globally unique lowercase name and an internal UUID. The first uploader to obtain approval for a name SHALL own it. Market title, description, one platform-defined category and icon SHALL be stored separately from the package. Only the owner SHALL update or voluntarily delist the Skill; administrators SHALL retain global delist authority.
+Each Skill SHALL have an immutable globally unique lowercase name and an internal UUID. The name SHALL come from the root `SKILL.md` YAML frontmatter and SHALL NOT be a separate upload-form field. The first uploader to obtain approval for a name SHALL own it. Editable market title, description and one platform-defined category SHALL be stored separately from the package. Only the owner SHALL update or voluntarily delist the Skill; administrators SHALL retain global delist authority.
 
 #### Scenario: Another user claims an existing name
 
@@ -61,4 +67,3 @@ An owner or administrator SHALL be able to delist a published Skill. A delisted 
 - **GIVEN** users have added a published Skill
 - **WHEN** the owner or administrator delists it
 - **THEN** new activation attempts fail as unavailable while existing add records remain removable by their owners
-

@@ -11,31 +11,9 @@ export const SKILL_CATEGORIES = [
 
 export type SkillCategory = (typeof SKILL_CATEGORIES)[number]['value']
 
-export const MAX_SKILL_ICON_BYTES = 2 * 1024 * 1024
 export const MAX_SKILL_PACKAGE_BYTES = 20 * 1024 * 1024
 export const SKILL_TITLE_MAX_LENGTH = 60
 export const SKILL_DESCRIPTION_MAX_LENGTH = 240
-
-interface FileMetadata {
-  name: string
-  size: number
-  type: string
-}
-
-export function validateSkillPackageFile(file: FileMetadata): string | null {
-  if (!file.name.toLowerCase().endsWith('.zip')) return '请选择 .zip 格式的 Skill 资源包'
-  if (file.size < 1) return 'Skill 资源包不能为空'
-  if (file.size > MAX_SKILL_PACKAGE_BYTES) return 'Skill 资源包不能超过 20 MiB'
-  return null
-}
-
-export function validateSkillIconFile(file: FileMetadata): string | null {
-  if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
-    return '图标仅支持 PNG、JPEG 或 WebP'
-  }
-  if (file.size < 1 || file.size > MAX_SKILL_ICON_BYTES) return '图标大小须在 2 MiB 以内'
-  return null
-}
 
 export function validateSkillMetadata(input: {
   name: string

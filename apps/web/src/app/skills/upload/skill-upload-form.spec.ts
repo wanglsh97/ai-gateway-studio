@@ -1,14 +1,7 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 
-import {
-  formatFileSize,
-  MAX_SKILL_ICON_BYTES,
-  SKILL_CATEGORIES,
-  validateSkillIconFile,
-  validateSkillMetadata,
-  validateSkillPackageFile,
-} from './skill-upload-form'
+import { formatFileSize, SKILL_CATEGORIES, validateSkillMetadata } from './skill-upload-form'
 
 describe('Skill upload form validation', () => {
   it('accepts fixed categories and valid market metadata', () => {
@@ -33,31 +26,7 @@ describe('Skill upload form validation', () => {
     assert.deepEqual(Object.keys(errors).sort(), ['category', 'description', 'name', 'title'])
   })
 
-  it('enforces ZIP and icon type/size boundaries', () => {
-    assert.equal(
-      validateSkillPackageFile({ name: 'skill.zip', size: 1024, type: 'application/zip' }),
-      null,
-    )
-    assert.match(
-      validateSkillPackageFile({ name: 'skill.tar', size: 1024, type: 'application/x-tar' }) ?? '',
-      /\.zip/,
-    )
-    assert.match(
-      validateSkillPackageFile({
-        name: 'skill.zip',
-        size: 21 * 1024 * 1024,
-        type: 'application/zip',
-      }) ?? '',
-      /20 MiB/,
-    )
-    assert.equal(
-      validateSkillIconFile({ name: 'icon.webp', size: MAX_SKILL_ICON_BYTES, type: 'image/webp' }),
-      null,
-    )
-    assert.match(
-      validateSkillIconFile({ name: 'icon.svg', size: 100, type: 'image/svg+xml' }) ?? '',
-      /PNG/,
-    )
+  it('formats the selected folder size', () => {
     assert.equal(formatFileSize(1024 * 1024), '1.0 MiB')
   })
 })
