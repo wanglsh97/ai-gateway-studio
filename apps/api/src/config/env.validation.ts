@@ -62,6 +62,17 @@ const environmentSchema = z
     GITHUB_OAUTH_HTTP_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(30_000).default(10_000),
     USER_SESSION_SECRET: userSessionSecret,
     USER_SESSION_TTL_SECONDS: z.coerce.number().int().default(2_592_000),
+    SKILL_OBJECT_STORE_DRIVER: z.enum(['memory', 'oss']).default('memory'),
+    OSS_REGION: optionalSecret,
+    OSS_BUCKET: optionalSecret,
+    OSS_ACCESS_KEY_ID: optionalSecret,
+    OSS_ACCESS_KEY_SECRET: optionalSecret,
+    OSS_ENDPOINT: z.preprocess(
+      (value) => (value === '' ? undefined : value),
+      z.string().url().optional(),
+    ),
+    OSS_INTERNAL: booleanFromEnv.default(false),
+    OSS_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(120_000).default(30_000),
     MOCK_PROVIDER_ENABLED: booleanFromEnv.default(true),
     QWEN_ENABLED: booleanFromEnv.default(false),
     GLM_ENABLED: booleanFromEnv.default(false),
@@ -122,6 +133,22 @@ const environmentSchema = z
         path: ['USER_SESSION_TTL_SECONDS'],
         message: '用户 Session 必须使用固定 30 天有效期（2592000 秒）',
       })
+    }
+    if (env.SKILL_OBJECT_STORE_DRIVER === 'oss') {
+      for (const key of [
+        'OSS_REGION',
+        'OSS_BUCKET',
+        'OSS_ACCESS_KEY_ID',
+        'OSS_ACCESS_KEY_SECRET',
+      ] as const) {
+        if (!env[key]) {
+          context.addIssue({
+            code: 'custom',
+            path: [key],
+            message: `使用 OSS 对象存储时必须配置 ${key}`,
+          })
+        }
+      }
     }
     if (env.GITHUB_OAUTH_ENABLED) {
       if (!env.GITHUB_CLIENT_ID) {

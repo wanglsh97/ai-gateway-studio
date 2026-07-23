@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common'
-import { ConfigModule } from '@nestjs/config'
+import { ConfigModule, ConfigService } from '@nestjs/config'
 
 import { ChatModule } from '../chat/chat.module'
 import { RedisModule } from '../redis/redis.module'
@@ -32,6 +32,11 @@ import { ExecutableSkillRepository } from './skills/executable-skill.repository'
 import { ExecutableSkillService } from './skills/executable-skill.service'
 import { PlatformAgentSkillCatalog } from './skills/platform-agent-skill.catalog'
 import { InMemorySkillObjectStore } from './skills/storage/in-memory-skill-object-store'
+import {
+  AliyunOssSkillObjectStore,
+  createAliyunOssClient,
+} from './skills/storage/aliyun-oss-skill-object-store'
+import { PrismaSkillPackageProjectionReader } from './skills/storage/skill-package-projection.reader'
 import { SKILL_OBJECT_STORE_PORT } from './skills/storage/skill-object-store.port'
 import { AGENT_TOOLS, AgentToolRegistry } from './tools/agent-tool.registry'
 import { createExecutableSkillTools } from './tools/executable-skill.tools'
@@ -76,10 +81,19 @@ function resolveAgentTools(sessions: AgentExecutionSessionService): readonly Age
     ExecutableSkillRepository,
     ExecutableSkillService,
     ExecutableSkillBootstrap,
+    PrismaSkillPackageProjectionReader,
     {
       provide: SKILL_OBJECT_STORE_PORT,
-      useFactory: () =>
-        new InMemorySkillObjectStore({ skillPackages: [MOCK_EXECUTABLE_SKILL_PACKAGE] }),
+      inject: [ConfigService, PrismaSkillPackageProjectionReader],
+      useFactory: (config: ConfigService, projections: PrismaSkillPackageProjectionReader) => {
+        if (config.get<string>('SKILL_OBJECT_STORE_DRIVER') !== 'oss') {
+          return new InMemorySkillObjectStore({
+            skillPackages: [MOCK_EXECUTABLE_SKILL_PACKAGE],
+          })
+        }
+        const { client, bucket } = createAliyunOssClient(config)
+        return new AliyunOssSkillObjectStore(client, bucket, projections)
+      },
     },
     {
       provide: FakeSandboxRuntime,

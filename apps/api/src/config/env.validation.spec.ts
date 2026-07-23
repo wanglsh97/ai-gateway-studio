@@ -32,6 +32,35 @@ describe('validateEnvironment', () => {
     expect(environment.PROVIDER_MAX_CONNECTIONS).toBe(20)
     expect(environment.ADMIN_SESSION_TTL_SECONDS).toBe(900)
     expect(environment.ADMIN_FIXED_CREDENTIALS_ENABLED).toBe(true)
+    expect(environment.SKILL_OBJECT_STORE_DRIVER).toBe('memory')
+    expect(environment.OSS_INTERNAL).toBe(false)
+    expect(environment.OSS_TIMEOUT_MS).toBe(30_000)
+  })
+
+  it('requires complete server-only OSS configuration when the production adapter is selected', () => {
+    expect(() =>
+      validateEnvironment({
+        ...requiredEnvironment,
+        SKILL_OBJECT_STORE_DRIVER: 'oss',
+      }),
+    ).toThrow('OSS_REGION')
+
+    const environment = validateEnvironment({
+      ...requiredEnvironment,
+      SKILL_OBJECT_STORE_DRIVER: 'oss',
+      OSS_REGION: 'oss-cn-hangzhou',
+      OSS_BUCKET: 'private-skill-bucket',
+      OSS_ACCESS_KEY_ID: 'test-access-key-id',
+      OSS_ACCESS_KEY_SECRET: 'test-access-key-secret',
+      OSS_ENDPOINT: 'https://oss-cn-hangzhou.aliyuncs.com',
+      OSS_INTERNAL: 'true',
+    })
+    expect(environment).toMatchObject({
+      SKILL_OBJECT_STORE_DRIVER: 'oss',
+      OSS_REGION: 'oss-cn-hangzhou',
+      OSS_BUCKET: 'private-skill-bucket',
+      OSS_INTERNAL: true,
+    })
   })
 
   it('rejects an unsafe trusted proxy hop count', () => {
