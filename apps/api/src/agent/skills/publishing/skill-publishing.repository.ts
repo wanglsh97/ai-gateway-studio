@@ -14,6 +14,11 @@ export interface ClaimSkillInput {
   iconObjectKey?: string
 }
 
+export interface UpdatePublishedSkillInput extends Omit<ClaimSkillInput, 'userId' | 'name'> {
+  userId: string
+  name: string
+}
+
 export interface ClaimedSkillRecord {
   id: string
   name: string
@@ -29,6 +34,7 @@ export interface ClaimedSkillRecord {
 
 export interface SkillPublishingRepositoryPort {
   claim(input: ClaimSkillInput): Promise<ClaimedSkillRecord>
+  updatePublished(input: UpdatePublishedSkillInput): Promise<ClaimedSkillRecord>
   findByName(name: string): Promise<ClaimedSkillRecord | null>
 }
 
@@ -117,6 +123,60 @@ export class SkillPublishingRepository implements SkillPublishingRepositoryPort 
     throw new Error('Skill claim retry boundary exhausted')
   }
 
+  async updatePublished(input: UpdatePublishedSkillInput): Promise<ClaimedSkillRecord> {
+    return this.prisma.$transaction(async (tx) => {
+      const skill = await tx.skill.findUnique({
+        where: { name: input.name },
+        select: CLAIMED_SKILL_SELECT,
+      })
+      if (!skill) {
+        throw new SkillClaimPersistenceError('SKILL_NOT_FOUND', 'Skill 不存在')
+      }
+      if (skill.ownerId !== input.userId) {
+        throw new SkillClaimPersistenceError('SKILL_NOT_OWNER', '只有 Skill owner 可以更新')
+      }
+      if (skill.status !== 'PUBLISHED' || !skill.packageObjectKey) {
+        throw new SkillClaimPersistenceError(
+          'SKILL_NOT_PUBLISHED',
+          '只有已发布的 Skill 可以直接覆盖',
+        )
+      }
+      const upload = await tx.skillUploadSession.findFirst({
+        where: {
+          id: input.uploadSessionId,
+          userId: input.userId,
+          skillId: skill.id,
+          objectKey: skill.packageObjectKey,
+          status: 'FINALIZED',
+        },
+      })
+      if (
+        !upload ||
+        upload.observedSizeBytes === null ||
+        upload.observedSha256 === null ||
+        upload.finalizedAt === null
+      ) {
+        throw new SkillClaimPersistenceError(
+          'SKILL_UPLOAD_NOT_FINALIZED',
+          '覆盖上传会话不存在、未完成或不属于当前 Skill',
+        )
+      }
+      return tx.skill.update({
+        where: { id: skill.id },
+        data: {
+          title: input.title,
+          description: input.description,
+          category: input.category,
+          ...(input.iconObjectKey === undefined ? {} : { iconObjectKey: input.iconObjectKey }),
+          packageSha256: upload.observedSha256,
+          packageSizeBytes: upload.observedSizeBytes,
+          packageUpdatedAt: upload.finalizedAt,
+        },
+        select: CLAIMED_SKILL_SELECT,
+      })
+    })
+  }
+
   findByName(name: string): Promise<ClaimedSkillRecord | null> {
     return this.prisma.skill.findUnique({ where: { name }, select: CLAIMED_SKILL_SELECT })
   }
@@ -124,7 +184,13 @@ export class SkillPublishingRepository implements SkillPublishingRepositoryPort 
 
 export class SkillClaimPersistenceError extends Error {
   constructor(
-    readonly code: 'SKILL_NAME_TAKEN' | 'SKILL_UPLOAD_NOT_FINALIZED' | 'SKILL_UPLOAD_ALREADY_USED',
+    readonly code:
+      | 'SKILL_NAME_TAKEN'
+      | 'SKILL_UPLOAD_NOT_FINALIZED'
+      | 'SKILL_UPLOAD_ALREADY_USED'
+      | 'SKILL_NOT_FOUND'
+      | 'SKILL_NOT_OWNER'
+      | 'SKILL_NOT_PUBLISHED',
     message: string,
   ) {
     super(message)

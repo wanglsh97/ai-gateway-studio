@@ -49,6 +49,33 @@ describe('SkillUploadSessionService', () => {
     ).rejects.toBeInstanceOf(SkillUploadSessionError)
   })
 
+  it('reuses an owned published object key and never deletes it during abandoned cleanup', async () => {
+    const fixture = createFixture()
+    const objectKey = 'skill-staging/user-1/original/package.zip'
+    fixture.repository.publishedTarget = { id: 'skill-1', packageObjectKey: objectKey }
+    fixture.objects.seedSkillPackage({
+      objectKey,
+      archive: Uint8Array.from([1]),
+      skillMarkdown: '# Published',
+      files: [],
+    })
+
+    const created = await fixture.service.create('user-1', {
+      sizeBytes: 1,
+      sha256: 'b'.repeat(64),
+      skillName: 'published-skill',
+    })
+    expect(created.session).toMatchObject({ skillId: 'skill-1', objectKey })
+
+    fixture.advance(301_000)
+    await expect(fixture.service.cleanupAbandoned()).resolves.toEqual({
+      claimed: 1,
+      cleaned: 1,
+      pending: 0,
+    })
+    await expect(fixture.objects.statObject(objectKey)).resolves.not.toBeNull()
+  })
+
   it('finalizes matching OSS metadata idempotently and rejects cross-user access', async () => {
     const fixture = createFixture()
     const archive = Uint8Array.from([1, 2, 3, 4])
@@ -134,6 +161,7 @@ function createFixture() {
 
 class MemoryUploadRepository implements SkillUploadSessionRepositoryPort {
   private readonly records = new Map<string, SkillUploadSessionRecord>()
+  publishedTarget: { id: string; packageObjectKey: string } | null = null
 
   constructor(private readonly now: () => Date) {}
 
@@ -145,6 +173,7 @@ class MemoryUploadRepository implements SkillUploadSessionRepositoryPort {
     const timestamp = this.now()
     const record: SkillUploadSessionRecord = {
       ...input,
+      skillId: input.skillId ?? null,
       status: 'PENDING_UPLOAD',
       cleanupStatus: 'NONE',
       observedSizeBytes: null,
@@ -163,6 +192,10 @@ class MemoryUploadRepository implements SkillUploadSessionRepositoryPort {
   async findOwned(id: string, userId: string): Promise<SkillUploadSessionRecord | null> {
     const record = this.records.get(id)
     return record?.userId === userId ? record : null
+  }
+
+  async findPublishedTarget() {
+    return this.publishedTarget
   }
 
   async finalize(

@@ -25,6 +25,7 @@ export const SKILL_UPLOAD_CLOCK = Symbol('SKILL_UPLOAD_CLOCK')
 export interface CreateSkillUploadSessionInput {
   sizeBytes: number
   sha256: string
+  skillName?: string
 }
 
 export interface CreatedSkillUploadSession {
@@ -55,11 +56,22 @@ export class SkillUploadSessionService {
   ): Promise<CreatedSkillUploadSession> {
     validateUpload(input)
     const id = randomUUID()
-    const objectKey = `skill-staging/${userId}/${id}/package.zip`
+    const target =
+      input.skillName === undefined
+        ? null
+        : await this.repository.findPublishedTarget(input.skillName, userId)
+    if (input.skillName !== undefined && !target) {
+      throw new SkillUploadSessionError(
+        'UPLOAD_SKILL_NOT_PUBLISHED_OR_OWNER',
+        '只能覆盖自己已发布的 Skill',
+      )
+    }
+    const objectKey = target?.packageObjectKey ?? `skill-staging/${userId}/${id}/package.zip`
     const expiresAt = new Date(this.now().getTime() + this.ttlSeconds * 1_000)
     const session = await this.repository.create({
       id,
       userId,
+      ...(target === null ? {} : { skillId: target.id }),
       objectKey,
       expectedContentType: SKILL_UPLOAD_CONTENT_TYPE,
       expectedSizeBytes: BigInt(input.sizeBytes),
@@ -130,7 +142,7 @@ export class SkillUploadSessionService {
     let cleaned = 0
     for (const session of sessions) {
       try {
-        await this.objects.deleteObject(session.objectKey)
+        if (session.skillId === null) await this.objects.deleteObject(session.objectKey)
         await this.repository.finishCleanup(session.id, true, null)
         cleaned += 1
       } catch (error) {
@@ -161,7 +173,8 @@ export class SkillUploadSessionError extends Error {
       | 'UPLOAD_SESSION_EXPIRED'
       | 'UPLOAD_OBJECT_MISSING'
       | 'UPLOAD_OBJECT_MISMATCH'
-      | 'UPLOAD_FINALIZE_CONFLICT',
+      | 'UPLOAD_FINALIZE_CONFLICT'
+      | 'UPLOAD_SKILL_NOT_PUBLISHED_OR_OWNER',
     message: string,
   ) {
     super(message)

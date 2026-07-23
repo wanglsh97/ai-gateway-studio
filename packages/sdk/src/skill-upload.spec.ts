@@ -21,6 +21,7 @@ describe('uploadSkillPackage', () => {
     const result = await uploadSkillPackage(
       body,
       {
+        skillName: 'published-skill',
         maxRetries: 1,
         retryDelayMs: 0,
         onProgress: (progress) => phases.push(`${progress.phase}:${progress.attempt}`),
@@ -29,7 +30,7 @@ describe('uploadSkillPackage', () => {
         digest: async () => sha256,
         createSession: async (input) => {
           creates += 1
-          assert.deepEqual(input, { sizeBytes: 3, sha256 })
+          assert.deepEqual(input, { sizeBytes: 3, sha256, skillName: 'published-skill' })
           return session()
         },
         upload: async (request) => {

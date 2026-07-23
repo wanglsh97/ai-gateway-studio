@@ -137,8 +137,8 @@ model User {
 model SkillUploadSession {
   id                  String                   @id @default(uuid()) @db.Uuid
   userId              String                   @db.Uuid
-  skillId             String?                  @unique @db.Uuid
-  objectKey           String                   @unique @db.VarChar(1024)
+  skillId             String?                  @db.Uuid
+  objectKey           String                   @db.VarChar(1024)
   status              SkillUploadSessionStatus @default(PENDING_UPLOAD)
   cleanupStatus       ObjectCleanupStatus      @default(NONE)
   expectedContentType String                   @db.VarChar(255)
@@ -157,6 +157,8 @@ model SkillUploadSession {
   skill               Skill?                   @relation(fields: [skillId], references: [id], onDelete: Restrict)
 
   @@index([userId, status, createdAt])
+  @@index([skillId, createdAt])
+  @@index([objectKey])
   @@index([status, expiresAt])
   @@index([cleanupStatus, updatedAt])
 }

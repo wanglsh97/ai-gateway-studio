@@ -7,6 +7,7 @@ import {
   SkillPublishingRepository,
   type ClaimedSkillRecord,
   type SkillPublishingRepositoryPort,
+  type UpdatePublishedSkillInput,
 } from './skill-publishing.repository'
 
 export const SKILL_NAME_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/
@@ -49,6 +50,25 @@ export class SkillPublishingService {
     }
   }
 
+  async updatePublished(
+    userId: string,
+    name: string,
+    input: Omit<SubmitSkillInput, 'name'>,
+  ): Promise<ClaimedSkillRecord> {
+    const normalized = validateSubmission({ ...input, name })
+    try {
+      return await this.repository.updatePublished({
+        userId,
+        ...normalized,
+      } satisfies UpdatePublishedSkillInput)
+    } catch (error) {
+      if (error instanceof SkillClaimPersistenceError) {
+        throw new SkillPublishingError(error.code, error.message)
+      }
+      throw error
+    }
+  }
+
   async requireOwner(userId: string, name: string): Promise<ClaimedSkillRecord> {
     validateName(name)
     const skill = await this.repository.findByName(name)
@@ -72,7 +92,8 @@ export class SkillPublishingError extends Error {
       | 'SKILL_UPLOAD_NOT_FINALIZED'
       | 'SKILL_UPLOAD_ALREADY_USED'
       | 'SKILL_NOT_FOUND'
-      | 'SKILL_NOT_OWNER',
+      | 'SKILL_NOT_OWNER'
+      | 'SKILL_NOT_PUBLISHED',
     message: string,
   ) {
     super(message)

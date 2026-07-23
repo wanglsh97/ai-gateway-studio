@@ -103,6 +103,67 @@ describe('Skill publishing claim PostgreSQL E2E', () => {
       }),
     ).rejects.toThrow()
   })
+
+  it('overwrites the published object metadata in place without a revision or another review', async () => {
+    const user = await createUser(prisma, 'overwrite')
+    const firstUpload = await createFinalizedUpload(prisma, user.id, 'first')
+    const claimed = await service.claim(user.id, {
+      uploadSessionId: firstUpload.id,
+      name: 'overwrite-skill',
+      title: 'Before',
+      description: 'Before overwrite.',
+      category: 'development',
+    })
+    const publishedAt = new Date('2026-07-23T15:00:00.000Z')
+    await prisma.skill.update({
+      where: { id: claimed.id },
+      data: { status: 'PUBLISHED', publishedAt },
+    })
+    await prisma.skillReview.create({
+      data: {
+        skillId: claimed.id,
+        reviewer: 'root',
+        decision: 'APPROVED',
+        packageSha256: firstUpload.observedSha256!,
+      },
+    })
+
+    const replacement = await createFinalizedUpload(prisma, user.id, 'replacement', {
+      skillId: claimed.id,
+      objectKey: claimed.packageObjectKey!,
+      sha256: 'b'.repeat(64),
+      sizeBytes: 20n,
+    })
+    await expect(
+      service.updatePublished(user.id, claimed.name, {
+        uploadSessionId: replacement.id,
+        title: 'After',
+        description: 'After overwrite.',
+        category: 'productivity',
+      }),
+    ).resolves.toMatchObject({
+      id: claimed.id,
+      status: 'PUBLISHED',
+      packageObjectKey: claimed.packageObjectKey,
+      packageSha256: 'b'.repeat(64),
+      packageSizeBytes: 20n,
+    })
+
+    await expect(prisma.skill.count({ where: { name: claimed.name } })).resolves.toBe(1)
+    await expect(prisma.skillReview.count({ where: { skillId: claimed.id } })).resolves.toBe(1)
+    await expect(
+      prisma.skill.findUniqueOrThrow({ where: { id: claimed.id } }),
+    ).resolves.toMatchObject({
+      status: 'PUBLISHED',
+      publishedAt,
+      title: 'After',
+      description: 'After overwrite.',
+      category: 'productivity',
+      packageObjectKey: claimed.packageObjectKey,
+      packageSha256: 'b'.repeat(64),
+      packageSizeBytes: 20n,
+    })
+  })
 })
 
 async function createUser(prisma: PrismaService, suffix: string) {
@@ -115,19 +176,32 @@ async function createUser(prisma: PrismaService, suffix: string) {
   })
 }
 
-async function createFinalizedUpload(prisma: PrismaService, userId: string, suffix: string) {
+async function createFinalizedUpload(
+  prisma: PrismaService,
+  userId: string,
+  suffix: string,
+  options: {
+    skillId?: string
+    objectKey?: string
+    sha256?: string
+    sizeBytes?: bigint
+  } = {},
+) {
   const id = randomUUID()
+  const sha256 = options.sha256 ?? 'a'.repeat(64)
+  const sizeBytes = options.sizeBytes ?? 10n
   return prisma.skillUploadSession.create({
     data: {
       id,
       userId,
-      objectKey: `skill-staging/${userId}/${id}/package-${suffix}.zip`,
+      ...(options.skillId === undefined ? {} : { skillId: options.skillId }),
+      objectKey: options.objectKey ?? `skill-staging/${userId}/${id}/package-${suffix}.zip`,
       status: 'FINALIZED',
       expectedContentType: 'application/zip',
-      expectedSizeBytes: 10n,
-      expectedSha256: 'a'.repeat(64),
-      observedSizeBytes: 10n,
-      observedSha256: 'a'.repeat(64),
+      expectedSizeBytes: sizeBytes,
+      expectedSha256: sha256,
+      observedSizeBytes: sizeBytes,
+      observedSha256: sha256,
       expiresAt: new Date(Date.now() + 300_000),
       finalizedAt: new Date(),
     },

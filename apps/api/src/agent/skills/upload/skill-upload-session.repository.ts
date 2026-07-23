@@ -8,6 +8,7 @@ export type ObjectCleanupStatus = 'NONE' | 'PENDING' | 'SUCCEEDED'
 export interface SkillUploadSessionRecord {
   id: string
   userId: string
+  skillId: string | null
   objectKey: string
   status: SkillUploadSessionStatus
   cleanupStatus: ObjectCleanupStatus
@@ -28,6 +29,7 @@ export interface SkillUploadSessionRecord {
 export interface CreateSkillUploadSessionRecord {
   id: string
   userId: string
+  skillId?: string
   objectKey: string
   expectedContentType: string
   expectedSizeBytes: bigint
@@ -35,8 +37,14 @@ export interface CreateSkillUploadSessionRecord {
   expiresAt: Date
 }
 
+export interface PublishedSkillUploadTarget {
+  id: string
+  packageObjectKey: string
+}
+
 export interface SkillUploadSessionRepositoryPort {
   create(input: CreateSkillUploadSessionRecord): Promise<SkillUploadSessionRecord>
+  findPublishedTarget(name: string, userId: string): Promise<PublishedSkillUploadTarget | null>
   findOwned(id: string, userId: string): Promise<SkillUploadSessionRecord | null>
   finalize(
     id: string,
@@ -55,6 +63,22 @@ export class SkillUploadSessionRepository implements SkillUploadSessionRepositor
 
   create(input: CreateSkillUploadSessionRecord): Promise<SkillUploadSessionRecord> {
     return this.prisma.skillUploadSession.create({ data: input })
+  }
+
+  findPublishedTarget(name: string, userId: string): Promise<PublishedSkillUploadTarget | null> {
+    return this.prisma.skill
+      .findFirst({
+        where: {
+          name,
+          ownerId: userId,
+          status: 'PUBLISHED',
+          packageObjectKey: { not: null },
+        },
+        select: { id: true, packageObjectKey: true },
+      })
+      .then((skill) =>
+        skill?.packageObjectKey ? { id: skill.id, packageObjectKey: skill.packageObjectKey } : null,
+      )
   }
 
   findOwned(id: string, userId: string): Promise<SkillUploadSessionRecord | null> {

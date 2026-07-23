@@ -5,6 +5,7 @@ import {
   type ClaimedSkillRecord,
   type ClaimSkillInput,
   type SkillPublishingRepositoryPort,
+  type UpdatePublishedSkillInput,
 } from './skill-publishing.repository'
 import { SkillPublishingError, SkillPublishingService } from './skill-publishing.service'
 
@@ -69,6 +70,36 @@ describe('SkillPublishingService', () => {
       ownerId: 'owner-1',
     })
   })
+
+  it('updates a published owner Skill without returning it to review', async () => {
+    const repository = new MemoryPublishingRepository()
+    const service = new SkillPublishingService(repository as never)
+    const skill = await repository.claim({
+      userId: 'owner-1',
+      uploadSessionId: 'upload-1',
+      name: 'published-skill',
+      title: 'Old title',
+      description: 'Old description',
+      category: 'development',
+    })
+    skill.status = 'PUBLISHED'
+
+    await expect(
+      service.updatePublished('owner-1', skill.name, {
+        uploadSessionId: 'upload-2',
+        title: '  New title  ',
+        description: '  New description  ',
+        category: 'productivity',
+      }),
+    ).resolves.toMatchObject({
+      id: skill.id,
+      status: 'PUBLISHED',
+      title: 'New title',
+      description: 'New description',
+      category: 'productivity',
+      packageSha256: 'b'.repeat(64),
+    })
+  })
 })
 
 class MemoryPublishingRepository implements SkillPublishingRepositoryPort {
@@ -96,5 +127,24 @@ class MemoryPublishingRepository implements SkillPublishingRepositoryPort {
 
   async findByName(name: string): Promise<ClaimedSkillRecord | null> {
     return this.skills.get(name) ?? null
+  }
+
+  async updatePublished(input: UpdatePublishedSkillInput): Promise<ClaimedSkillRecord> {
+    const skill = this.skills.get(input.name)
+    if (!skill) throw new SkillClaimPersistenceError('SKILL_NOT_FOUND', 'not found')
+    if (skill.ownerId !== input.userId) {
+      throw new SkillClaimPersistenceError('SKILL_NOT_OWNER', 'not owner')
+    }
+    if (skill.status !== 'PUBLISHED') {
+      throw new SkillClaimPersistenceError('SKILL_NOT_PUBLISHED', 'not published')
+    }
+    Object.assign(skill, {
+      title: input.title,
+      description: input.description,
+      category: input.category,
+      packageSha256: 'b'.repeat(64),
+      packageSizeBytes: 2n,
+    })
+    return skill
   }
 }

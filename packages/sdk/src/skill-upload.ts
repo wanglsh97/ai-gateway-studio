@@ -12,6 +12,7 @@ export interface SkillUploadProgress {
 
 export interface SkillPackageUploadOptions {
   signal?: AbortSignal
+  skillName?: string
   maxRetries?: number
   retryDelayMs?: number
   onProgress?(progress: SkillUploadProgress): void
@@ -28,6 +29,7 @@ export interface FinalizedSkillUpload {
 export interface CreateSkillUploadSessionRequest {
   sizeBytes: number
   sha256: string
+  skillName?: string
 }
 
 export interface SignedSkillUploadRequest {
@@ -107,7 +109,11 @@ export async function uploadSkillPackage(
   reportProgress(options, 'hashing', body.size, body.size, 0)
 
   const session = await dependencies.createSession(
-    { sizeBytes: body.size, sha256 },
+    {
+      sizeBytes: body.size,
+      sha256,
+      ...(options?.skillName === undefined ? {} : { skillName: options.skillName }),
+    },
     options?.signal,
   )
   assertSessionMatches(session, body.size, sha256)
