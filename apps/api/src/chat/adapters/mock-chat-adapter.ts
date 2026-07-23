@@ -50,6 +50,7 @@ const DEFAULT_FETCH_URL = 'https://example.com/'
  * - `FETCH:<n>`：需要 n 次 web_fetch 后再作答（默认 1）。
  * - `SCENARIO:unknown-tool`：首轮请求一个未注册工具。
  * - `SCENARIO:invalid-args`：首轮请求缺少 url 的 web_fetch。
+ * - `SCENARIO:shell`：首轮请求 Fake Sandbox Shell 执行确定性 Mock Skill 命令。
  * - `SCENARIO:stream-error`：首轮以模型流错误终止。
  * - `URL:<url>` 或消息中的 http(s) 链接：作为 web_fetch 目标。
  */
@@ -184,6 +185,16 @@ export class MockChatAdapter implements ChatAdapter {
     if (directives.scenario === 'invalid-args') {
       return { id, name: 'web_fetch', arguments: {} }
     }
+    if (directives.scenario === 'shell') {
+      return {
+        id,
+        name: 'shell',
+        arguments: {
+          command: 'node scripts/clean.mjs',
+          workingDirectory: '/workspace/skills/mock-data-cleaner',
+        },
+      }
+    }
     return { id, name: 'web_fetch', arguments: { url: directives.url } }
   }
 
@@ -241,7 +252,7 @@ export class MockChatAdapter implements ChatAdapter {
   }
 }
 
-type MockScenario = 'normal' | 'unknown-tool' | 'invalid-args' | 'stream-error'
+type MockScenario = 'normal' | 'unknown-tool' | 'invalid-args' | 'stream-error' | 'shell'
 
 interface MockDirectives {
   wantFetches: number
@@ -257,6 +268,7 @@ function parseDirectives(instruction: string): MockDirectives {
   if (/SCENARIO:unknown-tool/i.test(instruction)) scenario = 'unknown-tool'
   else if (/SCENARIO:invalid-args/i.test(instruction)) scenario = 'invalid-args'
   else if (/SCENARIO:stream-error/i.test(instruction)) scenario = 'stream-error'
+  else if (/SCENARIO:shell/i.test(instruction)) scenario = 'shell'
 
   const explicitUrl = /URL:(\S+)/i.exec(instruction)?.[1]
   const linkUrl = /https?:\/\/[^\s"')]+/i.exec(instruction)?.[0]

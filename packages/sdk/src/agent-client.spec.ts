@@ -147,9 +147,11 @@ describe('AgentClient threads and runs', () => {
 
   it('creates and cancels runs', async () => {
     const calls: string[] = []
+    const bodies: unknown[] = []
     const client = createAIGatewayClient({
       fetch: async (input, init) => {
         calls.push(`${init?.method} ${String(input)}`)
+        bodies.push(init?.body)
         return Response.json({
           id: runId,
           threadId,
@@ -173,8 +175,15 @@ describe('AgentClient threads and runs', () => {
       },
     })
 
-    const run = await client.agent.runs.create(threadId, { input: '你好' })
+    const run = await client.agent.runs.create(threadId, {
+      input: '你好',
+      skills: [{ name: 'mock-data-cleaner' }],
+    })
     assert.equal(run.status, 'running')
+    assert.equal(
+      bodies[0],
+      JSON.stringify({ input: '你好', skills: [{ name: 'mock-data-cleaner' }] }),
+    )
     await client.agent.runs.cancel(runId)
     assert.ok(calls[0]?.endsWith(`/api/v1/agent/threads/${threadId}/runs`))
     assert.ok(calls[1]?.endsWith(`/api/v1/agent/runs/${runId}/cancel`))

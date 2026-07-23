@@ -103,7 +103,7 @@ export class ExecutableSkillRepository implements ExecutableSkillRepositoryPort 
   async addForUser(userId: string, skill: ExecutableSkillRecord, limit: number): Promise<boolean> {
     return this.prisma.$transaction(
       async (tx) => {
-        await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${userId}, 0))`
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${userId}, 0))`
         const existing = await tx.userAgentSkill.findUnique({
           where: { userId_marketSkillId: { userId, marketSkillId: skill.id } },
           select: { id: true },
@@ -133,7 +133,7 @@ export class ExecutableSkillRepository implements ExecutableSkillRepositoryPort 
 
   async removeForUser(userId: string, skillId: string): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
-      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${userId}, 0))`
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${userId}, 0))`
       const deleted = await tx.userAgentSkill.deleteMany({
         where: { userId, marketSkillId: skillId },
       })

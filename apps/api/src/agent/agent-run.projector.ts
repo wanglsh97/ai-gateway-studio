@@ -124,10 +124,23 @@ export class AgentRunProjector {
     return [this.emit({ type: 'context-compressed', ...input })]
   }
 
+  skillActivation(
+    input: Omit<
+      Extract<AgentStreamEvent, { type: 'skill-activation' }>,
+      'type' | 'sequence' | 'runId'
+    >,
+  ): AgentStreamEvent[] {
+    if (this.finished) return []
+    return [this.emit({ type: 'skill-activation', ...input })]
+  }
+
   /** 终结 run，产出 usage 与终态事件。幂等：重复调用返回空。 */
   finalize(
     status: AgentRunTerminalStatus,
-    options: { limitReason?: AgentRunLimitReason; error?: { code: string; message: string; retryable: boolean } } = {},
+    options: {
+      limitReason?: AgentRunLimitReason
+      error?: { code: string; message: string; retryable: boolean }
+    } = {},
   ): AgentStreamEvent[] {
     if (this.finished) return []
     if (!TERMINAL_FROM_ACTIVE.includes(status)) {
@@ -164,7 +177,12 @@ export class AgentRunProjector {
       events.push(
         this.emit({
           type: 'error',
-          error: { requestId: this.runId, code: error.code, message: error.message, retryable: error.retryable },
+          error: {
+            requestId: this.runId,
+            code: error.code,
+            message: error.message,
+            retryable: error.retryable,
+          },
         }),
       )
     }
@@ -208,12 +226,19 @@ export class AgentRunProjector {
   private beginAssistant(): AgentStreamEvent[] {
     if (this.currentAssistant) return []
     this.currentAssistant = { id: this.createId(), role: 'assistant', parts: [] }
-    return [this.emit({ type: 'message-start', messageId: this.currentAssistant.id, role: 'assistant' })]
+    return [
+      this.emit({ type: 'message-start', messageId: this.currentAssistant.id, role: 'assistant' }),
+    ]
   }
 
   private onAssistantEvent(event: AssistantMessageEvent): AgentStreamEvent[] {
     const events: AgentStreamEvent[] = []
-    if (!this.currentAssistant && (event.type === 'text_delta' || event.type === 'thinking_delta' || event.type === 'toolcall_end')) {
+    if (
+      !this.currentAssistant &&
+      (event.type === 'text_delta' ||
+        event.type === 'thinking_delta' ||
+        event.type === 'toolcall_end')
+    ) {
       events.push(...this.beginAssistant())
     }
     const assistant = this.currentAssistant
@@ -226,7 +251,9 @@ export class AgentRunProjector {
     }
     if (event.type === 'thinking_delta') {
       this.appendText(assistant, 'reasoning', event.delta)
-      events.push(this.emit({ type: 'reasoning-delta', messageId: assistant.id, delta: event.delta }))
+      events.push(
+        this.emit({ type: 'reasoning-delta', messageId: assistant.id, delta: event.delta }),
+      )
       return events
     }
     if (event.type === 'toolcall_end') {
@@ -331,7 +358,9 @@ export class AgentRunProjector {
       last.text += delta
       return
     }
-    message.parts.push(kind === 'text' ? { type: 'text', text: delta } : { type: 'reasoning', text: delta })
+    message.parts.push(
+      kind === 'text' ? { type: 'text', text: delta } : { type: 'reasoning', text: delta },
+    )
   }
 
   private emit<D extends AgentStreamDraft>(event: D): AgentStreamEvent {
@@ -341,7 +370,12 @@ export class AgentRunProjector {
   }
 
   /** 记录来自模型的用量增量（由服务在每次模型调用结束时调用）。 */
-  addUsage(usage: { inputTokens: number | null; outputTokens: number | null; totalTokens: number | null; usageUnknown: boolean }): void {
+  addUsage(usage: {
+    inputTokens: number | null
+    outputTokens: number | null
+    totalTokens: number | null
+    usageUnknown: boolean
+  }): void {
     if (usage.usageUnknown) {
       this.usage.usageUnknown = true
       return
@@ -368,10 +402,14 @@ function asRecord(value: unknown): Record<string, unknown> {
     : {}
 }
 
-function extractToolResult(result: unknown): { summary: string | null; audit: Record<string, unknown> | null } {
+function extractToolResult(result: unknown): {
+  summary: string | null
+  audit: Record<string, unknown> | null
+} {
   const record = asRecord(result)
   const details = asRecord(record.details)
-  const summary = typeof details.summary === 'string' ? details.summary : textFromContent(record.content)
+  const summary =
+    typeof details.summary === 'string' ? details.summary : textFromContent(record.content)
   const audit = asRecord(details.audit)
   return {
     summary: summary && summary.length > 0 ? summary : null,
@@ -382,7 +420,11 @@ function extractToolResult(result: unknown): { summary: string | null; audit: Re
 function textFromContent(content: unknown): string {
   if (!Array.isArray(content)) return ''
   return content
-    .map((part) => (typeof part === 'object' && part !== null && (part as { text?: unknown }).text ? String((part as { text: string }).text) : ''))
+    .map((part) =>
+      typeof part === 'object' && part !== null && (part as { text?: unknown }).text
+        ? String((part as { text: string }).text)
+        : '',
+    )
     .join('')
     .slice(0, 200)
 }

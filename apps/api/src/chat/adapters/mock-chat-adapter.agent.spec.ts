@@ -133,6 +133,55 @@ describe('MockChatAdapter agent mode', () => {
     })
   })
 
+  it('requests the deterministic Skill Shell command and follows up after its result', async () => {
+    const adapter = new MockChatAdapter({ chunks: ['unused'], delayMs: 0 })
+    const first = await collect(
+      adapter,
+      agentRequest([{ role: 'user', content: 'SCENARIO:shell 清洗数据' }]),
+    )
+    expect(first.find((event) => event.type === 'tool-call')).toMatchObject({
+      toolCall: {
+        id: 'call_1',
+        name: 'shell',
+        arguments: {
+          command: 'node scripts/clean.mjs',
+          workingDirectory: '/workspace/skills/mock-data-cleaner',
+        },
+      },
+    })
+
+    const followUp = await collect(
+      adapter,
+      agentRequest([
+        { role: 'user', content: 'SCENARIO:shell 清洗数据' },
+        {
+          role: 'assistant',
+          content: '',
+          toolCalls: [
+            {
+              id: 'call_1',
+              name: 'shell',
+              arguments: { command: 'node scripts/clean.mjs' },
+            },
+          ],
+        },
+        {
+          role: 'tool',
+          toolCallId: 'call_1',
+          toolName: 'shell',
+          content: 'Mock Skill completed',
+        },
+      ]),
+    )
+    expect(followUp.some((event) => event.type === 'tool-call')).toBe(false)
+    expect(
+      followUp
+        .filter((event) => event.type === 'delta')
+        .map((event) => (event as { content: string }).content)
+        .join(''),
+    ).toContain('Mock Skill completed')
+  })
+
   it('emits a normalized model stream error for the stream-error scenario', async () => {
     const adapter = new MockChatAdapter({ chunks: ['unused'], delayMs: 0 })
     await expect(

@@ -38,11 +38,42 @@ function idFactory(): () => string {
   return () => `msg_${(n += 1)}`
 }
 
-function drive(projector: AgentRunProjector, events: AgentEvent[]): ReturnType<AgentRunProjector['ingest']> {
+function drive(
+  projector: AgentRunProjector,
+  events: AgentEvent[],
+): ReturnType<AgentRunProjector['ingest']> {
   return events.flatMap((event) => projector.ingest(event))
 }
 
 describe('AgentRunProjector', () => {
+  it('projects manual Skill activation into ordered replayable events', () => {
+    const projector = new AgentRunProjector('run-skill', () => 'message-1')
+    const events = [
+      ...projector.start(),
+      ...projector.skillActivation({
+        status: 'running',
+        source: 'manual',
+        skillId: 'mock-data-cleaner',
+        skillName: 'mock-data-cleaner',
+      }),
+      ...projector.skillActivation({
+        status: 'succeeded',
+        source: 'manual',
+        skillId: 'skill-1',
+        skillName: 'mock-data-cleaner',
+        packageSha256: 'a'.repeat(64),
+      }),
+    ]
+
+    expect(events.map((event) => event.sequence)).toEqual([0, 1, 2])
+    expect(events[2]).toMatchObject({
+      type: 'skill-activation',
+      runId: 'run-skill',
+      status: 'succeeded',
+      packageSha256: 'a'.repeat(64),
+    })
+  })
+
   it('projects a full tool loop into monotonic sequenced events and a message snapshot', () => {
     const projector = new AgentRunProjector(runId, idFactory())
     const events = [
@@ -50,20 +81,38 @@ describe('AgentRunProjector', () => {
       ...drive(projector, [
         { type: 'turn_start' },
         { type: 'message_start', message: assistantMessage() },
-        update({ type: 'thinking_delta', contentIndex: 0, delta: '先思考', partial: assistantMessage() }),
+        update({
+          type: 'thinking_delta',
+          contentIndex: 0,
+          delta: '先思考',
+          partial: assistantMessage(),
+        }),
         update({
           type: 'toolcall_end',
           contentIndex: 1,
-          toolCall: { type: 'toolCall', id: 'call_1', name: 'web_fetch', arguments: { url: 'https://a.test' } },
+          toolCall: {
+            type: 'toolCall',
+            id: 'call_1',
+            name: 'web_fetch',
+            arguments: { url: 'https://a.test' },
+          },
           partial: assistantMessage(),
         }),
         { type: 'message_end', message: assistantMessage() },
-        { type: 'tool_execution_start', toolCallId: 'call_1', toolName: 'web_fetch', args: { url: 'https://a.test' } },
+        {
+          type: 'tool_execution_start',
+          toolCallId: 'call_1',
+          toolName: 'web_fetch',
+          args: { url: 'https://a.test' },
+        },
         {
           type: 'tool_execution_end',
           toolCallId: 'call_1',
           toolName: 'web_fetch',
-          result: { content: [{ type: 'text', text: '正文' }], details: { summary: '已抓取 a.test', audit: { status: 200 } } },
+          result: {
+            content: [{ type: 'text', text: '正文' }],
+            details: { summary: '已抓取 a.test', audit: { status: 200 } },
+          },
           isError: false,
         },
         { type: 'turn_start' },
@@ -96,7 +145,11 @@ describe('AgentRunProjector', () => {
     expect(usageEvent).toMatchObject({
       usage: { modelCalls: 2, toolCalls: 1, webFetchCalls: 1 },
     })
-    expect(events.at(-1)).toMatchObject({ type: 'run-terminal', status: 'succeeded', limitReason: null })
+    expect(events.at(-1)).toMatchObject({
+      type: 'run-terminal',
+      status: 'succeeded',
+      limitReason: null,
+    })
 
     const snapshot = projector.messagesSnapshot()
     expect(snapshot).toEqual([
@@ -105,7 +158,12 @@ describe('AgentRunProjector', () => {
         role: 'assistant',
         parts: [
           { type: 'reasoning', text: '先思考' },
-          { type: 'tool-call', toolCallId: 'call_1', toolName: 'web_fetch', args: { url: 'https://a.test' } },
+          {
+            type: 'tool-call',
+            toolCallId: 'call_1',
+            toolName: 'web_fetch',
+            args: { url: 'https://a.test' },
+          },
         ],
       },
       {
@@ -154,7 +212,9 @@ describe('AgentRunProjector', () => {
 
     const limited = new AgentRunProjector(runId, idFactory())
     limited.start()
-    expect(limited.finalize('limit_reached', { limitReason: 'web_fetch_calls' }).at(-1)).toMatchObject({
+    expect(
+      limited.finalize('limit_reached', { limitReason: 'web_fetch_calls' }).at(-1),
+    ).toMatchObject({
       status: 'limit_reached',
       limitReason: 'web_fetch_calls',
     })
@@ -192,7 +252,12 @@ describe('AgentRunProjector', () => {
     const projector = new AgentRunProjector(runId, idFactory())
     projector.start()
     projector.addUsage({ inputTokens: 10, outputTokens: 5, totalTokens: 15, usageUnknown: false })
-    projector.addUsage({ inputTokens: null, outputTokens: null, totalTokens: null, usageUnknown: true })
+    projector.addUsage({
+      inputTokens: null,
+      outputTokens: null,
+      totalTokens: null,
+      usageUnknown: true,
+    })
     const events = projector.finalize('succeeded')
     expect(events.find((event) => event.type === 'usage')).toMatchObject({
       usage: { usageUnknown: true, inputTokens: null },

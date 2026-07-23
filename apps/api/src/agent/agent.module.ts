@@ -81,7 +81,19 @@ function resolveAgentTools(sessions: AgentExecutionSessionService): readonly Age
       useFactory: () =>
         new InMemorySkillObjectStore({ skillPackages: [MOCK_EXECUTABLE_SKILL_PACKAGE] }),
     },
-    FakeSandboxRuntime,
+    {
+      provide: FakeSandboxRuntime,
+      useFactory: () =>
+        new FakeSandboxRuntime({
+          commands: [
+            {
+              command: 'node scripts/clean.mjs',
+              stdout: 'Mock Skill completed\n',
+              durationMs: 25,
+            },
+          ],
+        }),
+    },
     { provide: SANDBOX_RUNTIME_PORT, useExisting: FakeSandboxRuntime },
     AgentExecutionSessionService,
     EmptyAgentMcpRegistry,

@@ -140,6 +140,7 @@ export class AgentService {
     user: AuthenticatedUser,
     threadId: string,
     input: string,
+    skills: readonly { name: string }[] = [],
   ): Promise<AgentRunSummary> {
     const thread = await this.threads.findSummaryForOwner(threadId, user.id)
     if (!thread) throw new NotFoundException('Agent 会话不存在')
@@ -181,6 +182,7 @@ export class AgentService {
           provider: model.provider,
           contextWindowTokens: model.contextWindowTokens,
           input,
+          selectedSkillNames: skills.map((skill) => skill.name),
           activeRunLockToken: lockToken,
         })
         .catch((error) => this.logger.error({ error, runId: run.id }, 'Agent run execution failed'))

@@ -17,7 +17,7 @@ const skill: ExecutableSkillRecord = {
 
 function setup() {
   const transaction = {
-    $queryRaw: jest.fn().mockResolvedValue([]),
+    $executeRaw: jest.fn().mockResolvedValue(1),
     user: { upsert: jest.fn().mockResolvedValue({}) },
     skill: {
       upsert: jest.fn().mockResolvedValue(skill),
@@ -61,7 +61,7 @@ describe('ExecutableSkillRepository', () => {
     const { repository, transaction, prisma } = setup()
 
     await expect(repository.addForUser('user-1', skill, 50)).resolves.toBe(true)
-    expect(transaction.$queryRaw).toHaveBeenCalledTimes(1)
+    expect(transaction.$executeRaw).toHaveBeenCalledTimes(1)
     expect(transaction.userAgentSkill.create).toHaveBeenCalledWith({
       data: {
         userId: 'user-1',

@@ -300,7 +300,58 @@ describe('AgentService', () => {
         userId: 'user-a',
         modelId: 'qwen3.7-plus',
         activeRunLockToken: expect.any(String),
+        selectedSkillNames: [],
       }),
+    )
+  })
+
+  it('passes manually selected global Skill names into the asynchronous Run executor', async () => {
+    const { service, models, threads, runs, messages, runService } = setup()
+    ;(threads.findSummaryForOwner as jest.Mock).mockResolvedValue(threadRow())
+    ;(models.resolve as jest.Mock).mockReturnValue({
+      id: 'qwen3.7-plus',
+      provider: 'qwen',
+      contextWindowTokens: 128_000,
+    })
+    ;(runs.create as jest.Mock).mockResolvedValue({
+      id: 'run-skill',
+      threadId: 'thread-1',
+      userId: 'user-a',
+      status: 'RUNNING',
+      limitReason: null,
+      input: '清洗数据',
+      errorCode: null,
+      errorMessage: null,
+      promptProfileVersion: null,
+      promptHash: null,
+      promptManifest: null,
+      modelCallCount: 0,
+      toolCallCount: 0,
+      webFetchCount: 0,
+      shellCallCount: 0,
+      sandboxId: null,
+      activeSkillManifest: null,
+      fileManifest: null,
+      sandboxUsage: null,
+      sandboxStartedAt: null,
+      sandboxDestroyedAt: null,
+      inputTokens: 0,
+      outputTokens: 0,
+      totalTokens: 0,
+      usageUnknown: false,
+      estimatedCostCny: null,
+      lastSequence: -1,
+      createdAt: new Date('2026-07-20T00:00:00.000Z'),
+      updatedAt: new Date('2026-07-20T00:00:00.000Z'),
+      startedAt: null,
+      completedAt: null,
+    })
+    ;(messages.appendUserMessage as jest.Mock).mockResolvedValue(undefined)
+
+    await service.createRun(user, 'thread-1', '清洗数据', [{ name: 'mock-data-cleaner' }])
+
+    expect(runService.execute).toHaveBeenCalledWith(
+      expect.objectContaining({ selectedSkillNames: ['mock-data-cleaner'] }),
     )
   })
 

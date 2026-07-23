@@ -11,13 +11,14 @@ import type { AgentStreamEvent } from '@aigateway/sdk'
 import { AppModule } from '../src/app.module'
 import { configureApplication } from '../src/configure-app'
 import { PrismaService } from '../src/database/prisma.service'
+import { ExecutableSkillService } from '../src/agent/skills/executable-skill.service'
 import { USER_SESSION_COOKIE } from '../src/user-auth/user-auth.constants'
 import { UserSessionService } from '../src/user-auth/user-session.service'
 
 /**
  * Agent 端到端检查（tsx + 真实 HTTP + PostgreSQL，不依赖公网）。
  *
- * 串通：SDK → Agent API → Pi harness → Mock tool-calling Adapter → web_fetch fixture →
+ * 串通：SDK → Agent API → 手动 Skill 激活 → Pi harness → Fake Sandbox Shell →
  * follow-up turn → SSE cursor → PostgreSQL RequestLog/BillingRecord。
  * 通过 `pnpm test:agent-e2e` 执行（需要本地 Postgres/Redis 与完整 .env）。
  */
@@ -38,6 +39,7 @@ async function main(): Promise<void> {
   const baseUrl = `http://127.0.0.1:${address.port}`
   const prisma = app.get(PrismaService)
   const sessions = app.get(UserSessionService)
+  const executableSkills = app.get(ExecutableSkillService)
 
   const githubId = `agent-e2e-${randomUUID().slice(0, 8)}`
   const { token, user } = await sessions.create({
@@ -53,7 +55,10 @@ async function main(): Promise<void> {
     fetch: (input, init) =>
       globalThis.fetch(input, {
         ...init,
-        headers: { ...(init?.headers as Record<string, string>), cookie: `${USER_SESSION_COOKIE}=${token}` },
+        headers: {
+          ...(init?.headers as Record<string, string>),
+          cookie: `${USER_SESSION_COOKIE}=${token}`,
+        },
       }),
   })
 
@@ -72,9 +77,11 @@ async function main(): Promise<void> {
 
     const thread = await client.agent.threads.create({ model: model.id })
     threadId = thread.id
+    await executableSkills.add(user.id, 'mock-data-cleaner')
 
     const run = await client.agent.runs.create(thread.id, {
-      input: 'FETCH:1 请阅读 https://example.com/ 并总结要点',
+      input: 'SCENARIO:shell 使用 Skill 清洗数据',
+      skills: [{ name: 'mock-data-cleaner' }],
     })
     assert.equal(run.status, 'running')
 
@@ -86,6 +93,15 @@ async function main(): Promise<void> {
     const types = events.map((event) => event.type)
     assert.ok(types.includes('tool-call'), '应出现 tool-call 事件')
     assert.ok(types.includes('tool-result'), '应出现 tool-result 事件')
+    assert.ok(types.includes('skill-activation'), '应出现手动 Skill 激活事件')
+    const skillActivated = events.find(
+      (event) => event.type === 'skill-activation' && event.status === 'succeeded',
+    )
+    assert.ok(skillActivated && skillActivated.packageSha256, '激活事件应记录当前包 SHA-256')
+    const shellCall = events.find(
+      (event) => event.type === 'tool-call' && event.toolName === 'shell',
+    )
+    assert.ok(shellCall, 'Mock 模型应调用 Fake Sandbox Shell')
     const terminal = events.at(-1)
     assert.equal(terminal?.type, 'run-terminal')
     assert.equal(terminal && 'status' in terminal ? terminal.status : undefined, 'succeeded')
@@ -99,7 +115,10 @@ async function main(): Promise<void> {
     for await (const event of client.agent.runs.subscribe(run.id, { after: midpoint })) {
       replay.push(event)
     }
-    assert.ok(replay.every((event) => event.sequence > midpoint), '补读只应返回游标之后的事件')
+    assert.ok(
+      replay.every((event) => event.sequence > midpoint),
+      '补读只应返回游标之后的事件',
+    )
     assert.equal(replay.at(-1)?.type, 'run-terminal')
 
     // 刷新恢复：thread 详情返回有序消息快照
@@ -154,10 +173,11 @@ async function main(): Promise<void> {
     }
 
     console.log(
-      'agent-e2e.check PASS: Web→SDK→API→Pi→Mock→web_fetch→follow-up→SSE→PostgreSQL，含认证边界、rename/delete 级联与账单保留',
+      'agent-e2e.check PASS: Web→SDK→API→manual Skill→Pi→Fake Sandbox Shell→follow-up→SSE cursor→PostgreSQL',
     )
   } finally {
-    if (threadId) await prisma.agentThread.delete({ where: { id: threadId } }).catch(() => undefined)
+    if (threadId)
+      await prisma.agentThread.delete({ where: { id: threadId } }).catch(() => undefined)
     await prisma.requestLog.deleteMany({ where: { userId: user.id } }).catch(() => undefined)
     await prisma.userSession.deleteMany({ where: { userId: user.id } }).catch(() => undefined)
     await prisma.user.delete({ where: { id: user.id } }).catch(() => undefined)
