@@ -30,6 +30,9 @@ import { ExecutableSkillBootstrap } from './skills/executable-skill.bootstrap'
 import { MOCK_EXECUTABLE_SKILL_PACKAGE } from './skills/executable-skill.fixture'
 import { ExecutableSkillRepository } from './skills/executable-skill.repository'
 import { ExecutableSkillService } from './skills/executable-skill.service'
+import { SkillMarketController } from './skills/market/skill-market.controller'
+import { SkillMarketRepository } from './skills/market/skill-market.repository'
+import { SkillMarketService } from './skills/market/skill-market.service'
 import { PlatformAgentSkillCatalog } from './skills/platform-agent-skill.catalog'
 import { SkillPublishingRepository } from './skills/publishing/skill-publishing.repository'
 import { SkillPublishingService } from './skills/publishing/skill-publishing.service'
@@ -69,7 +72,7 @@ function resolveAgentTools(sessions: AgentExecutionSessionService): readonly Age
  */
 @Module({
   imports: [ConfigModule, UserAuthModule, ChatModule, RequestLifecycleModule, RedisModule],
-  controllers: [AgentController],
+  controllers: [AgentController, SkillMarketController],
   providers: [
     AgentThreadRepository,
     AgentRunRepository,
@@ -90,6 +93,8 @@ function resolveAgentTools(sessions: AgentExecutionSessionService): readonly Age
     ExecutableSkillRepository,
     ExecutableSkillService,
     ExecutableSkillBootstrap,
+    SkillMarketRepository,
+    SkillMarketService,
     SkillPublishingRepository,
     SkillPublishingService,
     PrismaSkillPackageProjectionReader,
