@@ -34,6 +34,11 @@ export const AGENT_RUN_LIMIT_REASONS = [
   'web_fetch_calls',
   'duration',
   'context_window',
+  'sandbox_duration',
+  'shell_calls',
+  'sandbox_output',
+  'sandbox_egress',
+  'sandbox_resource',
 ] as const
 export type AgentRunLimitReason = (typeof AGENT_RUN_LIMIT_REASONS)[number]
 

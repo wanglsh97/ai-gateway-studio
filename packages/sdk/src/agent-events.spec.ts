@@ -143,7 +143,7 @@ describe('agent event wire codec', () => {
         sequence: 12,
         runId,
         status: 'limit_reached',
-        limitReason: 'web_fetch_calls',
+        limitReason: 'sandbox_resource',
       }),
       runId,
     )
@@ -152,7 +152,7 @@ describe('agent event wire codec', () => {
       sequence: 12,
       runId,
       status: 'limit_reached',
-      limitReason: 'web_fetch_calls',
+      limitReason: 'sandbox_resource',
     })
   })
 

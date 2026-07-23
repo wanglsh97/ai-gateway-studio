@@ -53,6 +53,11 @@ enum AgentRunLimitReason {
   WEB_FETCH_CALLS
   DURATION
   CONTEXT_WINDOW
+  SANDBOX_DURATION
+  SHELL_CALLS
+  SANDBOX_OUTPUT
+  SANDBOX_EGRESS
+  SANDBOX_RESOURCE
 }
 
 enum AgentMessageRole {
@@ -66,6 +71,31 @@ enum AgentToolCallStatus {
   SUCCEEDED
   FAILED
   CANCELLED
+}
+
+enum SkillStatus {
+  PENDING_REVIEW
+  PUBLISHED
+  REJECTED
+  DELISTED
+}
+
+enum SkillReviewDecision {
+  APPROVED
+  REJECTED
+}
+
+enum UserFileDirection {
+  INPUT
+  OUTPUT
+}
+
+enum UserFileStatus {
+  PENDING_UPLOAD
+  AVAILABLE
+  DELETING
+  CLEANUP_PENDING
+  DELETED
 }
 
 model User {
@@ -84,23 +114,98 @@ model User {
   agentThreads   AgentThread[]
   agentRuns      AgentRun[]
   agentSkills    UserAgentSkill[]
+  ownedSkills    Skill[]               @relation("SkillOwner")
+  files          UserFile[]
 
   @@index([githubUsername])
   @@index([createdAt])
 }
 
 model UserAgentSkill {
-  id        String   @id @default(uuid()) @db.Uuid
-  userId    String   @db.Uuid
-  skillId   String   @db.VarChar(64)
-  enabled   Boolean  @default(true)
-  createdAt DateTime @default(now()) @db.Timestamptz(3)
-  updatedAt DateTime @updatedAt @db.Timestamptz(3)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id            String   @id @default(uuid()) @db.Uuid
+  userId        String   @db.Uuid
+  skillId       String   @db.VarChar(64)
+  enabled       Boolean  @default(true)
+  marketSkillId String?  @db.Uuid
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime @updatedAt @db.Timestamptz(3)
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  marketSkill   Skill?   @relation(fields: [marketSkillId], references: [id], onDelete: Restrict)
 
   @@unique([userId, skillId])
+  @@unique([userId, marketSkillId])
   @@index([userId, enabled])
   @@index([skillId])
+  @@index([marketSkillId])
+}
+
+model Skill {
+  id                   String           @id @default(uuid()) @db.Uuid
+  name                 String           @unique @db.VarChar(64)
+  ownerId              String           @db.Uuid
+  title                String           @db.VarChar(120)
+  description          String           @db.VarChar(400)
+  category             String           @db.VarChar(40)
+  status               SkillStatus      @default(PENDING_REVIEW)
+  iconObjectKey        String?          @db.VarChar(1024)
+  packageObjectKey     String?          @unique @db.VarChar(1024)
+  packageSha256        String?          @db.Char(64)
+  packageSizeBytes     BigInt?
+  skillMarkdown        String?          @db.Text
+  fileTree             Json?
+  addCount             Int              @default(0)
+  publishedAt          DateTime?        @db.Timestamptz(3)
+  delistedAt           DateTime?        @db.Timestamptz(3)
+  packageUpdatedAt     DateTime?        @db.Timestamptz(3)
+  createdAt            DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime         @updatedAt @db.Timestamptz(3)
+  owner                User             @relation("SkillOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  reviews              SkillReview[]
+  userAdds             UserAgentSkill[]
+  agentToolCallRecords AgentToolCall[]
+
+  @@index([status, publishedAt])
+  @@index([category, status])
+  @@index([ownerId, updatedAt])
+  @@index([addCount])
+}
+
+model SkillReview {
+  id            String              @id @default(uuid()) @db.Uuid
+  skillId       String              @db.Uuid
+  reviewer      String              @db.VarChar(64)
+  decision      SkillReviewDecision
+  reason        String?             @db.Text
+  packageSha256 String              @db.Char(64)
+  createdAt     DateTime            @default(now()) @db.Timestamptz(3)
+  skill         Skill               @relation(fields: [skillId], references: [id], onDelete: Restrict)
+
+  @@index([skillId, createdAt])
+  @@index([reviewer, createdAt])
+}
+
+model UserFile {
+  id               String            @id @default(uuid()) @db.Uuid
+  userId           String            @db.Uuid
+  runId            String?           @db.Uuid
+  sourceToolCallId String?           @db.Uuid
+  direction        UserFileDirection
+  status           UserFileStatus    @default(PENDING_UPLOAD)
+  name             String            @db.VarChar(255)
+  mimeType         String?           @db.VarChar(255)
+  objectKey        String            @unique @db.VarChar(1024)
+  sizeBytes        BigInt
+  sha256           String?           @db.Char(64)
+  deletedAt        DateTime?         @db.Timestamptz(3)
+  createdAt        DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime          @updatedAt @db.Timestamptz(3)
+  user             User              @relation(fields: [userId], references: [id], onDelete: Restrict)
+  run              AgentRun?         @relation(fields: [runId], references: [id], onDelete: SetNull)
+  sourceToolCall   AgentToolCall?    @relation(fields: [sourceToolCallId], references: [id], onDelete: SetNull)
+
+  @@index([userId, status, createdAt])
+  @@index([runId])
+  @@index([sourceToolCallId])
 }
 
 model UserSession {
@@ -287,6 +392,13 @@ model AgentRun {
   modelCallCount       Int                  @default(0)
   toolCallCount        Int                  @default(0)
   webFetchCount        Int                  @default(0)
+  shellCallCount       Int                  @default(0)
+  sandboxId            String?              @unique @db.VarChar(191)
+  activeSkillManifest  Json?
+  fileManifest         Json?
+  sandboxUsage         Json?
+  sandboxStartedAt     DateTime?            @db.Timestamptz(3)
+  sandboxDestroyedAt   DateTime?            @db.Timestamptz(3)
   inputTokens          Int                  @default(0)
   outputTokens         Int                  @default(0)
   totalTokens          Int                  @default(0)
@@ -303,6 +415,7 @@ model AgentRun {
   toolCallRecords      AgentToolCall[]
   messages             AgentMessage[]
   requestLogs          RequestLog[]
+  files                UserFile[]
 
   @@index([threadId, createdAt])
   @@index([userId, status])
@@ -322,20 +435,37 @@ model AgentEvent {
 }
 
 model AgentToolCall {
-  id           String              @id @default(uuid()) @db.Uuid
-  runId        String              @db.Uuid
-  toolCallId   String              @db.VarChar(191)
-  toolName     String              @db.VarChar(64)
-  args         Json
-  status       AgentToolCallStatus @default(RUNNING)
-  summary      String?             @db.Text
-  audit        Json?
-  errorCode    String?             @db.VarChar(64)
-  errorMessage String?             @db.Text
-  startedAt    DateTime            @default(now()) @db.Timestamptz(3)
-  completedAt  DateTime?           @db.Timestamptz(3)
-  run          AgentRun            @relation(fields: [runId], references: [id], onDelete: Cascade)
+  id                 String              @id @default(uuid()) @db.Uuid
+  runId              String              @db.Uuid
+  toolCallId         String              @db.VarChar(191)
+  toolName           String              @db.VarChar(64)
+  args               Json
+  status             AgentToolCallStatus @default(RUNNING)
+  summary            String?             @db.Text
+  audit              Json?
+  errorCode          String?             @db.VarChar(64)
+  errorMessage       String?             @db.Text
+  sandboxId          String?             @db.VarChar(191)
+  skillId            String?             @db.Uuid
+  skillName          String?             @db.VarChar(64)
+  packageSha256      String?             @db.Char(64)
+  command            String?             @db.Text
+  workingDirectory   String?             @db.Text
+  exitCode           Int?
+  durationMs         Int?
+  stdoutBytes        Int?
+  stderrBytes        Int?
+  stdoutTruncated    Boolean?
+  stderrTruncated    Boolean?
+  sandboxLimitReason String?             @db.VarChar(64)
+  startedAt          DateTime            @default(now()) @db.Timestamptz(3)
+  completedAt        DateTime?           @db.Timestamptz(3)
+  run                AgentRun            @relation(fields: [runId], references: [id], onDelete: Cascade)
+  skill              Skill?              @relation(fields: [skillId], references: [id], onDelete: SetNull)
+  files              UserFile[]
 
   @@unique([runId, toolCallId])
   @@index([runId])
+  @@index([skillId])
+  @@index([sandboxId])
 }
