@@ -22,7 +22,15 @@ import {
 const client = createAIGatewayClient()
 
 type PackageState =
-  'idle' | 'ready' | 'hashing' | 'uploading' | 'validating' | 'valid' | 'invalid' | 'cancelled'
+  | 'idle'
+  | 'ready'
+  | 'hashing'
+  | 'uploading'
+  | 'validating'
+  | 'valid'
+  | 'submitted'
+  | 'invalid'
+  | 'cancelled'
 
 export default function SkillUploadPage() {
   return (
@@ -49,6 +57,8 @@ function SkillUploadWorkbench() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [uploadError, setUploadError] = useState('')
   const [finalizedAt, setFinalizedAt] = useState('')
+  const [finalizedSessionId, setFinalizedSessionId] = useState('')
+  const [submitBusy, setSubmitBusy] = useState(false)
 
   useEffect(() => {
     if (!icon) {
@@ -75,6 +85,7 @@ function SkillUploadWorkbench() {
     setPackageState(error ? 'invalid' : 'ready')
     setProgress(null)
     setFinalizedAt('')
+    setFinalizedSessionId('')
     setUploadError(error ?? '')
   }
 
@@ -117,6 +128,7 @@ function SkillUploadWorkbench() {
       })
       setPackageState('valid')
       setFinalizedAt(finalized.finalizedAt)
+      setFinalizedSessionId(finalized.sessionId)
     } catch (cause) {
       if (controller.signal.aborted) {
         setPackageState('cancelled')
@@ -127,6 +139,28 @@ function SkillUploadWorkbench() {
       }
     } finally {
       if (activeUploadRef.current === controller) activeUploadRef.current = null
+    }
+  }
+
+  async function submit() {
+    if (!finalizedSessionId || submitBusy) return
+    setSubmitBusy(true)
+    setUploadError('')
+    try {
+      await client.skills.owner.submit({
+        uploadSessionId: finalizedSessionId,
+        name,
+        title,
+        description,
+        category,
+      })
+      setPackageState('submitted')
+    } catch (cause) {
+      if (!handleAuthenticationFailure(cause)) {
+        setUploadError(cause instanceof Error ? cause.message : '提交审核失败')
+      }
+    } finally {
+      setSubmitBusy(false)
     }
   }
 
@@ -327,7 +361,7 @@ function SkillUploadWorkbench() {
               state={
                 packageState === 'uploading' || packageState === 'hashing'
                   ? 'active'
-                  : ['validating', 'valid'].includes(packageState)
+                  : ['validating', 'valid', 'submitted'].includes(packageState)
                     ? 'done'
                     : packageState === 'invalid' || packageState === 'cancelled'
                       ? 'error'
@@ -342,14 +376,16 @@ function SkillUploadWorkbench() {
                   ? `已于 ${formatTime(finalizedAt)} 完成大小与 SHA-256 校验`
                   : packageState === 'validating'
                     ? '正在核对对象元数据与上传会话'
-                    : packageState === 'invalid'
-                      ? '校验未通过，请修正后重试'
-                      : '上传完成后自动开始'
+                    : packageState === 'submitted'
+                      ? '已进入管理员首次发布审核队列'
+                      : packageState === 'invalid'
+                        ? '校验未通过，请修正后重试'
+                        : '上传完成后自动开始'
               }
               state={
                 packageState === 'validating'
                   ? 'active'
-                  : packageState === 'valid'
+                  : packageState === 'valid' || packageState === 'submitted'
                     ? 'done'
                     : packageState === 'invalid'
                       ? 'error'
@@ -385,14 +421,24 @@ function SkillUploadWorkbench() {
               >
                 取消上传
               </button>
+            ) : packageState === 'submitted' ? (
+              <Link
+                href="/skills/mine"
+                className="rounded-xl bg-[#b8f3e0] px-4 py-3 text-center text-sm font-extrabold text-[#24202e]"
+              >
+                已提交 · 查看我的 Skill
+              </Link>
             ) : (
               <button
                 type="button"
-                onClick={() => void upload()}
+                disabled={submitBusy}
+                onClick={() => void (packageState === 'valid' ? submit() : upload())}
                 className="rounded-xl bg-[#b8f3e0] px-4 py-3 text-sm font-extrabold text-[#24202e] transition hover:bg-white focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-[#b8f3e0]"
               >
                 {packageState === 'valid'
-                  ? '重新上传资源包'
+                  ? submitBusy
+                    ? '正在提交…'
+                    : '提交首次发布审核'
                   : packageState === 'invalid' || packageState === 'cancelled'
                     ? '重试上传与校验'
                     : '上传并校验'}

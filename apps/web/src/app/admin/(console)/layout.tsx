@@ -4,6 +4,7 @@ import {
   DashboardOutlined,
   DatabaseOutlined,
   FileSearchOutlined,
+  AppstoreOutlined,
   LogoutOutlined,
   UserOutlined,
 } from '@ant-design/icons'
@@ -29,6 +30,7 @@ const PAGE_TITLES: Record<string, string> = {
   dashboard: '运行概览',
   logs: '请求日志',
   database: '数据库',
+  skills: 'Skill 审核',
 }
 
 function tableMenuKey(name: string) {
@@ -101,6 +103,7 @@ function AdminConsoleLayoutInner({ children }: Readonly<{ children: ReactNode }>
 
   const selectedKey = useMemo(() => {
     if (pathname.startsWith('/admin/logs')) return 'logs'
+    if (pathname.startsWith('/admin/skills')) return 'skills'
     if (pathname.startsWith('/admin/database')) {
       const table = searchParams.get('table')
       return table ? tableMenuKey(table) : 'database'
@@ -115,6 +118,7 @@ function AdminConsoleLayoutInner({ children }: Readonly<{ children: ReactNode }>
       return found?.physicalName ?? PAGE_TITLES.database
     }
     if (pathname.startsWith('/admin/logs')) return PAGE_TITLES.logs
+    if (pathname.startsWith('/admin/skills')) return PAGE_TITLES.skills
     return PAGE_TITLES.dashboard
   }, [pathname, searchParams, tables])
 
@@ -122,6 +126,7 @@ function AdminConsoleLayoutInner({ children }: Readonly<{ children: ReactNode }>
     () => [
       { key: 'dashboard', icon: <DashboardOutlined />, label: 'Dashboard' },
       { key: 'logs', icon: <FileSearchOutlined />, label: '请求日志' },
+      { key: 'skills', icon: <AppstoreOutlined />, label: 'Skill 审核' },
       {
         key: 'database',
         icon: <DatabaseOutlined />,
@@ -145,6 +150,10 @@ function AdminConsoleLayoutInner({ children }: Readonly<{ children: ReactNode }>
     }
     if (key === 'logs') {
       router.push('/admin/logs')
+      return
+    }
+    if (key === 'skills') {
+      router.push('/admin/skills')
       return
     }
     if (key.startsWith('table:')) {
@@ -233,7 +242,10 @@ export default function AdminConsoleLayout({ children }: Readonly<{ children: Re
   return (
     <Suspense
       fallback={
-        <div className="aigateway-admin-console-layout" style={{ padding: 64, textAlign: 'center' }}>
+        <div
+          className="aigateway-admin-console-layout"
+          style={{ padding: 64, textAlign: 'center' }}
+        >
           <Spin size="large" description="正在加载…" />
         </div>
       }
