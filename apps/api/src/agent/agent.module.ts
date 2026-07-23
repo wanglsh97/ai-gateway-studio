@@ -31,6 +31,8 @@ import { MOCK_EXECUTABLE_SKILL_PACKAGE } from './skills/executable-skill.fixture
 import { ExecutableSkillRepository } from './skills/executable-skill.repository'
 import { ExecutableSkillService } from './skills/executable-skill.service'
 import { PlatformAgentSkillCatalog } from './skills/platform-agent-skill.catalog'
+import { SkillPublishingRepository } from './skills/publishing/skill-publishing.repository'
+import { SkillPublishingService } from './skills/publishing/skill-publishing.service'
 import { InMemorySkillObjectStore } from './skills/storage/in-memory-skill-object-store'
 import {
   AliyunOssSkillObjectStore,
@@ -88,6 +90,8 @@ function resolveAgentTools(sessions: AgentExecutionSessionService): readonly Age
     ExecutableSkillRepository,
     ExecutableSkillService,
     ExecutableSkillBootstrap,
+    SkillPublishingRepository,
+    SkillPublishingService,
     PrismaSkillPackageProjectionReader,
     {
       provide: SKILL_OBJECT_STORE_PORT,

@@ -32,10 +32,15 @@ export type {
   SkillUploadSession,
   SkillUploadXmlHttpRequest,
 } from './skill-upload.js'
-export { AGENT_SKILL_ADD_STATES, AGENT_SKILL_PUBLICATION_STATUSES } from './agent-skill-types.js'
+export {
+  AGENT_SKILL_ADD_STATES,
+  AGENT_SKILL_CATEGORIES,
+  AGENT_SKILL_PUBLICATION_STATUSES,
+} from './agent-skill-types.js'
 export type {
   AgentSkillCandidate,
   AgentSkillAddState,
+  AgentSkillCategory,
   AgentSkillFileEntry,
   AgentSkillMarketDetail,
   AgentSkillMarketItem,

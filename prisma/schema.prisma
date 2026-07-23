@@ -137,6 +137,7 @@ model User {
 model SkillUploadSession {
   id                  String                   @id @default(uuid()) @db.Uuid
   userId              String                   @db.Uuid
+  skillId             String?                  @unique @db.Uuid
   objectKey           String                   @unique @db.VarChar(1024)
   status              SkillUploadSessionStatus @default(PENDING_UPLOAD)
   cleanupStatus       ObjectCleanupStatus      @default(NONE)
@@ -153,6 +154,7 @@ model SkillUploadSession {
   createdAt           DateTime                 @default(now()) @db.Timestamptz(3)
   updatedAt           DateTime                 @updatedAt @db.Timestamptz(3)
   user                User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skill               Skill?                   @relation(fields: [skillId], references: [id], onDelete: Restrict)
 
   @@index([userId, status, createdAt])
   @@index([status, expiresAt])
@@ -178,29 +180,30 @@ model UserAgentSkill {
 }
 
 model Skill {
-  id                   String           @id @default(uuid()) @db.Uuid
-  name                 String           @unique @db.VarChar(64)
-  ownerId              String           @db.Uuid
-  title                String           @db.VarChar(120)
-  description          String           @db.VarChar(400)
-  category             String           @db.VarChar(40)
-  status               SkillStatus      @default(PENDING_REVIEW)
-  iconObjectKey        String?          @db.VarChar(1024)
-  packageObjectKey     String?          @unique @db.VarChar(1024)
-  packageSha256        String?          @db.Char(64)
+  id                   String               @id @default(uuid()) @db.Uuid
+  name                 String               @unique @db.VarChar(64)
+  ownerId              String               @db.Uuid
+  title                String               @db.VarChar(120)
+  description          String               @db.VarChar(400)
+  category             String               @db.VarChar(40)
+  status               SkillStatus          @default(PENDING_REVIEW)
+  iconObjectKey        String?              @db.VarChar(1024)
+  packageObjectKey     String?              @unique @db.VarChar(1024)
+  packageSha256        String?              @db.Char(64)
   packageSizeBytes     BigInt?
-  skillMarkdown        String?          @db.Text
+  skillMarkdown        String?              @db.Text
   fileTree             Json?
-  addCount             Int              @default(0)
-  publishedAt          DateTime?        @db.Timestamptz(3)
-  delistedAt           DateTime?        @db.Timestamptz(3)
-  packageUpdatedAt     DateTime?        @db.Timestamptz(3)
-  createdAt            DateTime         @default(now()) @db.Timestamptz(3)
-  updatedAt            DateTime         @updatedAt @db.Timestamptz(3)
-  owner                User             @relation("SkillOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  addCount             Int                  @default(0)
+  publishedAt          DateTime?            @db.Timestamptz(3)
+  delistedAt           DateTime?            @db.Timestamptz(3)
+  packageUpdatedAt     DateTime?            @db.Timestamptz(3)
+  createdAt            DateTime             @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime             @updatedAt @db.Timestamptz(3)
+  owner                User                 @relation("SkillOwner", fields: [ownerId], references: [id], onDelete: Restrict)
   reviews              SkillReview[]
   userAdds             UserAgentSkill[]
   agentToolCallRecords AgentToolCall[]
+  uploadSessions       SkillUploadSession[]
 
   @@index([status, publishedAt])
   @@index([category, status])

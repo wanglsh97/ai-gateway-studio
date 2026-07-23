@@ -35,6 +35,7 @@ export async function cleanupUserTestData(prisma: PrismaService): Promise<void> 
   await prisma.userFile.deleteMany()
   await prisma.userAgentSkill.deleteMany()
   await prisma.skillReview.deleteMany()
+  await prisma.skillUploadSession.deleteMany()
   await prisma.skill.deleteMany()
   await prisma.imageGenerationTask.deleteMany()
   await prisma.requestLog.deleteMany()

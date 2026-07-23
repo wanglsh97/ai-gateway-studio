@@ -1,3 +1,5 @@
+import type { AgentSkillCategory } from '@aigateway/sdk'
+
 export const SKILL_CATEGORIES = [
   { value: 'development', label: '开发工具' },
   { value: 'data', label: '数据处理' },
@@ -5,7 +7,7 @@ export const SKILL_CATEGORIES = [
   { value: 'content', label: '内容创作' },
   { value: 'productivity', label: '效率自动化' },
   { value: 'other', label: '其他' },
-] as const
+] as const satisfies readonly { value: AgentSkillCategory; label: string }[]
 
 export type SkillCategory = (typeof SKILL_CATEGORIES)[number]['value']
 

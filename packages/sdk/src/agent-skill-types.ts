@@ -9,6 +9,16 @@ export type AgentSkillPublicationStatus = (typeof AGENT_SKILL_PUBLICATION_STATUS
 export const AGENT_SKILL_ADD_STATES = ['not_added', 'added', 'unavailable'] as const
 export type AgentSkillAddState = (typeof AGENT_SKILL_ADD_STATES)[number]
 
+export const AGENT_SKILL_CATEGORIES = [
+  'development',
+  'data',
+  'research',
+  'content',
+  'productivity',
+  'other',
+] as const
+export type AgentSkillCategory = (typeof AGENT_SKILL_CATEGORIES)[number]
+
 export interface AgentSkillFileEntry {
   path: string
   type: 'file' | 'directory'
@@ -27,7 +37,7 @@ export interface AgentSkillMarketSummary {
   name: string
   title: string
   description: string
-  category: string
+  category: AgentSkillCategory
   publicationStatus: AgentSkillPublicationStatus
   addState: AgentSkillAddState
   addCount: number
