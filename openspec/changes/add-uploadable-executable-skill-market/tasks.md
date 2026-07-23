@@ -16,7 +16,7 @@
 - [x] 2.1 实现阿里云 OSS 配置校验和 `SkillObjectStorePort` 生产 Adapter，Bucket 保持私有且凭证只存在服务端
 - [x] 2.2 实现短时单对象上传会话、object key 作用域、大小约束、幂等 finalize 和 abandoned staging cleanup 状态
 - [x] 2.3 实现 ZIP 检查器，验证根 `SKILL.md`、20 MiB 压缩、200 MiB 解压、2,000 文件、50 MiB 单文件、20 层目录及链接拒绝
-- [ ] 2.4 实现安全的 `SKILL.md` 读取、Markdown 消毒和不含脚本正文的文件树投影，覆盖乱码、二进制、路径穿越和损坏 ZIP fixture
+- [x] 2.4 实现安全的 `SKILL.md` 读取、Markdown 消毒和不含脚本正文的文件树投影，覆盖乱码、二进制、路径穿越和损坏 ZIP fixture
 - [ ] 2.5 扩展 SDK 上传契约并实现浏览器直传 OSS、进度、取消、失败重试和 finalize，不让包字节经过 NestJS
 - [ ] 2.6 新增 `/skills/upload`，支持固定分类、标题、简介、图标和资源包校验状态，覆盖桌面与移动端
 - [ ] 2.7 添加 OSS Adapter contract tests 和本地兼容对象存储集成测试，验证签名范围、对象私有性、覆盖写与清理

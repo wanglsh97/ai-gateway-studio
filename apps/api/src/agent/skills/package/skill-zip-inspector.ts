@@ -71,10 +71,7 @@ export class SkillZipInspector {
     } catch (error) {
       zip.close()
       if (error instanceof SkillZipInspectionError) throw error
-      throw new SkillZipInspectionError(
-        'ZIP_INVALID',
-        error instanceof Error ? error.message : 'Skill ZIP 无法解析',
-      )
+      throw normalizeZipError(error)
     }
   }
 
@@ -251,11 +248,19 @@ function openZip(buffer: Buffer): Promise<ZipFile> {
       },
       (error, zip) => {
         if (error) {
-          reject(new SkillZipInspectionError('ZIP_INVALID', error.message))
+          reject(normalizeZipError(error))
           return
         }
         resolve(zip)
       },
     )
   })
+}
+
+function normalizeZipError(error: unknown): SkillZipInspectionError {
+  const message = error instanceof Error ? error.message : 'Skill ZIP 无法解析'
+  if (/invalid relative path|absolute path|backslash/i.test(message)) {
+    return new SkillZipInspectionError('ZIP_PATH_INVALID', message)
+  }
+  return new SkillZipInspectionError('ZIP_INVALID', message)
 }
