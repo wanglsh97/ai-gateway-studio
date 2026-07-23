@@ -96,14 +96,12 @@ INSERT INTO "UserAgentSkill" (
   "id",
   "userId",
   "skillId",
-  "enabled",
   "marketSkillId",
   "updatedAt"
 ) VALUES (
   '00000000-0000-4000-8000-000000000301',
   '00000000-0000-4000-8000-000000000101',
   'legacy-schema-test-a',
-  true,
   '00000000-0000-4000-8000-000000000201',
   CURRENT_TIMESTAMP
 );
@@ -115,14 +113,12 @@ BEGIN
       "id",
       "userId",
       "skillId",
-      "enabled",
       "marketSkillId",
       "updatedAt"
     ) VALUES (
       '00000000-0000-4000-8000-000000000302',
       '00000000-0000-4000-8000-000000000101',
       'legacy-schema-test-b',
-      true,
       '00000000-0000-4000-8000-000000000201',
       CURRENT_TIMESTAMP
     );

@@ -17,18 +17,15 @@ const skill: AgentSkillDescriptor = {
 
 describe('AgentSkillService', () => {
   it('merges registered catalog with user installation state and ignores stale rows', async () => {
-    const service = createService([
-      { skillId: 'research', enabled: false },
-      { skillId: 'removed-skill', enabled: true },
-    ])
+    const service = createService([{ skillId: 'research' }, { skillId: 'removed-skill' }])
     await expect(service.listMarket('user-1')).resolves.toEqual([
-      expect.objectContaining({ id: 'research', installed: true, enabled: false }),
+      expect.objectContaining({ id: 'research', installed: true, enabled: true }),
     ])
-    await expect(service.listForUser('user-1')).resolves.toEqual([])
+    await expect(service.listForUser('user-1')).resolves.toEqual([skill])
   })
 
-  it('loads only installed and enabled registered Skills', async () => {
-    const service = createService([{ skillId: 'research', enabled: true }])
+  it('loads every added registered Skill without a separate enabled state', async () => {
+    const service = createService([{ skillId: 'research' }])
     await expect(service.listForUser('user-1')).resolves.toEqual([skill])
   })
 
@@ -45,8 +42,7 @@ function createService(states: UserAgentSkillState[]): AgentSkillService {
   } as unknown as PlatformAgentSkillCatalog
   const repository = {
     listForUser: jest.fn(async () => states),
-    install: jest.fn(async (_userId: string, skillId: string) => ({ skillId, enabled: true })),
-    setEnabled: jest.fn(),
+    install: jest.fn(async (_userId: string, skillId: string) => ({ skillId })),
     uninstall: jest.fn(),
   } as unknown as AgentSkillRepository
   return new AgentSkillService(catalog, repository)

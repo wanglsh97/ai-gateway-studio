@@ -14,35 +14,20 @@ export class AgentSkillService implements AgentSkillRegistry {
 
   async listMarket(userId: string): Promise<AgentSkillMarketItem[]> {
     const installed = new Map(
-      (await this.repository.listForUser(userId)).map((state) => [state.skillId, state.enabled]),
+      (await this.repository.listForUser(userId)).map((state) => [state.skillId, true]),
     )
     return this.catalog.list().map((skill) => toMarketItem(skill, installed.get(skill.id)))
   }
 
   async listForUser(userId: string): Promise<readonly AgentSkillDescriptor[]> {
-    const enabled = new Set(
-      (await this.repository.listForUser(userId))
-        .filter((state) => state.enabled)
-        .map((state) => state.skillId),
-    )
-    return this.catalog.list().filter((skill) => enabled.has(skill.id))
+    const added = new Set((await this.repository.listForUser(userId)).map((state) => state.skillId))
+    return this.catalog.list().filter((skill) => added.has(skill.id))
   }
 
   async install(userId: string, skillId: string): Promise<AgentSkillMarketItem> {
     const skill = this.requireSkill(skillId)
-    const state = await this.repository.install(userId, skillId)
-    return toMarketItem(skill, state.enabled)
-  }
-
-  async setEnabled(
-    userId: string,
-    skillId: string,
-    enabled: boolean,
-  ): Promise<AgentSkillMarketItem> {
-    const skill = this.requireSkill(skillId)
-    const state = await this.repository.setEnabled(userId, skillId, enabled)
-    if (!state) throw new NotFoundException('Skill 尚未安装')
-    return toMarketItem(skill, state.enabled)
+    await this.repository.install(userId, skillId)
+    return toMarketItem(skill, true)
   }
 
   async uninstall(userId: string, skillId: string): Promise<void> {

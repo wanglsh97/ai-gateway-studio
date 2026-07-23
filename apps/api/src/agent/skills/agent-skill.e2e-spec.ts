@@ -50,17 +50,13 @@ describe('Agent Skill market E2E', () => {
     if (app) await app.close()
   })
 
-  it('persists idempotent install, enable and uninstall state per user', async () => {
+  it('persists idempotent add and remove state per user without an enabled toggle', async () => {
     await expect(clientA.agent.skills.list()).resolves.toHaveLength(3)
 
     await clientA.agent.skills.install('deep-research')
     await clientA.agent.skills.install('deep-research')
     await expect(prisma.userAgentSkill.count()).resolves.toBe(1)
 
-    await expect(clientA.agent.skills.update('deep-research', { enabled: false })).resolves.toMatchObject({
-      installed: true,
-      enabled: false,
-    })
     await expect(clientB.agent.skills.list()).resolves.toEqual(
       expect.arrayContaining([expect.objectContaining({ id: 'deep-research', installed: false })]),
     )
@@ -74,6 +70,8 @@ describe('Agent Skill market E2E', () => {
     const anonymous = await fetch(`${baseUrl}/api/v1/agent/skills`)
     expect(anonymous.status).toBe(401)
 
-    await expect(clientA.agent.skills.install('missing-skill')).rejects.toMatchObject({ status: 404 })
+    await expect(clientA.agent.skills.install('missing-skill')).rejects.toMatchObject({
+      status: 404,
+    })
   })
 })

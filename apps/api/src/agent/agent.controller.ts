@@ -30,7 +30,6 @@ import { AgentRunRepository } from './agent-run.repository'
 import { AgentService } from './agent.service'
 import { CreateAgentRunDto } from './dto/create-agent-run.dto'
 import { CreateSkillUploadSessionDto } from './dto/skill-upload.dto'
-import { UpdateAgentSkillDto } from './dto/update-agent-skill.dto'
 import {
   CreateAgentThreadDto,
   ListAgentThreadsQueryDto,
@@ -71,15 +70,6 @@ export class AgentController {
   @Put('skills/:skillId/install')
   async installSkill(@Param('skillId') skillId: string, @CurrentUser() user: AuthenticatedUser) {
     return this.skills.install(user.id, skillId)
-  }
-
-  @Patch('skills/:skillId')
-  async updateSkill(
-    @Param('skillId') skillId: string,
-    @Body() body: UpdateAgentSkillDto,
-    @CurrentUser() user: AuthenticatedUser,
-  ) {
-    return this.skills.setEnabled(user.id, skillId, body.enabled)
   }
 
   @Delete('skills/:skillId/install')

@@ -4,7 +4,6 @@ import { PrismaService } from '../../database/prisma.service'
 
 export interface UserAgentSkillState {
   skillId: string
-  enabled: boolean
 }
 
 @Injectable()
@@ -14,7 +13,7 @@ export class AgentSkillRepository {
   async listForUser(userId: string): Promise<readonly UserAgentSkillState[]> {
     return this.prisma.userAgentSkill.findMany({
       where: { userId },
-      select: { skillId: true, enabled: true },
+      select: { skillId: true },
       orderBy: { skillId: 'asc' },
     })
   }
@@ -22,22 +21,10 @@ export class AgentSkillRepository {
   async install(userId: string, skillId: string): Promise<UserAgentSkillState> {
     return this.prisma.userAgentSkill.upsert({
       where: { userId_skillId: { userId, skillId } },
-      create: { userId, skillId, enabled: true },
-      update: { enabled: true },
-      select: { skillId: true, enabled: true },
+      create: { userId, skillId },
+      update: {},
+      select: { skillId: true },
     })
-  }
-
-  async setEnabled(
-    userId: string,
-    skillId: string,
-    enabled: boolean,
-  ): Promise<UserAgentSkillState | null> {
-    const result = await this.prisma.userAgentSkill.updateMany({
-      where: { userId, skillId },
-      data: { enabled },
-    })
-    return result.count === 0 ? null : { skillId, enabled }
   }
 
   async uninstall(userId: string, skillId: string): Promise<void> {

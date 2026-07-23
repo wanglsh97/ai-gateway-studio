@@ -66,7 +66,6 @@ describe('ExecutableSkillRepository', () => {
       data: {
         userId: 'user-1',
         skillId: 'mock-data-cleaner',
-        enabled: true,
         marketSkillId: skill.id,
       },
     })

@@ -110,34 +110,42 @@ export class ExecutableSkillRepository implements ExecutableSkillRepositoryPort 
   }
 
   async addForUser(userId: string, skill: ExecutableSkillRecord, limit: number): Promise<boolean> {
-    return this.prisma.$transaction(
-      async (tx) => {
-        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${userId}, 0))`
-        const existing = await tx.userAgentSkill.findUnique({
-          where: { userId_marketSkillId: { userId, marketSkillId: skill.id } },
-          select: { id: true },
-        })
-        if (existing) return false
-        const count = await tx.userAgentSkill.count({
-          where: { userId, marketSkillId: { not: null } },
-        })
-        if (count >= limit) throw new AgentSkillAddLimitError(limit)
-        await tx.userAgentSkill.create({
-          data: {
-            userId,
-            skillId: skill.name,
-            enabled: true,
-            marketSkillId: skill.id,
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        return await this.prisma.$transaction(
+          async (tx) => {
+            await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${userId}, 0))`
+            const existing = await tx.userAgentSkill.findUnique({
+              where: { userId_marketSkillId: { userId, marketSkillId: skill.id } },
+              select: { id: true },
+            })
+            if (existing) return false
+            const count = await tx.userAgentSkill.count({
+              where: { userId, marketSkillId: { not: null } },
+            })
+            if (count >= limit) throw new AgentSkillAddLimitError(limit)
+            await tx.userAgentSkill.create({
+              data: {
+                userId,
+                skillId: skill.name,
+                marketSkillId: skill.id,
+              },
+            })
+            await tx.skill.update({
+              where: { id: skill.id },
+              data: { addCount: { increment: 1 } },
+            })
+            return true
           },
-        })
-        await tx.skill.update({
-          where: { id: skill.id },
-          data: { addCount: { increment: 1 } },
-        })
-        return true
-      },
-      { isolationLevel: 'Serializable' },
-    )
+          { isolationLevel: 'Serializable' },
+        )
+      } catch (error) {
+        if (isUniqueConflict(error)) return false
+        if (isSerializationConflict(error) && attempt < 2) continue
+        throw error
+      }
+    }
+    throw new Error('Skill add retry boundary exhausted')
   }
 
   async removeForUser(userId: string, skillId: string): Promise<void> {
@@ -154,6 +162,24 @@ export class ExecutableSkillRepository implements ExecutableSkillRepositoryPort 
       }
     })
   }
+}
+
+function isUniqueConflict(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code?: unknown }).code === 'P2002'
+  )
+}
+
+function isSerializationConflict(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code?: unknown }).code === 'P2034'
+  )
 }
 
 const MOCK_EXECUTABLE_SKILL_PACKAGE_SIZE = new TextEncoder().encode(
