@@ -8,7 +8,7 @@
 - [x] 1.6 将 Agent Tool registry 接入 `activate_skill`、Fake Shell 和文件工具，保证所有调用仍经过 Pi harness、Run 状态机和持久化事件
 - [x] 1.7 扩展 Agent Run API 与 SDK，使手动选择的 Skill 完成 Mock tool call → Fake Sandbox → tool result → follow-up 模型 turn → SSE cursor
 - [x] 1.8 在 `/agent` 增加最小 Skill 选择器和 Shell/文件工具卡片，覆盖 loading、running、success、failed、cancelled 和 limit 状态
-- [ ] 1.9 添加无外网 E2E，串通 Web → SDK → Agent API → Mock Adapter → Fake Sandbox → SSE → PostgreSQL AgentRun/AgentToolCall/RequestLog/BillingRecord
+- [x] 1.9 添加无外网 E2E，串通 Web → SDK → Agent API → Mock Adapter → Fake Sandbox → SSE → PostgreSQL AgentRun/AgentToolCall/RequestLog/BillingRecord
 - [ ] 1.10 运行首个闭环相关单测、Prisma 集成测试、Agent E2E、typecheck、lint 和 build，并确认未启用功能旗标时现有 Agent/Skill 回归通过
 
 ## 2. 私有 OSS 与传统 Skill 包上传

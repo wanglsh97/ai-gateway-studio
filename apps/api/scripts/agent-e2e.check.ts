@@ -30,6 +30,12 @@ const nativeImport = new Function('specifier', 'return import(specifier)') as (
 async function main(): Promise<void> {
   // 强制 Mock、确定性、零成本：仅启用 Mock Adapter，禁用所有真实 provider。
   // 必须在进程启动前经 test:agent-e2e 脚本以环境变量注入（@nestjs/config 不覆盖已有 process.env）。
+  assert.equal(process.env.MOCK_PROVIDER_ENABLED, 'true')
+  for (const provider of ['QWEN', 'GLM', 'DEEPSEEK', 'KIMI', 'WANXIANG', 'COGVIEW']) {
+    assert.equal(process.env[`${provider}_ENABLED`], 'false', `${provider} 必须在无外网 E2E 中关闭`)
+  }
+  assert.equal(process.env.AGENT_WEB_FETCH_FIXTURE, 'true')
+
   const { createAIGatewayClient } = await nativeImport('@aigateway/sdk')
   const app = await NestFactory.create(AppModule, { bufferLogs: true })
   configureApplication(app)
@@ -52,14 +58,18 @@ async function main(): Promise<void> {
 
   const client = createAIGatewayClient({
     baseUrl,
-    fetch: (input, init) =>
-      globalThis.fetch(input, {
+    fetch: (input, init) => {
+      const url = new URL(String(input))
+      assert.equal(url.protocol, 'http:', 'E2E 只允许本地 HTTP')
+      assert.equal(url.hostname, '127.0.0.1', 'E2E 不得访问外网')
+      return globalThis.fetch(input, {
         ...init,
         headers: {
           ...(init?.headers as Record<string, string>),
           cookie: `${USER_SESSION_COOKIE}=${token}`,
         },
-      }),
+      })
+    },
   })
 
   let threadId: string | undefined
@@ -106,8 +116,11 @@ async function main(): Promise<void> {
     assert.equal(terminal?.type, 'run-terminal')
     assert.equal(terminal && 'status' in terminal ? terminal.status : undefined, 'succeeded')
 
-    // sequence 从 0 起连续递增
-    events.forEach((event, index) => assert.equal(event.sequence, index, 'SSE sequence 应连续递增'))
+    // sequence 严格递增；并发写入允许订阅视图存在间隙，但不得倒序或重复。
+    events.forEach((event, index) => {
+      const previous = events[index - 1]
+      if (previous) assert.ok(event.sequence > previous.sequence, 'SSE sequence 应严格递增')
+    })
 
     // 断线补读：从中间 sequence 重新订阅，只应收到之后的事件
     const midpoint = Math.floor(events.length / 2)
@@ -127,7 +140,23 @@ async function main(): Promise<void> {
     assert.deepEqual(roles, ['user', 'assistant', 'tool', 'assistant'], '刷新后应恢复完整消息快照')
     assert.equal(detail.activeRun, null, 'run 已终结')
 
-    // PostgreSQL：每次模型调用一条 RequestLog + 一对一 BillingRecord
+    // PostgreSQL：Run、工具、模型调用与账单均形成可审计记录。
+    const persistedRun = await prisma.agentRun.findUniqueOrThrow({ where: { id: run.id } })
+    assert.equal(persistedRun.status, 'SUCCEEDED')
+    assert.equal(persistedRun.modelCallCount, 2, '首轮工具调用和 follow-up 应各调用一次模型')
+    assert.equal(persistedRun.toolCallCount, 1)
+    assert.ok(persistedRun.completedAt)
+
+    const toolCalls = await prisma.agentToolCall.findMany({ where: { runId: run.id } })
+    assert.equal(toolCalls.length, 1)
+    assert.equal(toolCalls[0]?.toolName, 'shell')
+    assert.equal(toolCalls[0]?.status, 'SUCCEEDED')
+    assert.deepEqual(toolCalls[0]?.args, {
+      command: 'node scripts/clean.mjs',
+      workingDirectory: '/workspace/skills/mock-data-cleaner',
+    })
+
+    // 每次模型调用一条 RequestLog + 一对一 BillingRecord。
     const requestLogs = await prisma.requestLog.findMany({
       where: { agentRunId: run.id },
       include: { billing: true },
