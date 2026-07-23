@@ -5,7 +5,7 @@
 - [x] 1.3 定义 `SkillObjectStorePort` 与确定性内存实现，支持包元数据、`SKILL.md`、文件树、输入文件和结果文件 fixture
 - [x] 1.4 定义 `SandboxRuntimePort` 与确定性 Fake Adapter，覆盖创建、命令、文件、取消、预算超限、销毁和泄漏查询
 - [x] 1.5 实现最小 Skill repository/service：一个预置 published Skill、用户幂等添加、50 个上限、手动激活和当前包 SHA-256 manifest
-- [ ] 1.6 将 Agent Tool registry 接入 `activate_skill`、Fake Shell 和文件工具，保证所有调用仍经过 Pi harness、Run 状态机和持久化事件
+- [x] 1.6 将 Agent Tool registry 接入 `activate_skill`、Fake Shell 和文件工具，保证所有调用仍经过 Pi harness、Run 状态机和持久化事件
 - [ ] 1.7 扩展 Agent Run API 与 SDK，使手动选择的 Skill 完成 Mock tool call → Fake Sandbox → tool result → follow-up 模型 turn → SSE cursor
 - [ ] 1.8 在 `/agent` 增加最小 Skill 选择器和 Shell/文件工具卡片，覆盖 loading、running、success、failed、cancelled 和 limit 状态
 - [ ] 1.9 添加无外网 E2E，串通 Web → SDK → Agent API → Mock Adapter → Fake Sandbox → SSE → PostgreSQL AgentRun/AgentToolCall/RequestLog/BillingRecord

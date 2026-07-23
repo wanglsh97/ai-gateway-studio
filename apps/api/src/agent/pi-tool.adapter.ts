@@ -11,6 +11,11 @@ export interface PiToolDetails {
   code?: string
 }
 
+export interface PiToolExecutionScope {
+  runId: string
+  userId: string
+}
+
 /**
  * 把平台中立的 `AgentToolDefinition` 转换为 Pi harness 使用的 `AgentTool`。
  *
@@ -22,6 +27,7 @@ export interface PiToolDetails {
 export function toPiAgentTool(
   definition: AgentToolDefinition,
   registry: AgentToolRegistry,
+  scope?: PiToolExecutionScope,
 ): AgentTool {
   return {
     name: definition.name,
@@ -36,11 +42,11 @@ export function toPiAgentTool(
       const result = await registry.execute(definition.name, params, {
         toolCallId,
         signal: signal ?? new AbortController().signal,
+        ...(scope === undefined ? {} : scope),
       })
       if (result.isError) {
         throw new AgentToolExecutionError({
-          code:
-            typeof result.audit?.code === 'string' ? result.audit.code : 'AGENT_TOOL_ERROR',
+          code: typeof result.audit?.code === 'string' ? result.audit.code : 'AGENT_TOOL_ERROR',
           message: result.summary,
           summary: result.summary,
           ...(result.audit === undefined ? {} : { audit: result.audit }),

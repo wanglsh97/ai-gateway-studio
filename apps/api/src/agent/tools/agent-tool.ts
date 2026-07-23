@@ -7,6 +7,9 @@
 export interface AgentToolContext {
   toolCallId: string
   signal: AbortSignal
+  /** Run-scoped tools require both values; generic tools may ignore them. */
+  runId?: string
+  userId?: string
   /** 报告执行中的进度/状态（可选，用于 UI 与事件流）。 */
   onProgress?: (summary: string) => void
 }
@@ -24,7 +27,9 @@ export interface AgentToolResult {
 export type AgentToolRiskLevel = 'read' | 'write' | 'external_send' | 'destructive'
 export type AgentToolApprovalPolicy = 'none' | 'explicit'
 
-export interface AgentToolDefinition<TArgs extends Record<string, unknown> = Record<string, unknown>> {
+export interface AgentToolDefinition<
+  TArgs extends Record<string, unknown> = Record<string, unknown>,
+> {
   name: string
   description: string
   /** UI 展示用标签。 */
@@ -41,7 +46,12 @@ export class AgentToolExecutionError extends Error {
   readonly audit: Record<string, unknown> | undefined
   readonly code: string
 
-  constructor(options: { code: string; message: string; summary?: string; audit?: Record<string, unknown> }) {
+  constructor(options: {
+    code: string
+    message: string
+    summary?: string
+    audit?: Record<string, unknown>
+  }) {
     super(options.message)
     this.name = 'AgentToolExecutionError'
     this.code = options.code

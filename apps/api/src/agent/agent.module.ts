@@ -20,6 +20,9 @@ import { AgentService } from './agent.service'
 import { AgentStartupCleanupService } from './agent-startup-cleanup.service'
 import { AgentThreadRepository } from './agent-thread.repository'
 import { AgentPromptComposer } from './prompt/agent-prompt.composer'
+import { AgentExecutionSessionService } from './sandbox/agent-execution-session.service'
+import { FakeSandboxRuntime } from './sandbox/fake-sandbox-runtime'
+import { SANDBOX_RUNTIME_PORT } from './sandbox/sandbox-runtime.port'
 import { AGENT_SKILL_REGISTRY } from './skills/agent-skill.registry'
 import { AgentSkillRepository } from './skills/agent-skill.repository'
 import { AgentSkillService } from './skills/agent-skill.service'
@@ -31,14 +34,16 @@ import { PlatformAgentSkillCatalog } from './skills/platform-agent-skill.catalog
 import { InMemorySkillObjectStore } from './skills/storage/in-memory-skill-object-store'
 import { SKILL_OBJECT_STORE_PORT } from './skills/storage/skill-object-store.port'
 import { AGENT_TOOLS, AgentToolRegistry } from './tools/agent-tool.registry'
+import { createExecutableSkillTools } from './tools/executable-skill.tools'
 import type { AgentToolDefinition } from './tools/agent-tool'
 import { webFetchFixtureTool } from './tools/web-fetch-fixture.tool'
 import { webFetchTool } from './tools/web-fetch.tool'
 
-function resolveAgentTools(): readonly AgentToolDefinition[] {
+function resolveAgentTools(sessions: AgentExecutionSessionService): readonly AgentToolDefinition[] {
   // CI/确定性 E2E 可显式启用 fixture；默认使用生产级联网 web_fetch。
-  if (process.env.AGENT_WEB_FETCH_FIXTURE === 'true') return [webFetchFixtureTool]
-  return [webFetchTool]
+  const webTool =
+    process.env.AGENT_WEB_FETCH_FIXTURE === 'true' ? webFetchFixtureTool : webFetchTool
+  return [webTool, ...createExecutableSkillTools(sessions)]
 }
 
 /**
@@ -76,13 +81,18 @@ function resolveAgentTools(): readonly AgentToolDefinition[] {
       useFactory: () =>
         new InMemorySkillObjectStore({ skillPackages: [MOCK_EXECUTABLE_SKILL_PACKAGE] }),
     },
+    FakeSandboxRuntime,
+    { provide: SANDBOX_RUNTIME_PORT, useExisting: FakeSandboxRuntime },
+    AgentExecutionSessionService,
     EmptyAgentMcpRegistry,
     { provide: AGENT_MCP_REGISTRY, useExisting: EmptyAgentMcpRegistry },
     EmptyAgentMemoryProvider,
     { provide: AGENT_MEMORY_PROVIDER, useExisting: EmptyAgentMemoryProvider },
     {
       provide: AGENT_TOOLS,
-      useFactory: (): readonly AgentToolDefinition[] => resolveAgentTools(),
+      inject: [AgentExecutionSessionService],
+      useFactory: (sessions: AgentExecutionSessionService): readonly AgentToolDefinition[] =>
+        resolveAgentTools(sessions),
     },
     AgentToolRegistry,
   ],
@@ -95,6 +105,7 @@ function resolveAgentTools(): readonly AgentToolDefinition[] {
     AgentActiveRunLock,
     AgentToolRegistry,
     ExecutableSkillService,
+    AgentExecutionSessionService,
   ],
 })
 export class AgentModule {}

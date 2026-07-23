@@ -30,6 +30,7 @@ import { AgentRunEventBus } from './agent-run-event-bus'
 import { AgentRunProjector } from './agent-run.projector'
 import { AgentRunRepository } from './agent-run.repository'
 import { AgentPromptComposer } from './prompt/agent-prompt.composer'
+import { AgentExecutionSessionService } from './sandbox/agent-execution-session.service'
 import { AgentToolRegistry } from './tools/agent-tool.registry'
 import { loadPiAgentCore } from './pi-runtime'
 import { createPiModel, createPiStreamFn } from './pi-stream-bridge'
@@ -86,6 +87,8 @@ export class AgentRunService {
     private readonly contextSummaries: AgentContextSummaryRepository,
     @Inject(AgentContextSummaryService)
     private readonly contextSummaryService: AgentContextSummaryService,
+    @Inject(AgentExecutionSessionService)
+    private readonly executionSessions: AgentExecutionSessionService,
   ) {}
 
   isRunning(runId: string): boolean {
@@ -106,7 +109,9 @@ export class AgentRunService {
     this.bus.open(input.runId)
 
     const projector = new AgentRunProjector(input.runId, () => randomUUID())
-    const persistAndPublish = async (events: ReturnType<AgentRunProjector['ingest']>): Promise<void> => {
+    const persistAndPublish = async (
+      events: ReturnType<AgentRunProjector['ingest']>,
+    ): Promise<void> => {
       // 必须先落库再广播：确保任何已投影到 SSE 的事件都已在 PostgreSQL 中可补读，
       // 避免订阅者在“已广播未入库”窗口做游标补读时丢失事件、产生 sequence 间隙。
       if (events.length > 0) await this.runs.appendEvents(input.runId, events)
@@ -144,7 +149,11 @@ export class AgentRunService {
         initialState: {
           systemPrompt: composedPrompt.systemPrompt,
           model: createPiModel(input.modelId, input.provider, input.contextWindowTokens),
-          tools: this.tools.list().map((tool) => toPiAgentTool(tool, this.tools)),
+          tools: this.tools
+            .list()
+            .map((tool) =>
+              toPiAgentTool(tool, this.tools, { runId: input.runId, userId: input.userId }),
+            ),
         },
         streamFn: createPiStreamFn({
           port: boundPort,
@@ -155,36 +164,42 @@ export class AgentRunService {
                 persistedMessages: persistedHistory,
                 currentRunId: input.runId,
                 currentMessages,
-                ...(activeSummary === null ? {} : {
-                  summary: {
-                    content: activeSummary.content as unknown as AgentContextSummaryV1,
-                    coveredThroughSequence: activeSummary.coveredThroughSequence,
-                  },
-                }),
+                ...(activeSummary === null
+                  ? {}
+                  : {
+                      summary: {
+                        content: activeSummary.content as unknown as AgentContextSummaryV1,
+                        coveredThroughSequence: activeSummary.coveredThroughSequence,
+                      },
+                    }),
               })
               const prepared = this.contextPreparer.prepare({
                 contextWindowTokens: input.contextWindowTokens,
                 messages: assembled,
                 tools,
               })
-              await persistAndPublish(projector.contextBudget({
-                usedTokens: prepared.budget.usedTokens,
-                usableTokens: prepared.budget.usableTokens,
-                contextWindowTokens: prepared.budget.contextWindowTokens,
-                estimated: prepared.budget.estimated,
-                level: prepared.budget.level,
-                ...(activeSummary === null ? {} : { summaryId: activeSummary.id }),
-              }))
+              await persistAndPublish(
+                projector.contextBudget({
+                  usedTokens: prepared.budget.usedTokens,
+                  usableTokens: prepared.budget.usableTokens,
+                  contextWindowTokens: prepared.budget.contextWindowTokens,
+                  estimated: prepared.budget.estimated,
+                  level: prepared.budget.level,
+                  ...(activeSummary === null ? {} : { summaryId: activeSummary.id }),
+                }),
+              )
               if (prepared.budget.level !== 'forced') {
                 if (
                   prepared.compressionNotes.length > 0 &&
                   prepared.appliedCompressionLevel !== 'none'
                 ) {
-                  await persistAndPublish(projector.contextCompressed({
-                    level: prepared.appliedCompressionLevel,
-                    notes: prepared.compressionNotes,
-                    ...(activeSummary === null ? {} : { summaryId: activeSummary.id }),
-                  }))
+                  await persistAndPublish(
+                    projector.contextCompressed({
+                      level: prepared.appliedCompressionLevel,
+                      notes: prepared.compressionNotes,
+                      ...(activeSummary === null ? {} : { summaryId: activeSummary.id }),
+                    }),
+                  )
                 }
                 return prepared.messages
               }
@@ -203,9 +218,11 @@ export class AgentRunService {
                   port: boundPort,
                   modelId: input.modelId,
                   messages: candidates.flatMap((message) => persistedMessageToAdapter(message)),
-                  ...(activeSummary === null ? {} : {
-                    previousSummary: activeSummary.content as unknown as AgentContextSummaryV1,
-                  }),
+                  ...(activeSummary === null
+                    ? {}
+                    : {
+                        previousSummary: activeSummary.content as unknown as AgentContextSummaryV1,
+                      }),
                   signal: controller.signal,
                 })
               } catch (error) {
@@ -228,13 +245,15 @@ export class AgentRunService {
                 outputTokens: generated.usage.outputTokens,
                 totalTokens: generated.usage.totalTokens,
               })
-              await persistAndPublish(projector.contextCompressed({
-                level: 'forced',
-                notes: ['structured-summary-updated', 'historical-reasoning-omitted'],
-                summaryId: activeSummary.id,
-                revision: activeSummary.revision,
-                coveredThroughSequence: boundary,
-              }))
+              await persistAndPublish(
+                projector.contextCompressed({
+                  level: 'forced',
+                  notes: ['structured-summary-updated', 'historical-reasoning-omitted'],
+                  summaryId: activeSummary.id,
+                  revision: activeSummary.revision,
+                  coveredThroughSequence: boundary,
+                }),
+              )
               const afterSummary = assembleAgentHistory({
                 persistedMessages: persistedHistory,
                 currentRunId: input.runId,
@@ -250,14 +269,16 @@ export class AgentRunService {
                 tools,
               })
               if (recounted.budget.level === 'forced') throw new AgentContextWindowExceededError()
-              await persistAndPublish(projector.contextBudget({
-                usedTokens: recounted.budget.usedTokens,
-                usableTokens: recounted.budget.usableTokens,
-                contextWindowTokens: recounted.budget.contextWindowTokens,
-                estimated: recounted.budget.estimated,
-                level: recounted.budget.level,
-                summaryId: activeSummary.id,
-              }))
+              await persistAndPublish(
+                projector.contextBudget({
+                  usedTokens: recounted.budget.usedTokens,
+                  usableTokens: recounted.budget.usableTokens,
+                  contextWindowTokens: recounted.budget.contextWindowTokens,
+                  estimated: recounted.budget.estimated,
+                  level: recounted.budget.level,
+                  summaryId: activeSummary.id,
+                }),
+              )
               return recounted.messages
             } catch (error) {
               if (error instanceof AgentContextLimitError) contextLimitError = error
@@ -298,10 +319,9 @@ export class AgentRunService {
       const status = contextLimitError
         ? 'limit_reached'
         : this.determineTerminal(controller.signal.aborted, agent.state.errorMessage)
-      const error =
-        contextLimitError
-          ? { code: contextLimitError.code, message: contextLimitError.message, retryable: false }
-          : status === 'failed'
+      const error = contextLimitError
+        ? { code: contextLimitError.code, message: contextLimitError.message, retryable: false }
+        : status === 'failed'
           ? {
               code: 'AGENT_RUN_FAILED',
               message: agent.state.errorMessage ?? '模型调用失败',
@@ -325,13 +345,19 @@ export class AgentRunService {
         this.logger.error({ error: finalizeError, runId: input.runId }, 'Agent finalize failed')
       })
     } finally {
+      await this.executionSessions.destroyRun(input.runId).catch((error) => {
+        this.logger.error({ error, runId: input.runId }, 'Agent sandbox cleanup failed')
+      })
       this.activeRuns.delete(input.runId)
       this.bus.close(input.runId)
       await this.activeRunLock.release(input.userId, input.activeRunLockToken)
     }
   }
 
-  private determineTerminal(aborted: boolean, errorMessage: string | undefined): AgentRunTerminalStatus {
+  private determineTerminal(
+    aborted: boolean,
+    errorMessage: string | undefined,
+  ): AgentRunTerminalStatus {
     if (aborted) return 'cancelled'
     if (errorMessage) return 'failed'
     return 'succeeded'
@@ -382,7 +408,10 @@ export class AgentRunService {
 }
 
 class AgentContextLimitError extends Error {
-  constructor(readonly code: string, message: string) {
+  constructor(
+    readonly code: string,
+    message: string,
+  ) {
     super(message)
     this.name = 'AgentContextLimitError'
   }
