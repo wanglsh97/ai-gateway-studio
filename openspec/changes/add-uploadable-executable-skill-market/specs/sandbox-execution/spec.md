@@ -1,0 +1,70 @@
+## ADDED Requirements
+
+### Requirement: Untrusted Skill execution uses an external Sandbox runtime port
+
+NestJS SHALL execute Skill Shell and file operations only through a `SandboxRuntimePort`. The first production adapter SHALL use OpenSandbox on a dedicated execution node with Docker and gVisor. Skill code MUST NOT execute in the NestJS process, business-service containers, database host context or browser.
+
+#### Scenario: A Skill requests Shell execution
+
+- **GIVEN** an activated Skill causes the model to call the Shell tool
+- **WHEN** the Agent runtime accepts the tool call
+- **THEN** NestJS delegates it to the current Run's OpenSandbox instance and returns the bounded result to the Agent loop
+
+### Requirement: One ephemeral Linux sandbox is shared within an Agent Run
+
+Each Agent Run SHALL lazily create at most one sandbox. All Skills, input files, commands and generated files in that Run SHALL share its temporary workspace. The sandbox SHALL be destroyed after the Run succeeds, fails, is cancelled, reaches a limit or is interrupted, and background processes SHALL be terminated during cleanup.
+
+#### Scenario: Two Skills run in one Agent Run
+
+- **GIVEN** a Run activates two added Skills
+- **WHEN** both use files or Shell
+- **THEN** they use the same Run-owned sandbox and the platform creates no second sandbox for that Run
+
+#### Scenario: A Run is cancelled
+
+- **GIVEN** a Shell command is active
+- **WHEN** the Run owner cancels the Run
+- **THEN** cancellation propagates best effort to the command, no later command starts, and sandbox destruction is attempted idempotently
+
+### Requirement: Sandbox resource budgets are enforced outside the model
+
+The platform SHALL enforce per-sandbox limits of one vCPU, 1 GiB memory, 2 GiB temporary disk, 64 processes and 120 seconds total lifetime. Each Shell command SHALL be limited to 60 seconds; each Run SHALL permit at most 20 Shell calls, 100 MiB outbound traffic, 1 MiB returned by one call and 5 MiB total returned tool output. Skill instructions MUST NOT raise these limits.
+
+#### Scenario: Shell call budget is exhausted
+
+- **GIVEN** a Run has completed 20 Shell calls
+- **WHEN** the model requests another Shell call
+- **THEN** the platform refuses execution and returns a normalized limit result without contacting the sandbox
+
+#### Scenario: Sandbox TTL expires
+
+- **GIVEN** a Run sandbox reaches 120 seconds of lifetime
+- **WHEN** work is still active
+- **THEN** OpenSandbox terminates it and the Agent Run ends with an explicit sandbox limit reason
+
+### Requirement: Sandboxes may reach arbitrary public internet without receiving secrets
+
+The sandbox SHALL permit outbound connections to arbitrary public internet destinations without a Skill-specific domain allowlist. It MUST still deny loopback, private, link-local, reserved, cloud metadata, business data services and the OpenSandbox control plane. The platform MUST NOT inject database, Redis, provider, OSS management or user secrets into the sandbox.
+
+#### Scenario: A script connects to a public endpoint
+
+- **GIVEN** an activated Skill executes a command that connects to a public address
+- **WHEN** the connection is within Run resource budgets
+- **THEN** the sandbox allows it without requesting per-call user approval
+
+#### Scenario: A script targets a private service
+
+- **GIVEN** a command attempts to reach a protected private or metadata address
+- **WHEN** the sandbox network policy evaluates the destination
+- **THEN** the connection is blocked outside the model regardless of Skill instructions
+
+### Requirement: Sandbox execution is observable and replayable
+
+The Agent event stream SHALL expose sandbox creation, readiness, command start, bounded stdout/stderr, file operations, limits, cleanup and terminal state in sequence. `AgentRun` and `AgentToolCall` SHALL record sandbox ID, Skill name, observed package SHA-256, command, exit status, duration, bounded output metadata and normalized error without storing secrets.
+
+#### Scenario: A user reconnects after a command completes
+
+- **GIVEN** a command completed while the event connection was unavailable
+- **WHEN** the owner reconnects with the last sequence
+- **THEN** persisted sandbox and command events restore the same tool state without re-executing the command
+
