@@ -1,5 +1,9 @@
 import { decodeAgentEvent } from './agent-events.js'
-import type { AgentSkillMarketItem, UpdateAgentSkillRequest } from './agent-skill-types.js'
+import type {
+  AgentSkillCandidate,
+  AgentSkillMarketItem,
+  UpdateAgentSkillRequest,
+} from './agent-skill-types.js'
 import type {
   AgentRunSummary,
   AgentStreamEvent,
@@ -31,6 +35,7 @@ export interface AgentThreadListOptions extends RequestOptions {
 export interface AgentClient {
   skills: {
     list(options?: RequestOptions): Promise<AgentSkillMarketItem[]>
+    candidates(options?: RequestOptions): Promise<AgentSkillCandidate[]>
     install(skillId: string, options?: RequestOptions): Promise<AgentSkillMarketItem>
     update(
       skillId: string,
@@ -81,6 +86,18 @@ export function createAgentClient(
         if (!Array.isArray(value))
           throw new AIGatewayProtocolError('unknown', 'Agent Skill catalog is not an array')
         return value.map(decodeSkillMarketItem)
+      },
+      candidates: async (options) => {
+        const value = await requestJson<unknown>(
+          fetchImplementation,
+          'GET',
+          `${baseUrl}/api/v1/agent/skills/executable/candidates`,
+          undefined,
+          options,
+        )
+        if (!Array.isArray(value))
+          throw new AIGatewayProtocolError('unknown', 'Agent Skill candidates is not an array')
+        return value.map(decodeSkillCandidate)
       },
       install: async (skillId, options) =>
         decodeSkillMarketItem(
@@ -199,6 +216,25 @@ function decodeSkillMarketItem(value: unknown): AgentSkillMarketItem {
     allowedTools,
     installed: item.installed,
     enabled: item.enabled,
+  }
+}
+
+function decodeSkillCandidate(value: unknown): AgentSkillCandidate {
+  const item = asRecord(value)
+  if (
+    !item ||
+    !stringValue(item.id) ||
+    !stringValue(item.name) ||
+    !stringValue(item.title) ||
+    typeof item.description !== 'string'
+  ) {
+    throw new AIGatewayProtocolError('unknown', 'Agent Skill candidate response is malformed')
+  }
+  return {
+    id: item.id as string,
+    name: item.name as string,
+    title: item.title as string,
+    description: item.description,
   }
 }
 

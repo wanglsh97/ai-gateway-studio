@@ -17,6 +17,7 @@ export type {
 } from './agent-client.js'
 export { AGENT_SKILL_ADD_STATES, AGENT_SKILL_PUBLICATION_STATUSES } from './agent-skill-types.js'
 export type {
+  AgentSkillCandidate,
   AgentSkillAddState,
   AgentSkillFileEntry,
   AgentSkillMarketDetail,

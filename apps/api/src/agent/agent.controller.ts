@@ -34,6 +34,7 @@ import {
   UpdateAgentThreadDto,
 } from './dto/agent-thread.dto'
 import { AgentSkillService } from './skills/agent-skill.service'
+import { ExecutableSkillService } from './skills/executable-skill.service'
 
 @ApiTags('Agent')
 @ApiCookieAuth(USER_SESSION_COOKIE)
@@ -45,11 +46,18 @@ export class AgentController {
     @Inject(AgentRunRepository) private readonly runs: AgentRunRepository,
     @Inject(AgentRunEventBus) private readonly bus: AgentRunEventBus,
     @Inject(AgentSkillService) private readonly skills: AgentSkillService,
+    @Inject(ExecutableSkillService) private readonly executableSkills: ExecutableSkillService,
   ) {}
 
   @Get('skills')
   async listSkills(@CurrentUser() user: AuthenticatedUser) {
     return this.skills.listMarket(user.id)
+  }
+
+  @Get('skills/executable/candidates')
+  async listExecutableSkillCandidates(@CurrentUser() user: AuthenticatedUser) {
+    const skills = await this.executableSkills.listCandidates(user.id)
+    return skills.map(({ id, name, title, description }) => ({ id, name, title, description }))
   }
 
   @Put('skills/:skillId/install')

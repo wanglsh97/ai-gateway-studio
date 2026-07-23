@@ -4,6 +4,7 @@ import { createAIGatewayClient } from '@aigateway/sdk'
 import type {
   AgentContextBudgetState,
   AgentContextSummary,
+  AgentSkillCandidate,
   AgentStreamEvent,
   TextModelAlias,
   TextModelId,
@@ -67,6 +68,11 @@ import {
   mergeThreadMessagesWithRunView,
 } from './agent-run-resume'
 import { initialAgentRunViewState } from './agent-run-reducer'
+import {
+  AGENT_TOOL_ACTIVITY_LABELS,
+  resolveAgentToolActivityState,
+  type AgentToolActivityState,
+} from './agent-tool-activity'
 
 const client = createAIGatewayClient()
 
@@ -105,11 +111,15 @@ function AgentConsole() {
   const [compressionEvents, setCompressionEvents] = useState<
     Extract<AgentStreamEvent, { type: 'context-compressed' }>[]
   >([])
+  const [skillCandidates, setSkillCandidates] = useState<AgentSkillCandidate[]>([])
+  const [selectedSkillNames, setSelectedSkillNames] = useState<string[]>([])
+  const [skillLoadState, setSkillLoadState] = useState<'loading' | 'ready' | 'failed'>('loading')
 
   const skipHydrationRef = useRef(false)
   const contextRef = useRef({
     threadId: activeThreadId as string | null,
     model: selectedModel,
+    selectedSkillNames: [] as readonly string[],
     onThreadCreated: (() => undefined) as (thread: Parameters<typeof prependThread>[0]) => void,
     onRunCreated: (() => undefined) as (run: { id: string; threadId: string }) => void,
     onRunFinished: () => undefined,
@@ -121,6 +131,7 @@ function AgentConsole() {
 
   contextRef.current.threadId = activeThreadId
   contextRef.current.model = selectedModel
+  contextRef.current.selectedSkillNames = selectedSkillNames
   contextRef.current.onThreadCreated = (thread) => {
     skipHydrationRef.current = true
     setContextBudget(null)
@@ -159,11 +170,35 @@ function AgentConsole() {
   contextRef.current.onContextCompressed = (event) => {
     setCompressionEvents((current) => [...current, event])
     if (event.summaryId && contextRef.current.threadId) {
-      void client.agent.threads.get(contextRef.current.threadId).then((thread) => {
-        setContextSummary(thread.contextSummary)
-      }).catch(() => undefined)
+      void client.agent.threads
+        .get(contextRef.current.threadId)
+        .then((thread) => {
+          setContextSummary(thread.contextSummary)
+        })
+        .catch(() => undefined)
     }
   }
+
+  const loadSkillCandidates = () => {
+    setSkillLoadState('loading')
+    return client.agent.skills
+      .candidates()
+      .then((items) => {
+        setSkillCandidates(items)
+        setSelectedSkillNames((current) =>
+          current.filter((name) => items.some((item) => item.name === name)),
+        )
+        setSkillLoadState('ready')
+      })
+      .catch((error) => {
+        handleAuthenticationFailure(error)
+        setSkillLoadState('failed')
+      })
+  }
+
+  useEffect(() => {
+    void loadSkillCandidates()
+  }, [])
 
   const modelOptions = useMemo<ModelOption[]>(
     () =>
@@ -211,6 +246,9 @@ function AgentConsole() {
         onResetCompressionEvents={() => setCompressionEvents([])}
       />
       <WebFetchToolUI />
+      <ShellToolUI />
+      <ReadFileToolUI />
+      <WriteFileToolUI />
       <AgentPageShell>
         <AgentConsolePanel label="智能体">
           <AgentThreadRoot>
@@ -237,7 +275,8 @@ function AgentConsole() {
                       metadata={<AgentMessageMetadata />}
                       renderPart={(part) => {
                         if (part.type === 'tool-call') return part.toolUI ?? null
-                        if (part.type === 'text') return <AssistantMarkdown>{part.text ?? ''}</AssistantMarkdown>
+                        if (part.type === 'text')
+                          return <AssistantMarkdown>{part.text ?? ''}</AssistantMarkdown>
                         if (part.type === 'reasoning') {
                           return <AgentReasoning text={part.text ?? ''} />
                         }
@@ -251,6 +290,20 @@ function AgentConsole() {
             </AgentThreadViewport>
             <AgentScrollToBottom />
             <AgentComposerDock>
+              <AgentSkillSelector
+                candidates={skillCandidates}
+                selectedNames={selectedSkillNames}
+                loadState={skillLoadState}
+                disabled={userActiveRun !== null}
+                onToggle={(name) =>
+                  setSelectedSkillNames((current) =>
+                    current.includes(name)
+                      ? current.filter((item) => item !== name)
+                      : [...current, name],
+                  )
+                }
+                onRetry={() => void loadSkillCandidates()}
+              />
               <AgentContextBudgetBadge budget={contextBudget} summary={contextSummary} />
               {userActiveRun && userActiveRun.threadId !== activeThreadId ? (
                 <AgentActiveRunHint message="另一会话正在运行，请等待结束后再提交" />
@@ -271,7 +324,9 @@ function AgentConsole() {
                   </AgentComposerActions>
                   <AgentComposerSubmitGroup>
                     <ModelSelect
-                      value={(selectedModel as TextModelId) || modelOptions[0]?.value || 'qwen3.7-plus'}
+                      value={
+                        (selectedModel as TextModelId) || modelOptions[0]?.value || 'qwen3.7-plus'
+                      }
                       options={modelOptions}
                       disabled={modelDisabled}
                       boundHint={activeThreadId !== null}
@@ -361,9 +416,13 @@ function ThreadHydrator({
             if (event.type === 'context-budget') onContextBudget(event)
             if (event.type === 'context-compressed') onCompressionEvent(event)
             afterSequence = event.sequence
-            api.thread().reset(
-              agentMessagesToThreadMessages(mergeThreadMessagesWithRunView(thread.messages, view)),
-            )
+            api
+              .thread()
+              .reset(
+                agentMessagesToThreadMessages(
+                  mergeThreadMessagesWithRunView(thread.messages, view),
+                ),
+              )
             if (event.type === 'run-terminal') {
               setResumeNotice(null)
               setUserActiveRun(null)
@@ -416,7 +475,9 @@ function AgentContextBudgetBadge({
   return (
     <details className="mx-1 rounded-xl border border-line/80 bg-surface-inset/60 px-3 py-2 text-xs text-ink-muted">
       <summary className="cursor-pointer select-none font-semibold text-ink">
-        {percentage === null ? '上下文摘要可用' : `上下文 ${budget?.estimated ? '约 ' : ''}${percentage}% · ${budget?.level}`}
+        {percentage === null
+          ? '上下文摘要可用'
+          : `上下文 ${budget?.estimated ? '约 ' : ''}${percentage}% · ${budget?.level}`}
       </summary>
       {budget ? (
         <p className="mt-2 tabular-nums">
@@ -440,13 +501,23 @@ function AgentContextTimeline({
   return (
     <div className="mx-auto w-full max-w-3xl space-y-2 px-4 pb-3" aria-label="上下文压缩时间线">
       {events.map((event) => (
-        <details key={`${event.runId}-${event.sequence}`} className="rounded-xl border border-dashed border-line bg-surface px-3 py-2 text-xs text-ink-muted">
+        <details
+          key={`${event.runId}-${event.sequence}`}
+          className="rounded-xl border border-dashed border-line bg-surface px-3 py-2 text-xs text-ink-muted"
+        >
           <summary className="cursor-pointer font-semibold text-ink">
-            上下文已{event.level === 'forced' ? '强制摘要' : event.level === 'moderate' ? '中度压缩' : '轻量压缩'}
+            上下文已
+            {event.level === 'forced'
+              ? '强制摘要'
+              : event.level === 'moderate'
+                ? '中度压缩'
+                : '轻量压缩'}
             {event.revision ? ` · 摘要 r${event.revision}` : ''}
           </summary>
           <p className="mt-1">{event.notes.join(' · ')}</p>
-          {event.summaryId && summary?.id === event.summaryId ? <AgentSummaryDetail summary={summary} /> : null}
+          {event.summaryId && summary?.id === event.summaryId ? (
+            <AgentSummaryDetail summary={summary} />
+          ) : null}
         </details>
       ))}
     </div>
@@ -457,12 +528,19 @@ function AgentSummaryDetail({ summary }: { summary: AgentContextSummary }) {
   const content = summary.content
   return (
     <div className="mt-3 space-y-2 border-t border-line pt-2 text-left">
-      <p>摘要 revision {summary.revision} · 覆盖至消息 #{summary.coveredThroughSequence}</p>
+      <p>
+        摘要 revision {summary.revision} · 覆盖至消息 #{summary.coveredThroughSequence}
+      </p>
       <SummaryItems label="用户目标" values={content.userGoals} />
       <SummaryItems label="用户约束" values={content.userConstraints} />
       <SummaryItems label="开放问题" values={content.openQuestions} />
       <SummaryItems label="压缩说明" values={content.compressionNotes} />
-      {content.recentOutcome ? <p><span className="font-semibold text-ink">最近结果：</span>{content.recentOutcome}</p> : null}
+      {content.recentOutcome ? (
+        <p>
+          <span className="font-semibold text-ink">最近结果：</span>
+          {content.recentOutcome}
+        </p>
+      ) : null}
       <pre className="max-h-64 overflow-auto whitespace-pre-wrap rounded-lg bg-surface-inset p-2 text-[0.68rem]">
         {JSON.stringify(content, null, 2)}
       </pre>
@@ -472,7 +550,12 @@ function AgentSummaryDetail({ summary }: { summary: AgentContextSummary }) {
 
 function SummaryItems({ label, values }: { label: string; values: string[] }) {
   if (values.length === 0) return null
-  return <p><span className="font-semibold text-ink">{label}：</span>{values.join('；')}</p>
+  return (
+    <p>
+      <span className="font-semibold text-ink">{label}：</span>
+      {values.join('；')}
+    </p>
+  )
 }
 
 function AgentStopButton() {
@@ -542,6 +625,194 @@ const WebFetchToolUI = makeAssistantToolUI<
     )
   },
 })
+
+interface SandboxToolResult {
+  summary?: string
+  status?: string
+  audit?: Record<string, unknown>
+}
+
+const ShellToolUI = makeAssistantToolUI<
+  { command?: string; workingDirectory?: string },
+  SandboxToolResult
+>({
+  toolName: 'shell',
+  render: ({ args, result, status, isError }) => (
+    <SandboxToolActivityCard
+      toolName="shell"
+      subject={args.command}
+      detail={args.workingDirectory}
+      result={result}
+      running={status.type === 'running'}
+      isError={Boolean(isError)}
+    />
+  ),
+})
+
+const ReadFileToolUI = makeAssistantToolUI<{ path?: string }, SandboxToolResult>({
+  toolName: 'read_file',
+  render: ({ args, result, status, isError }) => (
+    <SandboxToolActivityCard
+      toolName="read_file"
+      subject={args.path}
+      result={result}
+      running={status.type === 'running'}
+      isError={Boolean(isError)}
+    />
+  ),
+})
+
+const WriteFileToolUI = makeAssistantToolUI<{ path?: string }, SandboxToolResult>({
+  toolName: 'write_file',
+  render: ({ args, result, status, isError }) => (
+    <SandboxToolActivityCard
+      toolName="write_file"
+      subject={args.path}
+      result={result}
+      running={status.type === 'running'}
+      isError={Boolean(isError)}
+    />
+  ),
+})
+
+function AgentSkillSelector({
+  candidates,
+  selectedNames,
+  loadState,
+  disabled,
+  onToggle,
+  onRetry,
+}: {
+  candidates: AgentSkillCandidate[]
+  selectedNames: string[]
+  loadState: 'loading' | 'ready' | 'failed'
+  disabled: boolean
+  onToggle: (name: string) => void
+  onRetry: () => void
+}) {
+  return (
+    <div className="mx-1 rounded-xl border border-line/80 bg-surface-inset/60 px-3 py-2">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-[0.68rem] font-bold uppercase tracking-[0.14em] text-ink-subtle">
+            Run Skills
+          </p>
+          <p className="mt-0.5 text-xs text-ink-muted">选择后会在本次运行开始前激活</p>
+        </div>
+        {selectedNames.length > 0 ? (
+          <span className="rounded-full bg-brand-muted/16 px-2 py-1 text-[0.68rem] font-semibold text-brand">
+            {selectedNames.length} 个已选
+          </span>
+        ) : null}
+      </div>
+      {loadState === 'loading' ? (
+        <div className="mt-2 flex gap-2" aria-label="Skill 加载中">
+          <span className="h-7 w-28 animate-pulse rounded-full bg-ink-subtle/10" />
+          <span className="h-7 w-20 animate-pulse rounded-full bg-ink-subtle/10" />
+        </div>
+      ) : loadState === 'failed' ? (
+        <button
+          type="button"
+          className="mt-2 text-xs font-semibold text-[#a63d3d] underline underline-offset-2"
+          onClick={onRetry}
+        >
+          Skill 加载失败，重新加载
+        </button>
+      ) : candidates.length === 0 ? (
+        <p className="mt-2 text-xs text-ink-subtle">
+          暂无已添加的可执行 Skill，可继续让模型使用普通工具。
+        </p>
+      ) : (
+        <div className="mt-2 flex flex-wrap gap-2" aria-label="选择本次运行的 Skill">
+          {candidates.map((skill) => {
+            const selected = selectedNames.includes(skill.name)
+            return (
+              <button
+                key={skill.id}
+                type="button"
+                disabled={disabled}
+                aria-pressed={selected}
+                title={skill.description}
+                onClick={() => onToggle(skill.name)}
+                className={cn(
+                  'rounded-full border px-2.5 py-1 text-xs font-semibold transition-colors focus-visible:outline-3 focus-visible:outline-brand-focus disabled:cursor-not-allowed disabled:opacity-45',
+                  selected
+                    ? 'border-brand bg-brand text-white'
+                    : 'border-line bg-surface text-ink-muted hover:border-brand/50 hover:text-ink',
+                )}
+              >
+                {skill.title}
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function SandboxToolActivityCard({
+  toolName,
+  subject,
+  detail,
+  result,
+  running,
+  isError,
+}: {
+  toolName: 'shell' | 'read_file' | 'write_file'
+  subject?: string | undefined
+  detail?: string | undefined
+  result?: SandboxToolResult | undefined
+  running: boolean
+  isError: boolean
+}) {
+  const state = resolveAgentToolActivityState({
+    running,
+    status: result?.status,
+    isError,
+    audit: result?.audit,
+  })
+  const exitCode = typeof result?.audit?.exitCode === 'number' ? result.audit.exitCode : undefined
+  const size = typeof result?.audit?.size === 'number' ? result.audit.size : undefined
+  return (
+    <div
+      className={cn(
+        'my-2 overflow-hidden rounded-xl border bg-surface text-sm',
+        toolStateClassName(state),
+      )}
+    >
+      <div className="flex flex-wrap items-center gap-2 border-b border-current/10 px-3 py-2">
+        <span className="font-mono text-xs font-bold">{toolName}</span>
+        <span className="rounded-full bg-current/8 px-2 py-0.5 text-[0.68rem] font-bold">
+          {AGENT_TOOL_ACTIVITY_LABELS[state]}
+        </span>
+        {exitCode !== undefined ? (
+          <span className="font-mono text-[0.7rem] opacity-70">exit {exitCode}</span>
+        ) : null}
+        {size !== undefined ? (
+          <span className="font-mono text-[0.7rem] opacity-70">{size} B</span>
+        ) : null}
+      </div>
+      <div className="space-y-1 px-3 py-2">
+        {subject ? (
+          <code className="block max-h-24 overflow-auto whitespace-pre-wrap break-all text-xs text-ink">
+            {subject}
+          </code>
+        ) : null}
+        {detail ? <p className="font-mono text-[0.68rem] text-ink-subtle">{detail}</p> : null}
+        {result?.summary ? <p className="text-xs text-ink-muted">{result.summary}</p> : null}
+      </div>
+    </div>
+  )
+}
+
+function toolStateClassName(state: AgentToolActivityState): string {
+  if (state === 'failed') return 'border-[#e3b3b3] text-[#a63d3d]'
+  if (state === 'cancelled') return 'border-ink-subtle/30 text-ink-subtle'
+  if (state === 'limit') return 'border-[#d7b56d] text-[#8b6418]'
+  if (state === 'success') return 'border-[#9dc7ae] text-[#2f7a4d]'
+  return 'border-brand/30 text-brand'
+}
 
 function AgentMessageMetadata() {
   const custom = useAuiState(({ message }) => message.metadata.custom) as AgentRunMetadataType

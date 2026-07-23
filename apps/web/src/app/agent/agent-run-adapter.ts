@@ -17,6 +17,7 @@ import type {
 export interface AgentRunAdapterContext {
   threadId: string | null
   model: string
+  selectedSkillNames: readonly string[]
   onThreadCreated: (thread: AgentThreadSummary) => void
   onRunCreated?: (run: { id: string; threadId: string }) => void
   onRunFinished?: () => void
@@ -61,7 +62,6 @@ export function createAgentRunAdapter(
 ): ChatModelAdapter {
   return {
     async *run({ messages, abortSignal }) {
-      
       const context = getContext()
       const input = latestUserText(messages)
       if (!input) return
@@ -74,7 +74,12 @@ export function createAgentRunAdapter(
         context.onThreadCreated(created)
       }
 
-      const run = await client.agent.runs.create(threadId, { input })
+      const run = await client.agent.runs.create(threadId, {
+        input,
+        ...(context.selectedSkillNames.length === 0
+          ? {}
+          : { skills: context.selectedSkillNames.map((name) => ({ name })) }),
+      })
       context.onRunCreated?.({ id: run.id, threadId })
       const metadata: AgentRunMetadata = { model: context.model, runId: run.id }
       const parts: MutablePart[] = []

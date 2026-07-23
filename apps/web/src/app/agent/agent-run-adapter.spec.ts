@@ -169,6 +169,7 @@ test('aborting local SSE does not call runs.cancel (browser disconnect must not 
   const adapter = createAgentRunAdapter(client, () => ({
     threadId: 'thread-1',
     model: 'mock',
+    selectedSkillNames: [],
     onThreadCreated: () => undefined,
   }))
 
@@ -199,18 +200,32 @@ test('aborting local SSE does not call runs.cancel (browser disconnect must not 
 
 test('waits for limit terminal after a context error and releases the active run', async () => {
   let finished = 0
+  let createInput: unknown
   const client = {
     agent: {
       runs: {
-        create: async () => ({ id: 'run-1', threadId: 'thread-1' }),
+        create: async (_threadId: string, input: unknown) => {
+          createInput = input
+          return { id: 'run-1', threadId: 'thread-1' }
+        },
         subscribe: async function* () {
           yield {
-            type: 'error', sequence: 0, runId: 'run-1',
-            error: { requestId: 'run-1', code: 'AGENT_CONTEXT_COMPRESSION_FAILED', message: '摘要失败', retryable: false },
+            type: 'error',
+            sequence: 0,
+            runId: 'run-1',
+            error: {
+              requestId: 'run-1',
+              code: 'AGENT_CONTEXT_COMPRESSION_FAILED',
+              message: '摘要失败',
+              retryable: false,
+            },
           } as const
           yield {
-            type: 'run-terminal', sequence: 1, runId: 'run-1',
-            status: 'limit_reached', limitReason: 'context_window',
+            type: 'run-terminal',
+            sequence: 1,
+            runId: 'run-1',
+            status: 'limit_reached',
+            limitReason: 'context_window',
           } as const
         },
       },
@@ -219,14 +234,22 @@ test('waits for limit terminal after a context error and releases the active run
   const adapter = createAgentRunAdapter(client, () => ({
     threadId: 'thread-1',
     model: 'qwen',
+    selectedSkillNames: ['mock-data-cleaner'],
     onThreadCreated: () => undefined,
-    onRunFinished: () => { finished += 1 },
+    onRunFinished: () => {
+      finished += 1
+    },
   }))
   const chunks: unknown[] = []
   for await (const chunk of adapter.run({
     messages: [{ role: 'user', content: [{ type: 'text', text: '继续' }] }],
     abortSignal: new AbortController().signal,
-  } as never) as AsyncGenerator<unknown>) chunks.push(chunk)
+  } as never) as AsyncGenerator<unknown>)
+    chunks.push(chunk)
+  assert.deepEqual(createInput, {
+    input: '继续',
+    skills: [{ name: 'mock-data-cleaner' }],
+  })
   assert.equal(finished, 1)
   assert.equal((chunks.at(-1) as { status: { type: string } }).status.type, 'incomplete')
 })

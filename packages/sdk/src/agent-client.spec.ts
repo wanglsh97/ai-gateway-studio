@@ -25,6 +25,16 @@ describe('AgentClient skills', () => {
           credentials: init?.credentials,
         })
         if (init?.method === 'DELETE') return new Response(null, { status: 204 })
+        if (String(input).endsWith('/skills/executable/candidates')) {
+          return Response.json([
+            {
+              id: 'skill-1',
+              name: 'mock-data-cleaner',
+              title: 'Mock Data Cleaner',
+              description: '清理数据',
+            },
+          ])
+        }
         const item = {
           id: 'deep-research',
           name: '深度研究',
@@ -40,16 +50,19 @@ describe('AgentClient skills', () => {
     })
 
     await client.agent.skills.list()
+    const candidates = await client.agent.skills.candidates()
     await client.agent.skills.install('deep/research')
     await client.agent.skills.update('deep-research', { enabled: false })
     await client.agent.skills.uninstall('deep-research')
 
     assert.equal(calls[0]?.url, '/api/v1/agent/skills')
-    assert.equal(calls[1]?.url, '/api/v1/agent/skills/deep%2Fresearch/install')
-    assert.equal(calls[1]?.method, 'PUT')
-    assert.equal(calls[2]?.method, 'PATCH')
-    assert.equal(calls[2]?.body, JSON.stringify({ enabled: false }))
-    assert.equal(calls[3]?.method, 'DELETE')
+    assert.equal(candidates[0]?.name, 'mock-data-cleaner')
+    assert.equal(calls[1]?.url, '/api/v1/agent/skills/executable/candidates')
+    assert.equal(calls[2]?.url, '/api/v1/agent/skills/deep%2Fresearch/install')
+    assert.equal(calls[2]?.method, 'PUT')
+    assert.equal(calls[3]?.method, 'PATCH')
+    assert.equal(calls[3]?.body, JSON.stringify({ enabled: false }))
+    assert.equal(calls[4]?.method, 'DELETE')
     assert.ok(calls.every((call) => call.credentials === 'same-origin'))
   })
 

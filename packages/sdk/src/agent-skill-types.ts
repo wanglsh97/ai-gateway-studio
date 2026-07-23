@@ -47,6 +47,14 @@ export interface SelectAgentSkill {
   name: string
 }
 
+/** 当前用户已添加且仍可用于新 Run 的最小选择器投影。 */
+export interface AgentSkillCandidate {
+  id: string
+  name: string
+  title: string
+  description: string
+}
+
 /**
  * @deprecated 现有内置 Skill API 的过渡契约；上传式市场迁移完成后使用
  * `AgentSkillMarketSummary` / `AgentSkillMarketDetail`。
