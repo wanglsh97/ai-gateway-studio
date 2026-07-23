@@ -18,6 +18,7 @@ import { AgentContextPreparer } from '../src/agent/context/agent-context-prepare
 import { AgentContextSummaryRepository } from '../src/agent/context/agent-context-summary.repository'
 import { AgentContextSummaryService } from '../src/agent/context/agent-context-summary.service'
 import { AgentPromptComposer } from '../src/agent/prompt/agent-prompt.composer'
+import type { AgentExecutionSessionService } from '../src/agent/sandbox/agent-execution-session.service'
 import { AgentRunEventBus } from '../src/agent/agent-run-event-bus'
 import { AgentRunRepository } from '../src/agent/agent-run.repository'
 import { AgentRunService } from '../src/agent/agent-run.service'
@@ -42,7 +43,9 @@ function fakeConfig(): ConfigService {
 }
 
 function buildModelInvocation(): ModelInvocationService {
-  const registry = new ChatAdapterRegistry([new MockChatAdapter({ chunks: ['未使用'], delayMs: 0 })])
+  const registry = new ChatAdapterRegistry([
+    new MockChatAdapter({ chunks: ['未使用'], delayMs: 0 }),
+  ])
   const catalog = new ChatModelCatalog(registry)
   const failover = { resolve: () => undefined } as unknown as ChatFailoverService
   const providerHealth = {
@@ -65,10 +68,13 @@ async function main(): Promise<void> {
   } as unknown as AgentActiveRunLock
   const promptComposer = new AgentPromptComposer(
     tools,
-    { list: () => [] },
+    { listForUser: async () => [] },
     { listServers: () => [] },
     { recall: async () => [] },
   )
+  const executionSessions = {
+    destroyRun: async () => undefined,
+  } as unknown as AgentExecutionSessionService
   const service = new AgentRunService(
     runs,
     messages,
@@ -82,6 +88,7 @@ async function main(): Promise<void> {
     new AgentContextPreparer(),
     new AgentContextSummaryRepository(prisma),
     new AgentContextSummaryService(),
+    executionSessions,
   )
 
   const user = await prisma.user.create({
@@ -108,6 +115,7 @@ async function main(): Promise<void> {
       provider: 'qwen',
       contextWindowTokens: 1_000_000,
       input,
+      selectedSkillNames: [],
       activeRunLockToken: 'agent-run-check',
     })
 
