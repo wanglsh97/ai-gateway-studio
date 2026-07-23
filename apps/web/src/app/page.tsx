@@ -6,118 +6,104 @@ import { cn } from '../lib/cn'
 const capabilities = [
   {
     name: 'Chat',
-    label: '实时对话',
-    description: '流式回答、模型切换与多路对比，在一次对话里看清差异。',
+    label: '与模型对话',
+    description: '在一个画布里流式交流、切换模型，也可以并排比较答案。',
     href: '/chat',
-    tone: 'brand' as const,
-    icon: '⌁',
+    icon: ChatIcon,
+    accent: 'from-[#2764ff] to-[#8b7cff]',
   },
   {
     name: 'Image',
-    label: '文生图',
-    description: '写下画面，选择模型，持续追踪从生成到下载的完整过程。',
+    label: '把文字变成画面',
+    description: '描述构图与风格，持续追踪生成进度，完成后直接下载。',
     href: '/image',
-    tone: 'coral' as const,
-    icon: '◇',
+    icon: ImageIcon,
+    accent: 'from-[#8b7cff] to-[#ef85c7]',
   },
   {
     name: 'Prompt',
-    label: '提示词优化',
-    description: '扩写、精简或结构化，让一个模糊念头变成可执行指令。',
+    label: '让指令更清晰',
+    description: '扩写、精简或结构化，把一个念头整理成可执行的 Prompt。',
     href: '/prompt',
-    tone: 'cyan' as const,
-    icon: '✦',
+    icon: PromptIcon,
+    accent: 'from-[#23a6b6] to-[#50d8c3]',
   },
 ]
-
-const providers = ['Qwen', 'GLM', 'DeepSeek']
 
 const focusRing =
   'focus-visible:outline-3 focus-visible:outline-brand focus-visible:outline-offset-4'
 
-const capabilityTone = {
-  brand: {
-    icon: 'bg-brand-subtle text-brand dark:bg-[#30264f] dark:text-brand-light',
-    name: 'text-brand',
-  },
-  coral: {
-    icon: 'bg-[#fceae5] text-[#d6523b] dark:bg-[#492820] dark:text-coral-light',
-    name: 'text-coral',
-  },
-  cyan: {
-    icon: 'bg-[#e1f3ef] text-cyan dark:bg-[#173a34] dark:text-cyan-light',
-    name: 'text-cyan dark:text-cyan-light',
-  },
-}
+function GatewayPrism() {
+  const models = [
+    { name: 'Qwen', detail: 'STREAM', color: 'bg-[#2764ff]' },
+    { name: 'GLM', detail: 'READY', color: 'bg-[#8b7cff]' },
+    { name: 'DeepSeek', detail: 'READY', color: 'bg-[#50d8c3]' },
+  ]
 
-function RouteMap() {
   return (
     <div
-      className="relative min-h-[33rem] overflow-hidden rounded-xl border border-console-border bg-console text-[#eaf0ff] shadow-[0_38px_90px_rgb(26_39_73/0.22)] max-sm:mx-[-0.25rem] max-sm:min-h-[29rem]"
-      aria-label="请求经过统一网关分发至多个模型的示意图"
+      className="liquid-glass relative min-h-[31rem] overflow-hidden rounded-[2.2rem] p-5 sm:p-7"
+      aria-label="请求经 AI Gateway 分发至多个模型"
     >
-      <div className="relative z-2 flex items-center justify-between border-b border-console-border px-4 py-4 font-mono text-[0.58rem] font-bold tracking-widest text-console-muted">
-        <div className="flex items-center gap-2 text-[#c3b9d3]">
-          <span className="size-1.5 animate-status-breathe rounded-full bg-mint shadow-[0_0_0_4px_rgb(83_214_189/0.1)]" />
+      <div className="pointer-events-none absolute -top-28 -right-24 size-72 rounded-full bg-[#8b7cff]/20 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-28 -left-16 size-72 rounded-full bg-[#50d8c3]/20 blur-3xl" />
+
+      <div className="relative z-1 flex items-center justify-between">
+        <span className="liquid-label flex items-center gap-2 text-[0.56rem]">
+          <i className="size-1.5 rounded-full bg-mint shadow-[0_0_0_5px_rgb(80_216_195/0.12)]" />
           Gateway online
-        </div>
-        <span>CN / EAST-1</span>
+        </span>
+        <span className="rounded-full border border-white/80 bg-white/55 px-3 py-1.5 font-mono text-[0.52rem] tracking-widest text-ink-muted shadow-sm">
+          CN · EAST
+        </span>
       </div>
 
-      <div className="relative z-1 grid min-h-[27rem] grid-cols-[1fr_7rem_1fr] grid-rows-[auto_1fr_auto] px-8 pt-12 pb-9 max-sm:min-h-[23rem] max-sm:grid-cols-[1fr_5rem_1fr] max-sm:px-4 max-sm:pt-8 max-sm:pb-5">
-        <div className="relative z-2 col-start-1 row-start-1 w-52 max-w-full self-start rounded-md border border-[#44395f] bg-[#201a31] p-4 max-sm:w-32">
-          <span className="mb-2.5 block font-mono text-[0.56rem] tracking-widest text-[#9387aa]">YOUR REQUEST</span>
-          <strong className="text-[0.82rem] font-semibold">
-            说出你的想法
-            <span className="ml-1 inline-block h-3.5 w-px animate-caret-blink bg-brand align-[-0.18rem]" aria-hidden="true" />
-          </strong>
+      <div className="relative z-1 mt-10 grid min-h-[22rem] grid-cols-[1fr_4.5rem_1fr] items-center gap-3 sm:grid-cols-[1fr_7rem_1fr]">
+        <div className="liquid-glass-soft self-start rounded-2xl p-4 sm:p-5">
+          <span className="liquid-label text-[0.5rem]">Your request</span>
+          <p className="mt-3 text-sm font-semibold text-ink sm:text-base">
+            帮我把想法
+            <br />
+            变成作品
+            <span className="ml-1 inline-block h-4 w-0.5 animate-caret-blink rounded bg-brand align-[-0.2rem]" />
+          </p>
         </div>
 
-        <svg className="pointer-events-none absolute inset-0 size-full overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-          <path d="M 41 20 H 50 V 32" fill="none" stroke="#493e61" strokeWidth="1" vectorEffect="non-scaling-stroke" />
-          <path d="M 50 50 V 74 H 60" fill="none" stroke="#493e61" strokeWidth="1" vectorEffect="non-scaling-stroke" />
-          <path d="M 60 62 V 86" fill="none" stroke="#493e61" strokeWidth="1" vectorEffect="non-scaling-stroke" />
-          <path d="M 60 62 H 64" fill="none" stroke="#493e61" strokeWidth="1" vectorEffect="non-scaling-stroke" />
-          <path d="M 60 74 H 64" fill="none" stroke="#493e61" strokeWidth="1" vectorEffect="non-scaling-stroke" />
-          <path d="M 60 86 H 64" fill="none" stroke="#493e61" strokeWidth="1" vectorEffect="non-scaling-stroke" />
-          <circle cx="41" cy="20" r="0.75" className="fill-brand drop-shadow-[0_0_2px_#9a86ff]" />
-          <circle cx="64" cy="62" r="0.75" className="fill-mint drop-shadow-[0_0_2px_#53d6bd]" />
-          <circle cx="64" cy="74" r="0.75" className="fill-coral drop-shadow-[0_0_2px_#ff896f]" />
-          <circle cx="64" cy="86" r="0.75" className="fill-brand drop-shadow-[0_0_2px_#9a86ff]" />
-        </svg>
-
-        <div className="relative z-2 col-start-2 row-start-2 flex flex-col items-center justify-center gap-2 self-center justify-self-center text-[0.62rem] text-[#95a2bd]">
-          <span className="grid size-[4.2rem] animate-gateway-float place-items-center rounded-[1.25rem] border border-brand-light bg-brand font-display text-lg text-white shadow-[0_0_0_8px_rgb(112_87_232/0.1),0_0_34px_rgb(112_87_232/0.34)] rotate-45">
-            <b className="-rotate-45 font-black">AG</b>
+        <div className="relative grid place-items-center">
+          <span className="absolute h-px w-[180%] liquid-spectrum opacity-40" />
+          <span className="absolute h-[180%] w-px liquid-spectrum opacity-30" />
+          <span className="liquid-glass relative grid size-[4.25rem] place-items-center rounded-[1.5rem] text-sm font-black text-brand shadow-[0_18px_40px_rgb(39_100_255/0.2)] sm:size-20">
+            AG
           </span>
-          <span>统一网关</span>
         </div>
 
-        <div className="relative z-2 col-start-3 row-start-3 flex w-44 max-w-full flex-col gap-2.5 self-end justify-self-end max-sm:w-32">
-          {providers.map((provider, index) => (
+        <div className="grid gap-2.5 self-end">
+          {models.map((model) => (
             <div
-              key={provider}
-              className="grid grid-cols-[auto_1fr_auto] items-center gap-2.5 rounded-md border border-[#403654] bg-[rgb(32_26_49/0.92)] px-3 py-3 font-mono text-[0.65rem] text-[#dce4f5]"
+              key={model.name}
+              className="liquid-glass-soft flex min-w-0 items-center gap-2 rounded-xl px-3 py-3"
             >
-              <span
-                className={cn(
-                  'size-1.5 rounded-full',
-                  index === 0 && 'bg-mint',
-                  index === 1 && 'bg-coral',
-                  index === 2 && 'bg-brand',
-                )}
-              />
-              <span>{provider}</span>
-              <small className="text-[0.54rem] text-[#9286a6]">{index === 0 ? '12ms' : index === 1 ? '18ms' : '24ms'}</small>
+              <span className={cn('size-1.5 shrink-0 rounded-full', model.color)} />
+              <strong className="min-w-0 flex-1 truncate text-[0.68rem] sm:text-xs">
+                {model.name}
+              </strong>
+              <small className="hidden font-mono text-[0.46rem] text-ink-subtle sm:block">
+                {model.detail}
+              </small>
             </div>
           ))}
         </div>
       </div>
 
-      <div className="relative z-2 flex border-t border-console-border px-4 py-4 font-mono text-[0.58rem] font-bold tracking-widest text-console-muted max-sm:gap-2">
-        <span className="before:text-brand before:content-['/ ']">统一协议</span>
-        <span className="before:text-brand before:content-['/ ']">流式响应</span>
-        <span className="before:text-brand before:content-['/ ']">费用可见</span>
+      <div className="relative z-1 mt-2 flex flex-wrap gap-2">
+        {['统一协议', '流式响应', '费用可见'].map((item) => (
+          <span
+            key={item}
+            className="rounded-full border border-white/70 bg-white/45 px-3 py-1.5 font-mono text-[0.52rem] text-ink-muted"
+          >
+            {item}
+          </span>
+        ))}
       </div>
     </div>
   )
@@ -125,127 +111,207 @@ function RouteMap() {
 
 export default function HomePage() {
   return (
-    <main className="overflow-hidden">
-      <section className="relative mx-auto grid max-w-[80rem] min-h-[calc(100svh-72px)] grid-cols-1 items-center gap-12 px-6 py-20 lg:grid-cols-[0.94fr_1.06fr] lg:gap-28 lg:px-10 lg:py-32 xl:min-h-[calc(100svh-72px)] before:hidden lg:before:absolute lg:before:top-[10%] lg:before:left-[48%] lg:before:h-[80%] lg:before:w-px lg:before:bg-linear-to-b lg:before:from-transparent lg:before:via-line lg:before:to-transparent">
-        <div className="max-w-[46rem]">
-          <p className="flex items-center gap-3 font-mono text-[0.66rem] font-bold tracking-[0.14em] text-ink-muted uppercase">
-            <span>AI 能力入口</span>
-            <span className="h-px w-10 bg-line" />
-            <span>稳定运行中</span>
+    <main className="relative overflow-hidden">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute top-24 -right-36 size-[30rem] animate-[liquid-drift_9s_ease-in-out_infinite] rounded-full bg-[#8b7cff]/10 blur-[80px]"
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute top-[35rem] -left-40 size-[28rem] animate-[liquid-drift_11s_ease-in-out_infinite_reverse] rounded-full bg-[#50d8c3]/12 blur-[90px]"
+      />
+
+      <section className="relative mx-auto grid min-h-[calc(100svh-72px)] max-w-[82rem] grid-cols-1 items-center gap-14 px-5 py-16 sm:px-8 lg:grid-cols-[0.92fr_1.08fr] lg:gap-20 lg:px-12 lg:py-24">
+        <div className="max-w-[43rem]">
+          <p className="liquid-label flex items-center gap-3">
+            <span className="h-px w-8 liquid-spectrum" />
+            AI 能力工作台
           </p>
-          <h1 className="mt-7 max-w-[46rem] font-display text-[clamp(3.55rem,6.8vw,6.75rem)] leading-[0.93] font-black tracking-[-0.075em] text-ink">
-            一个入口，
+          <h1 className="mt-7 font-display text-[clamp(3.4rem,6.7vw,6.6rem)] leading-[0.92] font-semibold tracking-[-0.07em] text-ink">
+            想法，穿过
             <br />
-            <span className="text-brand">调动每一种</span> AI。
+            <span className="bg-[linear-gradient(95deg,#2764ff_0%,#8b7cff_52%,#2bbba8_100%)] bg-clip-text text-transparent">
+              一层透明界面。
+            </span>
           </h1>
-          <p className="mt-8 max-w-[37rem] text-[clamp(1rem,1.4vw,1.16rem)] leading-relaxed text-ink-muted">
-            对话、图像与 Prompt 优化都从这里开始。你只需要描述目标，底层模型、流式传输和费用记录交给网关处理。
+          <p className="mt-8 max-w-[36rem] text-[clamp(1rem,1.35vw,1.16rem)] leading-[1.85] text-ink-muted">
+            对话、图像与 Prompt
+            优化聚合在同一个入口。你专注表达目标，模型选择、流式传输和费用记录由网关安静处理。
           </p>
 
-          <div className="mt-9 flex flex-col items-start gap-6 sm:flex-row sm:items-center">
+          <div className="mt-10 flex flex-col gap-3 sm:flex-row">
             <Link
               href="/chat"
               className={cn(
-                'inline-flex min-h-14 w-full items-center justify-between gap-10 rounded-md bg-ink px-5 py-0 text-sm font-bold text-surface shadow-[0_12px_30px_rgb(16_24_42/0.13)] transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-[0_17px_36px_rgb(16_24_42/0.2)] sm:w-auto sm:justify-start sm:pr-2 sm:pl-6',
+                'liquid-button inline-flex min-h-14 items-center justify-center gap-6 rounded-2xl px-6 text-sm font-bold transition-[transform,box-shadow] hover:-translate-y-0.5',
                 focusRing,
               )}
             >
-              <span>开始对话</span>
-              <span className="grid size-10 place-items-center rounded-md bg-brand text-lg text-white" aria-hidden="true">
+              开始对话
+              <span className="text-lg" aria-hidden="true">
                 ↗
               </span>
             </Link>
-            <a href="#integration" className={cn('inline-flex items-center gap-2.5 text-sm font-bold text-ink hover:text-brand', focusRing)}>
-              查看接入方式
+            <a
+              href="#capabilities"
+              className={cn(
+                'liquid-glass-soft inline-flex min-h-14 items-center justify-center gap-4 rounded-2xl px-6 text-sm font-bold text-ink-secondary transition-transform hover:-translate-y-0.5',
+                focusRing,
+              )}
+            >
+              浏览能力
               <span aria-hidden="true">↓</span>
             </a>
           </div>
 
-          <div className="mt-14 flex flex-wrap gap-x-5 gap-y-2.5 font-mono text-[0.65rem] tracking-wide text-ink-muted" aria-label="平台特点">
-            {['3 个文本模型', '2 个图像模型', '人民币费用估算'].map((item) => (
-              <span key={item} className="inline-flex items-center gap-2 before:size-[0.3rem] before:rounded-full before:bg-coral before:content-['']">
+          <div className="mt-12 flex flex-wrap gap-x-6 gap-y-3 text-xs text-ink-muted">
+            {['多模型接入', '结果实时返回', '人民币费用估算'].map((item) => (
+              <span key={item} className="flex items-center gap-2">
+                <i className="size-1 rounded-full bg-brand" />
                 {item}
               </span>
             ))}
           </div>
         </div>
 
-        <div className="max-w-[42rem] lg:max-w-none">
-          <RouteMap />
-          <p className="mt-4 text-right font-mono text-[0.63rem] text-ink-muted max-sm:text-left">
-            一次请求，从统一入口抵达合适的模型。
+        <GatewayPrism />
+      </section>
+
+      <section
+        id="capabilities"
+        className="relative mx-auto max-w-[82rem] px-5 py-24 sm:px-8 lg:px-12 lg:py-32"
+      >
+        <div className="grid items-end gap-6 lg:grid-cols-[1fr_0.8fr]">
+          <div>
+            <p className="liquid-label">Choose a surface</p>
+            <h2 className="mt-5 max-w-3xl font-display text-[clamp(2.5rem,5vw,4.8rem)] leading-[1.02] font-semibold tracking-[-0.055em]">
+              同一层玻璃，
+              <br />
+              映出三种工作方式。
+            </h2>
+          </div>
+          <p className="max-w-md pb-1 text-sm leading-7 text-ink-muted lg:justify-self-end">
+            每个入口共享统一模型网关，同时保留最适合当前任务的交互与反馈。
           </p>
+        </div>
+
+        <div className="mt-14 grid gap-4 lg:grid-cols-3">
+          {capabilities.map((capability) => {
+            const Icon = capability.icon
+            return (
+              <Link
+                key={capability.name}
+                href={capability.href}
+                className={cn(
+                  'liquid-glass group flex min-h-80 flex-col justify-between overflow-hidden rounded-[2rem] p-6 transition-[transform,box-shadow] hover:-translate-y-1 hover:shadow-[0_30px_80px_rgb(44_74_120/0.16)] sm:p-7',
+                  focusRing,
+                )}
+              >
+                <div className="relative z-1 flex items-start justify-between">
+                  <span
+                    className={cn(
+                      'grid size-12 place-items-center rounded-2xl bg-linear-to-br text-white shadow-lg',
+                      capability.accent,
+                    )}
+                  >
+                    <Icon />
+                  </span>
+                  <span className="grid size-10 place-items-center rounded-full border border-white/80 bg-white/50 text-ink-muted transition-transform group-hover:rotate-45">
+                    ↗
+                  </span>
+                </div>
+                <div className="relative z-1">
+                  <p className="liquid-label">{capability.name}</p>
+                  <h3 className="mt-3 text-2xl font-semibold tracking-[-0.03em]">
+                    {capability.label}
+                  </h3>
+                  <p className="mt-4 max-w-72 text-sm leading-7 text-ink-muted">
+                    {capability.description}
+                  </p>
+                </div>
+              </Link>
+            )
+          })}
         </div>
       </section>
 
       <IntegrationGuide />
 
-      <section id="capabilities" className="mx-auto max-w-[80rem] border-t border-line px-6 py-[7.5rem] lg:px-10">
-        <div className="grid grid-cols-1 items-start gap-12 lg:grid-cols-[0.7fr_1.3fr_1fr]">
-          <p className="font-mono text-[0.66rem] font-bold tracking-[0.14em] text-ink-muted uppercase">选择你的起点</p>
-          <h2 className="-mt-1 font-display text-[clamp(2.1rem,4vw,3.8rem)] leading-tight tracking-tight text-ink">
-            把想法交给合适的能力。
+      <section className="mx-auto max-w-[82rem] px-5 py-24 sm:px-8 lg:px-12 lg:py-32">
+        <div className="liquid-glass relative overflow-hidden rounded-[2.5rem] px-6 py-20 text-center sm:px-12">
+          <div className="pointer-events-none absolute inset-x-[15%] top-0 h-px liquid-spectrum" />
+          <p className="liquid-label">Ready when you are</p>
+          <h2 className="mx-auto mt-5 max-w-4xl font-display text-[clamp(2.5rem,5vw,5rem)] leading-[1.04] font-semibold tracking-[-0.06em]">
+            不必研究每一家模型。
+            <br />
+            先说你想完成什么。
           </h2>
-          <p className="max-w-[25rem] text-sm leading-relaxed text-ink-muted">
-            三个入口共享同一套模型网关，每一个都为具体任务保留最顺手的交互。
-          </p>
-        </div>
-
-        <div className="mt-16 overflow-hidden rounded-xl border border-line bg-line">
-          <div className="grid grid-cols-1 gap-px lg:grid-cols-3">
-            {capabilities.map((capability) => (
-              <Link
-                key={capability.name}
-                href={capability.href}
-                className={cn(
-                  'flex min-h-96 flex-col justify-between bg-surface p-6 transition-[background,transform,box-shadow] hover:relative hover:z-1 hover:-translate-y-1 hover:bg-surface-card hover:shadow-[0_22px_45px_rgb(35_48_78/0.12)] dark:hover:bg-surface-muted',
-                  focusRing,
-                )}
-              >
-                <div className="flex items-start justify-between">
-                  <span
-                    className={cn('grid size-12 place-items-center rounded-md text-2xl', capabilityTone[capability.tone].icon)}
-                    aria-hidden="true"
-                  >
-                    {capability.icon}
-                  </span>
-                  <span className="text-xl text-ink-muted transition-[transform,color] group-hover:translate-x-0.5" aria-hidden="true">
-                    ↗
-                  </span>
-                </div>
-                <div>
-                  <p className={cn('font-mono text-[0.62rem] font-extrabold tracking-widest uppercase', capabilityTone[capability.tone].name)}>
-                    {capability.name}
-                  </p>
-                  <h3 className="mt-3 text-2xl font-bold tracking-tight text-ink">{capability.label}</h3>
-                  <p className="mt-4 max-w-72 text-[0.82rem] leading-relaxed text-ink-muted">{capability.description}</p>
-                </div>
-              </Link>
-            ))}
-          </div>
+          <Link
+            href="/chat"
+            className={cn(
+              'liquid-button mt-10 inline-flex min-h-14 items-center gap-6 rounded-2xl px-7 text-sm font-bold',
+              focusRing,
+            )}
+          >
+            打开工作台 <span aria-hidden="true">→</span>
+          </Link>
         </div>
       </section>
 
-      <section className="grid place-items-center bg-brand px-6 py-[7.5rem] text-center text-white">
-        <p className="m-0 font-display text-[clamp(2.3rem,5vw,5.4rem)] leading-tight font-black tracking-tight">不必理解每一家模型。</p>
-        <p className="m-0 font-display text-[clamp(2.3rem,5vw,5.4rem)] leading-tight font-black tracking-tight text-[#d4ccff]">
-          只需选择你想完成的事。
-        </p>
-        <Link
-          href="/chat"
-          className={cn(
-            'mt-11 inline-flex items-center gap-8 border-b border-white/55 pb-1.5 text-sm font-bold',
-            focusRing,
-          )}
-        >
-          现在开始 <span aria-hidden="true">→</span>
-        </Link>
-      </section>
-
-      <footer className="mx-auto flex max-w-[80rem] flex-col justify-between gap-2 px-6 py-8 font-mono text-[0.62rem] tracking-wide text-ink-muted sm:flex-row lg:px-10">
+      <footer className="mx-auto flex max-w-[82rem] flex-col justify-between gap-2 border-t border-line-soft px-5 py-8 font-mono text-[0.6rem] tracking-wide text-ink-muted sm:flex-row sm:px-8 lg:px-12">
         <span>AI Gateway Studio</span>
-        <span>One interface. Many intelligences.</span>
+        <span>One clear surface. Many intelligences.</span>
       </footer>
     </main>
+  )
+}
+
+function ChatIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="size-5 fill-none stroke-current stroke-[1.8]"
+      aria-hidden="true"
+    >
+      <path
+        d="M5 18.5 3.5 21l3.8-1.2A8.5 8.5 0 1 0 5 18.5Z"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path d="M8 10h8M8 14h5" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function ImageIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="size-5 fill-none stroke-current stroke-[1.8]"
+      aria-hidden="true"
+    >
+      <rect x="3.5" y="4" width="17" height="16" rx="3" />
+      <circle cx="9" cy="9.5" r="1.5" />
+      <path d="m5.5 18 4.2-4.5 3 3 2.3-2.3 3.5 3.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+function PromptIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="size-5 fill-none stroke-current stroke-[1.8]"
+      aria-hidden="true"
+    >
+      <path
+        d="m12 3 1.4 4.1L17.5 8.5l-4.1 1.4L12 14l-1.4-4.1-4.1-1.4 4.1-1.4L12 3Z"
+        strokeLinejoin="round"
+      />
+      <path
+        d="m18.5 14 .8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8.8-2.2Z"
+        strokeLinejoin="round"
+      />
+    </svg>
   )
 }

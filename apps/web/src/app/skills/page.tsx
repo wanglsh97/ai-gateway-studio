@@ -96,10 +96,8 @@ export default function SkillsPage() {
     <main className="mx-auto max-w-[76rem] px-4 py-10 sm:px-6 md:px-10 md:py-16">
       <header className="grid gap-8 border-b border-line pb-9 lg:grid-cols-[1fr_auto] lg:items-end">
         <div>
-          <p className="font-mono text-[0.64rem] font-black tracking-[0.18em] text-brand">
-            OPEN SKILL REGISTRY
-          </p>
-          <h1 className="mt-3 text-[clamp(2.8rem,7vw,5.8rem)] leading-[0.88] font-black tracking-[-0.06em]">
+          <p className="liquid-label text-brand">OPEN SKILL REGISTRY</p>
+          <h1 className="mt-3 font-display text-[clamp(2.8rem,7vw,5.8rem)] leading-[0.9] font-semibold tracking-[-0.065em]">
             找到下一种
             <br />
             工作方式。
@@ -118,7 +116,7 @@ export default function SkillsPage() {
         </div>
       </header>
 
-      <section className="mt-7 grid gap-3 rounded-2xl border border-line bg-surface-card/70 p-3 md:grid-cols-[1fr_11rem_10rem_auto]">
+      <section className="liquid-glass-soft mt-7 grid gap-3 rounded-2xl p-3 md:grid-cols-[1fr_11rem_10rem_auto]">
         <input
           aria-label="搜索 Skill"
           value={keyword}
@@ -184,10 +182,10 @@ export default function SkillsPage() {
           {items.map((skill, index) => (
             <article
               key={skill.id}
-              className="group flex min-h-72 flex-col rounded-3xl border border-line bg-surface-card/76 p-5 transition hover:-translate-y-1 hover:border-brand/40 hover:shadow-xl"
+              className="liquid-glass group flex min-h-72 flex-col rounded-[1.7rem] p-5 transition hover:-translate-y-1 hover:border-brand/25 hover:shadow-[0_24px_60px_rgb(44_74_120/0.14)]"
             >
               <div className="flex items-start justify-between">
-                <span className="grid size-12 place-items-center rounded-2xl bg-[#24202e] font-mono text-xs font-black text-[#b8f3e0]">
+                <span className="grid size-12 place-items-center rounded-2xl bg-[linear-gradient(135deg,#2764ff,#8b7cff)] font-mono text-xs font-black text-white shadow-[0_10px_24px_rgb(39_100_255/0.2)]">
                   {String(index + 1).padStart(2, '0')}
                 </span>
                 <span className="font-mono text-[0.62rem] text-ink-faint">+{skill.addCount}</span>
@@ -262,8 +260,8 @@ export default function SkillsPage() {
 }
 
 const controlClass =
-  'min-h-11 rounded-xl border border-line bg-surface px-3 text-sm outline-none focus:border-brand focus:ring-3 focus:ring-brand-focus/20'
+  'min-h-11 rounded-xl border border-white/80 bg-white/55 px-3 text-sm outline-none focus:border-brand/40 focus:ring-3 focus:ring-brand-focus/10'
 const primaryButton =
-  'inline-flex min-h-10 items-center justify-center rounded-xl bg-brand px-4 text-xs font-bold text-white transition hover:bg-brand-hover disabled:opacity-50'
+  'liquid-button inline-flex min-h-10 items-center justify-center rounded-xl px-4 text-xs font-bold text-white transition hover:-translate-y-0.5 disabled:opacity-50'
 const secondaryButton =
-  'inline-flex min-h-10 items-center justify-center rounded-xl border border-line bg-surface px-4 text-xs font-bold text-ink-muted transition hover:border-brand/50 hover:text-brand disabled:opacity-40'
+  'liquid-glass-soft inline-flex min-h-10 items-center justify-center rounded-xl px-4 text-xs font-bold text-ink-muted transition hover:border-brand/30 hover:text-brand disabled:opacity-40'

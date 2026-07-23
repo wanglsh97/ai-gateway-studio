@@ -20,7 +20,7 @@ const focusRing =
   'focus-visible:outline-3 focus-visible:outline-brand-focus focus-visible:outline-offset-3'
 
 const shellIconButtonClass =
-  'grid size-9 shrink-0 place-items-center rounded-xl border border-line text-ink-muted transition-[background,color] hover:bg-surface-inset hover:text-brand-hover dark:hover:text-ink [&_svg]:size-4'
+  'liquid-glass-soft grid size-9 shrink-0 place-items-center rounded-xl text-ink-muted transition-[background,color,transform] hover:-translate-y-0.5 hover:text-brand-hover dark:hover:text-ink [&_svg]:size-4'
 
 const navigation = [
   { href: '/chat', label: '聊天', description: '与模型实时对话', icon: ChatIcon },
@@ -78,8 +78,8 @@ function UserWorkspace({ children }: Readonly<{ children: ReactNode }>) {
   }
 
   return (
-    <div className="min-h-screen">
-      <header className="sticky top-0 z-50 flex h-[4.5rem] items-center justify-between border-b border-line bg-surface/88 px-4 backdrop-blur-lg md:hidden dark:bg-surface/88">
+    <div className="relative min-h-screen">
+      <header className="liquid-glass sticky top-0 z-50 flex h-[4.5rem] items-center justify-between border-x-0 border-t-0 px-4 md:hidden">
         <Brand />
         <button
           type="button"
@@ -103,7 +103,7 @@ function UserWorkspace({ children }: Readonly<{ children: ReactNode }>) {
 
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-[60] flex flex-col border-r border-line bg-[rgb(249_248_252/0.94)] p-4 backdrop-blur-xl transition-[width,transform] duration-200 dark:bg-[rgb(17_14_26/0.95)]',
+          'liquid-glass fixed inset-y-0 left-0 z-[60] flex flex-col rounded-r-[2rem] border-y-0 border-l-0 p-4 transition-[width,transform] duration-200',
           collapsed ? 'w-[5.25rem]' : 'w-[17rem]',
           'max-md:w-[min(18rem,86vw)] max-md:-translate-x-[105%]',
           mobileOpen && 'max-md:translate-x-0',
@@ -182,7 +182,13 @@ function UserWorkspace({ children }: Readonly<{ children: ReactNode }>) {
           })}
         </nav>
 
-        <div className={cn('relative grid gap-3 border-t border-line-soft pt-4', collapsed && 'justify-items-center')} ref={userMenuRef}>
+        <div
+          className={cn(
+            'relative grid gap-3 border-t border-line-soft pt-4',
+            collapsed && 'justify-items-center',
+          )}
+          ref={userMenuRef}
+        >
           {session.status === 'authenticated' && session.user ? (
             <>
               {userMenuOpen && (
@@ -190,7 +196,7 @@ function UserWorkspace({ children }: Readonly<{ children: ReactNode }>) {
                   role="menu"
                   aria-label="用户菜单"
                   className={cn(
-                    'absolute bottom-[calc(100%+0.75rem)] left-0 grid w-full min-w-[13.5rem] gap-0.5 rounded-2xl border border-line bg-surface-overlay p-1.5 shadow-[0_18px_45px_rgb(32_24_50/0.16)] dark:border-line-soft dark:bg-surface-overlay',
+                    'liquid-glass absolute bottom-[calc(100%+0.75rem)] left-0 grid w-full min-w-[13.5rem] gap-0.5 rounded-2xl p-1.5',
                     collapsed && '-left-1.5',
                   )}
                 >
@@ -210,7 +216,10 @@ function UserWorkspace({ children }: Readonly<{ children: ReactNode }>) {
                     role="menuitem"
                     disabled={loggingOut}
                     onClick={() => void logout()}
-                    className={cn(menuItemClass, 'text-[#b54b3c] hover:bg-[#fbeae6] hover:text-[#a63c2e] dark:hover:bg-[#442a2c] dark:hover:text-[#ff9d8e]')}
+                    className={cn(
+                      menuItemClass,
+                      'text-[#b54b3c] hover:bg-[#fbeae6] hover:text-[#a63c2e] dark:hover:bg-[#442a2c] dark:hover:text-[#ff9d8e]',
+                    )}
                   >
                     <LogoutIcon />
                     <span>{loggingOut ? '正在退出…' : '退出登录'}</span>
@@ -236,7 +245,9 @@ function UserWorkspace({ children }: Readonly<{ children: ReactNode }>) {
                 {!collapsed && (
                   <>
                     <div className="min-w-0 flex-1">
-                      <strong className="block truncate text-sm">{session.user.githubUsername}</strong>
+                      <strong className="block truncate text-sm">
+                        {session.user.githubUsername}
+                      </strong>
                       <span className="mt-0.5 block text-[0.66rem] text-ink-faint">账户与设置</span>
                     </div>
                     <ChevronIcon className="size-4 shrink-0 text-ink-faint" />
@@ -256,9 +267,14 @@ function UserWorkspace({ children }: Readonly<{ children: ReactNode }>) {
               {!collapsed && <span>使用 GitHub 登录</span>}
             </Link>
           ) : (
-            <div className="flex w-full items-center gap-3 rounded-xl p-1.5" aria-label="正在加载用户信息">
+            <div
+              className="flex w-full items-center gap-3 rounded-xl p-1.5"
+              aria-label="正在加载用户信息"
+            >
               <span className="grid size-10 animate-pulse rounded-full bg-surface-inset" />
-              {!collapsed && <span className="h-3 w-24 animate-pulse rounded bg-line dark:bg-white/10" />}
+              {!collapsed && (
+                <span className="h-3 w-24 animate-pulse rounded bg-line dark:bg-white/10" />
+              )}
             </div>
           )}
         </div>
@@ -300,19 +316,26 @@ function SidebarNavLink({
       aria-current={active ? 'page' : undefined}
       title={collapsed ? label : undefined}
       className={cn(
-        'relative flex min-h-[3.65rem] items-center gap-3 rounded-xl px-3 py-2 text-ink-muted transition-[background,color,transform] hover:bg-surface-inset hover:text-ink-secondary hover:translate-x-0.5 dark:hover:bg-surface-inset dark:hover:text-ink',
-        active && 'bg-brand-muted text-brand-hover dark:bg-[#29203f] dark:text-brand-light',
-        collapsed && 'justify-center px-2 hover:translate-x-0 hover:bg-transparent dark:hover:bg-transparent',
-        collapsed && !active && 'hover:[&_.nav-icon]:bg-brand-subtle hover:[&_.nav-icon]:text-brand-hover hover:[&_.nav-icon]:-translate-y-0.5 hover:[&_.nav-icon]:shadow-[0_7px_16px_rgb(77_56_184/0.15)] dark:hover:[&_.nav-icon]:bg-brand-muted dark:hover:[&_.nav-icon]:text-brand-light',
+        'relative flex min-h-[3.65rem] items-center gap-3 rounded-2xl px-3 py-2 text-ink-muted transition-[background,color,transform,box-shadow] hover:bg-white/55 hover:text-ink-secondary hover:translate-x-0.5 dark:hover:bg-surface-inset dark:hover:text-ink',
+        active &&
+          'border border-white/80 bg-white/68 text-brand-hover shadow-[0_10px_28px_rgb(39_100_255/0.1)] dark:border-white/8 dark:bg-brand-muted dark:text-brand-light',
+        collapsed &&
+          'justify-center px-2 hover:translate-x-0 hover:bg-transparent dark:hover:bg-transparent',
+        collapsed &&
+          !active &&
+          'hover:[&_.nav-icon]:bg-brand-subtle hover:[&_.nav-icon]:text-brand-hover hover:[&_.nav-icon]:-translate-y-0.5 hover:[&_.nav-icon]:shadow-[0_7px_16px_rgb(77_56_184/0.15)] dark:hover:[&_.nav-icon]:bg-brand-muted dark:hover:[&_.nav-icon]:text-brand-light',
         focusRing,
       )}
     >
       {active && !collapsed && (
-        <span className="absolute -left-1.5 h-[1.65rem] w-0.5 rounded-full bg-brand" aria-hidden="true" />
+        <span
+          className="absolute -left-1.5 h-[1.65rem] w-0.5 rounded-full bg-brand"
+          aria-hidden="true"
+        />
       )}
       <span
         className={cn(
-          'nav-icon grid size-9 shrink-0 place-items-center rounded-xl bg-surface-card/70 shadow-[inset_0_0_0_1px_rgb(112_87_232/0.08)] transition-[background,color,box-shadow,transform] dark:bg-white/[0.045] dark:shadow-[inset_0_0_0_1px_rgb(255_255_255/0.05)] [&_svg]:size-[1.15rem]',
+          'nav-icon grid size-9 shrink-0 place-items-center rounded-xl bg-white/52 shadow-[inset_0_1px_0_rgb(255_255_255/0.9),0_6px_18px_rgb(44_74_120/0.06)] transition-[background,color,box-shadow,transform] dark:bg-white/[0.045] dark:shadow-[inset_0_0_0_1px_rgb(255_255_255/0.05)] [&_svg]:size-[1.15rem]',
         )}
       >
         <Icon />
@@ -322,7 +345,9 @@ function SidebarNavLink({
           <strong className="block text-[0.84rem] font-bold text-ink-secondary dark:text-[#eee9f8]">
             {label}
           </strong>
-          <small className="mt-0.5 block text-[0.65rem] text-ink-faint dark:text-[#91889f]">{description}</small>
+          <small className="mt-0.5 block text-[0.65rem] text-ink-faint dark:text-[#91889f]">
+            {description}
+          </small>
         </span>
       )}
     </Link>
@@ -405,7 +430,10 @@ function AgentThreadLinks() {
   }
 
   return (
-    <div className="mb-1 ml-3 flex flex-col gap-0.5 border-l border-line pl-3 dark:border-line-soft" aria-label="Agent 会话">
+    <div
+      className="mb-1 ml-3 flex flex-col gap-0.5 border-l border-line pl-3 dark:border-line-soft"
+      aria-label="Agent 会话"
+    >
       <Link
         href="/agent"
         className="block w-full rounded-lg border border-dashed border-line px-2.5 py-2 text-left text-[0.78rem] font-semibold text-ink-secondary transition-colors hover:border-brand hover:bg-brand/6 hover:text-ink-secondary dark:border-line-soft dark:text-ink-dark-muted dark:hover:text-ink"
@@ -414,9 +442,13 @@ function AgentThreadLinks() {
       </Link>
       {listError ? <p className="mx-1 text-[0.72rem] text-ink-subtle">{listError}</p> : null}
       {actionError ? <p className="mx-1 text-[0.72rem] text-danger">{actionError}</p> : null}
-      {loading && threads.length === 0 ? <p className="mx-1 text-[0.72rem] text-ink-subtle">加载会话…</p> : null}
+      {loading && threads.length === 0 ? (
+        <p className="mx-1 text-[0.72rem] text-ink-subtle">加载会话…</p>
+      ) : null}
       {!loading && !listError && threads.length === 0 ? (
-        <p className="mx-1 text-[0.72rem] text-ink-subtle">还没有会话，发送第一条任务后会出现在这里。</p>
+        <p className="mx-1 text-[0.72rem] text-ink-subtle">
+          还没有会话，发送第一条任务后会出现在这里。
+        </p>
       ) : null}
       <ul className="m-0 flex list-none flex-col gap-0.5 p-0">
         {threads.map((thread) => {
@@ -424,7 +456,10 @@ function AgentThreadLinks() {
           const isActive = thread.id === activeThreadId
           const isRenaming = renamingId === thread.id
           return (
-            <li key={thread.id} className="group grid grid-cols-[minmax(0,1fr)_auto] items-center gap-0.5">
+            <li
+              key={thread.id}
+              className="group grid grid-cols-[minmax(0,1fr)_auto] items-center gap-0.5"
+            >
               {isRenaming ? (
                 <form
                   className="col-span-2 flex items-center gap-0.5"
@@ -446,7 +481,12 @@ function AgentThreadLinks() {
                   <button type="submit" className={threadActionClass} disabled={busy}>
                     保存
                   </button>
-                  <button type="button" className={threadActionClass} disabled={busy} onClick={() => setRenamingId(null)}>
+                  <button
+                    type="button"
+                    className={threadActionClass}
+                    disabled={busy}
+                    onClick={() => setRenamingId(null)}
+                  >
                     取消
                   </button>
                 </form>
@@ -480,7 +520,10 @@ function AgentThreadLinks() {
                     </button>
                     <button
                       type="button"
-                      className={cn(threadActionClass, 'hover:bg-danger/12 hover:text-danger dark:hover:text-ink')}
+                      className={cn(
+                        threadActionClass,
+                        'hover:bg-danger/12 hover:text-danger dark:hover:text-ink',
+                      )}
                       title="删除"
                       aria-label={`删除「${thread.title}」`}
                       disabled={busy}
@@ -500,21 +543,33 @@ function AgentThreadLinks() {
       </ul>
 
       {pendingDelete ? (
-        <div className="fixed inset-0 z-[80] grid place-items-center bg-[rgb(15_10_25/0.45)] p-4" role="presentation">
+        <div
+          className="fixed inset-0 z-[80] grid place-items-center bg-[rgb(15_10_25/0.45)] p-4"
+          role="presentation"
+        >
           <div
             role="dialog"
             aria-modal="true"
             aria-labelledby="agent-delete-title"
             className="w-full max-w-sm rounded-2xl bg-surface-card p-4.5 shadow-[0_18px_40px_rgb(15_10_25/0.22)] dark:shadow-[0_18px_40px_rgb(0_0_0/0.45)]"
           >
-            <h3 id="agent-delete-title" className="mb-2 text-base font-bold text-ink-secondary dark:text-ink">
+            <h3
+              id="agent-delete-title"
+              className="mb-2 text-base font-bold text-ink-secondary dark:text-ink"
+            >
               确认删除会话
             </h3>
             <p className="text-[0.84rem] leading-relaxed text-ink-secondary dark:text-ink-dark-muted">
-              将永久删除「{pendingDelete.title}」及其消息、运行与工具记录。请求日志与账单记录会保留。此操作不可恢复。
+              将永久删除「{pendingDelete.title}
+              」及其消息、运行与工具记录。请求日志与账单记录会保留。此操作不可恢复。
             </p>
             <div className="mt-4 flex justify-end gap-2">
-              <button type="button" className={confirmActionClass} disabled={busy} onClick={() => setPendingDelete(null)}>
+              <button
+                type="button"
+                className={confirmActionClass}
+                disabled={busy}
+                onClick={() => setPendingDelete(null)}
+              >
                 取消
               </button>
               <button
@@ -547,7 +602,11 @@ function Brand({ compact = false }: Readonly<{ compact?: boolean }>) {
       className={cn('inline-flex min-w-0 items-center gap-3 rounded-xl', focusRing)}
     >
       <LogoMark />
-      {!compact && <span className="truncate text-base font-bold tracking-tight text-ink dark:text-white">AI Gateway</span>}
+      {!compact && (
+        <span className="truncate font-display text-base font-semibold tracking-[-0.03em] text-ink dark:text-white">
+          AI Gateway
+        </span>
+      )}
     </Link>
   )
 }
@@ -556,7 +615,7 @@ function LogoMark({ className }: Readonly<{ className?: string }>) {
   return (
     <span
       className={cn(
-        'grid size-10 rotate-45 place-items-center rounded-xl bg-brand shadow-[0_8px_20px_rgb(112_87_232/0.25)]',
+        'grid size-10 rotate-45 place-items-center rounded-[0.9rem] border border-white/50 bg-[linear-gradient(135deg,#2764ff,#8b7cff)] shadow-[inset_0_1px_0_rgb(255_255_255/0.35),0_10px_24px_rgb(39_100_255/0.24)]',
         className,
       )}
     >
@@ -579,7 +638,13 @@ function UserAvatar({
   return (
     <span className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-full bg-brand-muted text-brand-hover text-xs font-extrabold dark:text-brand-light [&_svg]:size-4">
       {typeof label === 'string' && avatarUrl && !avatarFailed ? (
-        <img src={avatarUrl} alt="" referrerPolicy="no-referrer" className="size-full object-cover" onError={onAvatarError} />
+        <img
+          src={avatarUrl}
+          alt=""
+          referrerPolicy="no-referrer"
+          className="size-full object-cover"
+          onError={onAvatarError}
+        />
       ) : (
         label
       )}
@@ -685,10 +750,16 @@ function ChevronIcon({ className }: Readonly<{ className?: string }>) {
     </Icon>
   )
 }
-function CollapseIcon({ collapsed, className }: Readonly<{ collapsed: boolean; className?: string }>) {
+function CollapseIcon({
+  collapsed,
+  className,
+}: Readonly<{ collapsed: boolean; className?: string }>) {
   return (
     <Icon className={cn(className)}>
-      <path d="M9 4H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h4M14 8l-4 4 4 4M10 12h11" className={collapsed ? 'origin-center rotate-180' : ''} />
+      <path
+        d="M9 4H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h4M14 8l-4 4 4 4M10 12h11"
+        className={collapsed ? 'origin-center rotate-180' : ''}
+      />
     </Icon>
   )
 }

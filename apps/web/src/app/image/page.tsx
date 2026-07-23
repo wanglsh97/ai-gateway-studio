@@ -150,25 +150,33 @@ function ImageContent() {
   }
 
   return (
-    <main className="px-5 py-8 sm:px-8 sm:py-12 lg:px-10">
-      <div className="mx-auto max-w-5xl">
-        <header>
-          <p className="text-xs font-bold tracking-[0.2em] text-violet-700 dark:text-violet-300">
-            IMAGE GENERATION
+    <main className="relative overflow-hidden px-5 py-10 sm:px-8 sm:py-16 lg:px-12">
+      <div className="pointer-events-none absolute top-12 -right-28 size-80 rounded-full bg-[#8b7cff]/14 blur-[75px]" />
+      <div className="mx-auto max-w-6xl">
+        <header className="max-w-3xl">
+          <p className="liquid-label flex items-center gap-3">
+            <span className="h-px w-8 bg-linear-to-r from-[#8b7cff] to-[#ef85c7]" />
+            Image studio
           </p>
-          <h1 className="mt-3 text-4xl font-semibold tracking-tight sm:text-5xl">文生图</h1>
-          <p className="mt-3 max-w-2xl text-slate-600 dark:text-slate-400">
-            用中文或英文描述画面，选择已启用模型和受支持的生成参数。
+          <h1 className="mt-5 font-display text-[clamp(3rem,6vw,5.5rem)] leading-[0.98] font-semibold tracking-[-0.06em]">
+            用一句描述，
+            <br />
+            <span className="bg-linear-to-r from-[#8b7cff] to-[#ef85c7] bg-clip-text text-transparent">
+              让画面浮出水面。
+            </span>
+          </h1>
+          <p className="mt-5 max-w-2xl text-sm leading-7 text-ink-muted">
+            描述主体、环境与风格，选择已启用的模型和尺寸，然后等待作品生成。
           </p>
         </header>
 
-        <section className="mt-7 grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(18rem,0.85fr)]">
+        <section className="mt-10 grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(18rem,0.85fr)]">
           <form
             onSubmit={(event) => {
               event.preventDefault()
               void submit()
             }}
-            className="rounded-3xl border border-slate-200/80 bg-white/80 p-5 shadow-xl shadow-slate-900/5 sm:p-7 dark:border-white/10 dark:bg-white/5"
+            className="liquid-glass rounded-[2rem] p-5 sm:p-8"
           >
             <label className="block text-sm font-semibold" htmlFor="image-prompt">
               Prompt
@@ -181,7 +189,7 @@ function ImageContent() {
               maxLength={4000}
               rows={8}
               placeholder="描述主体、环境、构图、光线和风格…"
-              className="mt-2 w-full resize-y rounded-2xl border border-slate-200 bg-transparent p-4 text-sm leading-7 outline-none focus:border-violet-400 dark:border-white/10"
+              className="relative z-1 mt-3 w-full resize-y rounded-2xl border border-white/80 bg-white/45 p-5 text-sm leading-7 outline-none shadow-[inset_0_1px_2px_rgb(70_94_130/0.06)] transition-[border-color,box-shadow] placeholder:text-ink-subtle focus:border-brand/35 focus:shadow-[0_0_0_4px_rgb(39_100_255/0.06)] dark:border-white/10 dark:bg-white/5"
             />
             <div className="mt-3 flex flex-wrap gap-2">
               {examples.map((example) => (
@@ -190,7 +198,7 @@ function ImageContent() {
                   type="button"
                   disabled={active}
                   onClick={() => setPrompt(example)}
-                  className="rounded-full border border-slate-200 px-3 py-2 text-left text-xs dark:border-white/10"
+                  className="liquid-glass-soft relative z-1 rounded-full px-3.5 py-2 text-left text-xs text-ink-muted transition-[color,transform] hover:-translate-y-0.5 hover:text-brand dark:border-white/10"
                 >
                   {example}
                 </button>
@@ -212,7 +220,7 @@ function ImageContent() {
               <button
                 type="button"
                 onClick={cancelPolling}
-                className="mt-6 min-h-11 w-full rounded-xl border border-rose-300 px-5 font-semibold text-rose-600"
+                className="relative z-1 mt-6 min-h-12 w-full rounded-2xl border border-rose-300/70 bg-white/45 px-5 font-semibold text-rose-600"
               >
                 停止等待
               </button>
@@ -220,7 +228,7 @@ function ImageContent() {
               <button
                 type="submit"
                 disabled={!prompt.trim() || !available}
-                className="mt-6 min-h-11 w-full rounded-xl bg-slate-950 px-5 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40 dark:bg-white dark:text-slate-950"
+                className="liquid-button relative z-1 mt-6 min-h-12 w-full rounded-2xl px-5 font-semibold transition-[transform,box-shadow] hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40 disabled:transform-none"
               >
                 {loadingModels ? '加载模型中…' : '生成图片'}
               </button>
@@ -229,7 +237,7 @@ function ImageContent() {
             <TaskStatus task={task} pageStatus={pageStatus} error={taskError} />
           </form>
 
-          <aside className="h-fit rounded-3xl border border-slate-200/80 bg-white/70 p-5 sm:p-6 dark:border-white/10 dark:bg-white/5">
+          <aside className="liquid-glass-soft h-fit rounded-[2rem] p-5 sm:p-7">
             <h2 className="font-semibold">生成设置</h2>
             <div className="mt-5 space-y-5">
               <Field label="模型">
@@ -237,7 +245,7 @@ function ImageContent() {
                   value={model}
                   disabled={!available || active}
                   onChange={(event) => changeModel(event.target.value as ImageModelAlias)}
-                  className="mt-2 min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 dark:border-white/10 dark:bg-slate-900"
+                  className="mt-2 min-h-11 w-full rounded-xl border border-white/80 bg-white/55 px-3 outline-none focus:border-brand/30 dark:border-white/10 dark:bg-slate-900"
                 >
                   {models.map((item) => (
                     <option key={item.alias} value={item.alias}>
@@ -251,7 +259,7 @@ function ImageContent() {
                   value={size}
                   disabled={!available || active}
                   onChange={(event) => setSize(event.target.value)}
-                  className="mt-2 min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 dark:border-white/10 dark:bg-slate-900"
+                  className="mt-2 min-h-11 w-full rounded-xl border border-white/80 bg-white/55 px-3 outline-none focus:border-brand/30 dark:border-white/10 dark:bg-slate-900"
                 >
                   {IMAGE_SIZE_OPTIONS[model].map((option) => (
                     <option key={option.value} value={option.value}>
@@ -265,7 +273,7 @@ function ImageContent() {
                   value={count}
                   disabled={!available || active}
                   onChange={(event) => setCount(Number(event.target.value))}
-                  className="mt-2 min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 dark:border-white/10 dark:bg-slate-900"
+                  className="mt-2 min-h-11 w-full rounded-xl border border-white/80 bg-white/55 px-3 outline-none focus:border-brand/30 dark:border-white/10 dark:bg-slate-900"
                 >
                   {Array.from({ length: maxImageCount(model) }, (_, index) => index + 1).map(
                     (value) => (
@@ -277,7 +285,7 @@ function ImageContent() {
                 </select>
               </Field>
             </div>
-            <p className="mt-6 rounded-2xl bg-violet-50 p-4 text-xs leading-6 text-violet-800 dark:bg-violet-950/30 dark:text-violet-200">
+            <p className="mt-6 rounded-2xl border border-[#8b7cff]/12 bg-[#8b7cff]/7 p-4 text-xs leading-6 text-ink-muted dark:bg-violet-950/30 dark:text-violet-200">
               V1 用于技术流程验证，正式公开真实文生图前仍需补充独立的输入与图片内容审核。
             </p>
           </aside>
@@ -287,9 +295,7 @@ function ImageContent() {
           <section className="mt-7" aria-labelledby="image-results-title">
             <div className="flex items-end justify-between gap-4">
               <div>
-                <p className="text-xs font-bold tracking-[0.18em] text-violet-700 dark:text-violet-300">
-                  RESULTS
-                </p>
+                <p className="liquid-label">RESULTS</p>
                 <h2 id="image-results-title" className="mt-2 text-2xl font-semibold">
                   生成结果
                 </h2>
@@ -300,7 +306,7 @@ function ImageContent() {
               {results.map((result) => (
                 <article
                   key={result.index}
-                  className="overflow-hidden rounded-2xl border border-slate-200 bg-white/80 dark:border-white/10 dark:bg-white/5"
+                  className="liquid-glass overflow-hidden rounded-[1.6rem]"
                 >
                   <a
                     href={result.url}
@@ -324,7 +330,7 @@ function ImageContent() {
                     <a
                       href={result.url}
                       download
-                      className="rounded-lg border border-slate-200 px-3 py-2 font-semibold dark:border-white/10"
+                      className="liquid-glass-soft relative z-1 rounded-xl px-3 py-2 font-semibold"
                     >
                       下载
                     </a>
@@ -346,7 +352,7 @@ function ImageContent() {
                 return (
                   <article
                     key={entry.task.taskId}
-                    className="overflow-hidden rounded-2xl border border-slate-200 bg-white/75 dark:border-white/10 dark:bg-white/5"
+                    className="liquid-glass-soft overflow-hidden rounded-[1.4rem]"
                   >
                     {thumbnail ? (
                       <img
@@ -401,7 +407,10 @@ function TaskStatus({
                   ? '图片生成完成。'
                   : task?.error?.message || '图片生成失败。'
   return (
-    <section aria-live="polite" className="mt-5 rounded-2xl bg-slate-100 p-4 dark:bg-white/5">
+    <section
+      aria-live="polite"
+      className="relative z-1 mt-5 rounded-2xl border border-white/70 bg-white/38 p-4 dark:bg-white/5"
+    >
       <p className="text-sm font-semibold">{status}</p>
       {task && <p className="mt-2 break-all text-xs text-slate-500">Task ID：{task.taskId}</p>}
     </section>
@@ -410,7 +419,7 @@ function TaskStatus({
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <label className="block text-sm font-medium text-slate-700 dark:text-slate-200">
+    <label className="block text-sm font-medium text-ink-secondary dark:text-slate-200">
       {label}
       {children}
     </label>

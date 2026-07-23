@@ -45,11 +45,36 @@ for await (const event of gateway.chat.stream({
 }
 
 const endpoints = [
-  { method: 'POST', path: '/api/v1/chat/completions', name: '流式对话', detail: 'SSE · 以 data: [DONE] 结束' },
-  { method: 'POST', path: '/api/v1/images/generations', name: '创建图片任务', detail: 'JSON · 返回平台 taskId' },
-  { method: 'GET', path: '/api/v1/images/generations/:taskId', name: '查询图片任务', detail: 'JSON · 支持轮询终态' },
-  { method: 'POST', path: '/api/v1/prompts/optimize', name: '优化 Prompt', detail: 'JSON · expand / simplify / structure' },
-  { method: 'GET', path: '/api/v1/models', name: '模型列表', detail: 'JSON · 别名、能力与健康状态' },
+  {
+    method: 'POST',
+    path: '/api/v1/chat/completions',
+    name: '流式对话',
+    detail: 'SSE · 以 data: [DONE] 结束',
+  },
+  {
+    method: 'POST',
+    path: '/api/v1/images/generations',
+    name: '创建图片任务',
+    detail: 'JSON · 返回平台 taskId',
+  },
+  {
+    method: 'GET',
+    path: '/api/v1/images/generations/:taskId',
+    name: '查询图片任务',
+    detail: 'JSON · 支持轮询终态',
+  },
+  {
+    method: 'POST',
+    path: '/api/v1/prompts/optimize',
+    name: '优化 Prompt',
+    detail: 'JSON · expand / simplify / structure',
+  },
+  {
+    method: 'GET',
+    path: '/api/v1/models',
+    name: '模型列表',
+    detail: 'JSON · 别名、能力与健康状态',
+  },
 ]
 
 const methodTone = {
@@ -75,10 +100,8 @@ export default function ApiPage() {
   return (
     <main className="mx-auto max-w-[76rem] px-5 py-12 md:px-14 md:py-[6.5rem]">
       <header className="grid grid-cols-1 items-end gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.7fr)] lg:gap-16">
-        <p className="col-span-full mb-4 font-mono text-[0.65rem] font-extrabold tracking-[0.16em] text-brand">
-          GATEWAY INTERFACE
-        </p>
-        <h1 className="m-0 text-[clamp(3rem,6vw,5.6rem)] leading-[0.92] font-extrabold tracking-tight">
+        <p className="liquid-label col-span-full mb-4 text-brand">GATEWAY INTERFACE</p>
+        <h1 className="m-0 font-display text-[clamp(3rem,6vw,5.6rem)] leading-[0.94] font-semibold tracking-[-0.06em]">
           接入网关，
           <br />
           只选一种方式。
@@ -88,12 +111,18 @@ export default function ApiPage() {
         </p>
       </header>
 
-      <section className="mt-20 grid grid-cols-1 gap-12 border-t border-line pt-8 lg:grid-cols-[0.62fr_1.38fr] lg:gap-20" aria-label="调用示例">
+      <section
+        className="mt-20 grid grid-cols-1 gap-12 border-t border-line pt-8 lg:grid-cols-[0.62fr_1.38fr] lg:gap-20"
+        aria-label="调用示例"
+      >
         <div>
-          <span className="font-mono text-[0.65rem] font-extrabold tracking-widest text-brand">01</span>
+          <span className="font-mono text-[0.65rem] font-extrabold tracking-widest text-brand">
+            01
+          </span>
           <h2 className="mt-3 text-[1.65rem] tracking-tight">发送第一条请求</h2>
           <p className="mt-4 text-[0.82rem] leading-relaxed text-ink-muted">
-            Chat 强制使用流式响应。SDK 负责解析 SSE 和终止标记；cURL 使用 <code className="font-mono text-[0.9em]">-N</code> 关闭输出缓冲。
+            Chat 强制使用流式响应。SDK 负责解析 SSE 和终止标记；cURL 使用{' '}
+            <code className="font-mono text-[0.9em]">-N</code> 关闭输出缓冲。
           </p>
           <div className="mt-8 grid gap-1 border-l-2 border-coral pl-3.5">
             <strong className="text-[0.68rem]">认证</strong>
@@ -104,7 +133,11 @@ export default function ApiPage() {
         </div>
 
         <div>
-          <div className="flex gap-1 rounded-t-2xl border border-line border-b-0 bg-surface-card/58 p-1.5 dark:bg-white/[0.025]" role="tablist" aria-label="接入方式">
+          <div
+            className="liquid-glass-soft flex gap-1 rounded-t-2xl border-b-0 p-1.5"
+            role="tablist"
+            aria-label="接入方式"
+          >
             {(Object.keys(examples) as ExampleKind[]).map((value) => (
               <button
                 key={value}
@@ -117,7 +150,8 @@ export default function ApiPage() {
                 }}
                 className={cn(
                   'grid min-w-36 flex-1 gap-0.5 rounded-xl px-3.5 py-2.5 text-left text-ink-faint md:flex-none',
-                  kind === value && 'bg-brand-muted text-brand-hover dark:bg-brand-muted dark:text-brand-light',
+                  kind === value &&
+                    'bg-brand-muted text-brand-hover dark:bg-brand-muted dark:text-brand-light',
                 )}
               >
                 <span className="text-[0.76rem] font-bold">{examples[value].label}</span>
@@ -145,7 +179,9 @@ export default function ApiPage() {
 
       <section className="mt-20" aria-labelledby="api-reference-title">
         <div className="flex items-start gap-5">
-          <span className="font-mono text-[0.65rem] font-extrabold tracking-widest text-brand">02</span>
+          <span className="font-mono text-[0.65rem] font-extrabold tracking-widest text-brand">
+            02
+          </span>
           <div>
             <h2 id="api-reference-title" className="m-0 text-[1.65rem] tracking-tight">
               能力端点
@@ -155,7 +191,7 @@ export default function ApiPage() {
             </p>
           </div>
         </div>
-        <div className="mt-7 border-t border-line">
+        <div className="liquid-glass-soft mt-7 overflow-hidden rounded-[1.6rem] px-5">
           {endpoints.map((endpoint) => (
             <article
               key={`${endpoint.method}-${endpoint.path}`}
@@ -169,7 +205,9 @@ export default function ApiPage() {
               >
                 {endpoint.method}
               </span>
-              <code className="text-[0.72rem] text-ink-secondary dark:text-[#eee9f8]">{endpoint.path}</code>
+              <code className="text-[0.72rem] text-ink-secondary dark:text-[#eee9f8]">
+                {endpoint.path}
+              </code>
               <div className="col-start-2 grid gap-0.5 md:col-start-3">
                 <strong className="text-[0.76rem]">{endpoint.name}</strong>
                 <small className="text-[0.66rem] text-ink-faint">{endpoint.detail}</small>
@@ -177,7 +215,10 @@ export default function ApiPage() {
             </article>
           ))}
         </div>
-        <a className="mt-6 inline-flex items-center gap-2.5 text-[0.76rem] font-bold text-brand-hover dark:text-brand-light" href="/api/docs">
+        <a
+          className="mt-6 inline-flex items-center gap-2.5 text-[0.76rem] font-bold text-brand-hover dark:text-brand-light"
+          href="/api/docs"
+        >
           打开 Swagger API 文档 <span aria-hidden="true">↗</span>
         </a>
       </section>

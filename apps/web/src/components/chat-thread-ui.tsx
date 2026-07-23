@@ -30,7 +30,7 @@ export function AgentPageShell({
     <main
       {...props}
       className={cn(
-        'flex h-[calc(100dvh-4.5rem)] min-h-[34rem] flex-col overflow-hidden p-[clamp(0.65rem,2vw,1.4rem)] md:h-dvh md:p-[clamp(0.8rem,2vw,1.4rem)]',
+        'relative flex h-[calc(100dvh-4.5rem)] min-h-[34rem] flex-col overflow-hidden p-[clamp(0.65rem,2vw,1.4rem)] md:h-dvh md:p-[clamp(0.8rem,2vw,1.4rem)]',
         props.className,
       )}
     >
@@ -39,11 +39,14 @@ export function AgentPageShell({
   )
 }
 
-export function AgentConsolePanel({ children, label }: Readonly<{ children: ReactNode; label: string }>) {
+export function AgentConsolePanel({
+  children,
+  label,
+}: Readonly<{ children: ReactNode; label: string }>) {
   return (
     <section
       aria-label={label}
-      className="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-line bg-surface-raised/82 shadow-[0_24px_70px_rgb(46_32_76/0.1)] md:rounded-[1.6rem] dark:bg-surface-raised/88 dark:shadow-[0_28px_80px_rgb(0_0_0/0.25)]"
+      className="liquid-glass relative flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-[1.8rem] md:rounded-[2.2rem]"
     >
       {children}
     </section>
@@ -52,7 +55,9 @@ export function AgentConsolePanel({ children, label }: Readonly<{ children: Reac
 
 export function AgentThreadRoot({ children }: Readonly<{ children: ReactNode }>) {
   return (
-    <ThreadPrimitive.Root className="relative flex h-full min-h-0 flex-col">{children}</ThreadPrimitive.Root>
+    <ThreadPrimitive.Root className="relative flex h-full min-h-0 flex-col">
+      {children}
+    </ThreadPrimitive.Root>
   )
 }
 
@@ -82,7 +87,7 @@ export function AgentScrollToBottom() {
 
 export function AgentComposerDock({ children }: Readonly<{ children: ReactNode }>) {
   return (
-    <div className="sticky bottom-0 z-3 bg-linear-to-b from-transparent via-surface-raised/98 via-28% to-surface-raised/98 px-3 pt-7 pb-2.5 md:px-4.5 md:pb-2.5">
+    <div className="sticky bottom-0 z-3 bg-linear-to-b from-transparent via-white/70 via-28% to-white/80 px-3 pt-7 pb-2.5 backdrop-blur-[2px] md:px-4.5 md:pb-2.5 dark:via-surface-raised/90 dark:to-surface-raised/96">
       {children}
     </div>
   )
@@ -92,7 +97,7 @@ export function AgentComposerRoot({ children }: Readonly<{ children: ReactNode }
   return (
     <ComposerPrimitive.Root
       className={cn(
-        'mx-auto w-full max-w-[58rem] rounded-[1.15rem] border border-line-soft bg-surface-card p-2.5 pb-3 shadow-[0_18px_50px_rgb(46_32_76/0.13)] transition-[border-color,box-shadow] focus-within:border-brand-focus focus-within:shadow-[0_12px_34px_rgb(112_87_232/0.14)] dark:border-line-soft dark:bg-surface-card dark:shadow-[0_14px_35px_rgb(0_0_0/0.24)]',
+        'liquid-glass mx-auto w-full max-w-[58rem] rounded-[1.4rem] p-2.5 pb-3 transition-[border-color,box-shadow,transform] focus-within:border-brand/35 focus-within:shadow-[0_18px_48px_rgb(39_100_255/0.16)]',
       )}
     >
       {children}
@@ -100,7 +105,9 @@ export function AgentComposerRoot({ children }: Readonly<{ children: ReactNode }
   )
 }
 
-export function AgentComposerInput(props: Readonly<{ placeholder: string; disabled?: boolean; maxLength?: number }>) {
+export function AgentComposerInput(
+  props: Readonly<{ placeholder: string; disabled?: boolean; maxLength?: number }>,
+) {
   return (
     <ComposerPrimitive.Input
       aria-label={props.placeholder}
@@ -170,13 +177,16 @@ export function AgentSendButton({
   onClick?: () => void
 }>) {
   const base = cn(
-    'grid place-items-center rounded-full bg-brand text-white transition-[background,transform] hover:bg-brand-hover hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-40 disabled:transform-none',
+    'liquid-button grid place-items-center rounded-full text-white transition-[background,transform,box-shadow] hover:-translate-y-px disabled:cursor-not-allowed disabled:opacity-40 disabled:transform-none',
     focusRing,
   )
   if (cancel) {
     return (
       <ComposerPrimitive.Cancel
-        className={cn(base, 'h-9 w-auto rounded-full px-3 text-[0.7rem] font-bold dark:bg-surface-inset dark:text-ink')}
+        className={cn(
+          base,
+          'h-9 w-auto rounded-full px-3 text-[0.7rem] font-bold dark:bg-surface-inset dark:text-ink',
+        )}
         disabled={disabled}
         onClick={onClick}
       >
@@ -191,7 +201,11 @@ export function AgentSendButton({
       aria-label="发送消息"
     >
       {children ?? (
-        <svg aria-hidden="true" viewBox="0 0 20 20" className="size-5 fill-none stroke-current stroke-2">
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 20 20"
+          className="size-5 fill-none stroke-current stroke-2"
+        >
           <path d="M10 15V5m0 0L6 9m4-4 4 4" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       )}
@@ -207,7 +221,11 @@ export function AgentSendButtonDisabled() {
       disabled
       aria-label="发送消息"
     >
-      <svg aria-hidden="true" viewBox="0 0 20 20" className="size-5 fill-none stroke-current stroke-2">
+      <svg
+        aria-hidden="true"
+        viewBox="0 0 20 20"
+        className="size-5 fill-none stroke-current stroke-2"
+      >
         <path d="M10 15V5m0 0L6 9m4-4 4 4" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     </button>
@@ -269,9 +287,30 @@ export function ParameterSliders({
       aria-label="生成参数"
       className="mx-1 mt-2 grid grid-cols-1 gap-2.5 rounded-xl bg-surface-muted p-3 md:grid-cols-3 md:gap-4"
     >
-      <ParameterSlider label="Temperature" value={temperature} min={0} max={2} step={0.1} onChange={onTemperatureChange} />
-      <ParameterSlider label="Top P" value={topP} min={0} max={1} step={0.05} onChange={onTopPChange} />
-      <ParameterSlider label="Max tokens" value={maxTokens} min={1} max={4096} step={1} onChange={onMaxTokensChange} />
+      <ParameterSlider
+        label="Temperature"
+        value={temperature}
+        min={0}
+        max={2}
+        step={0.1}
+        onChange={onTemperatureChange}
+      />
+      <ParameterSlider
+        label="Top P"
+        value={topP}
+        min={0}
+        max={1}
+        step={0.05}
+        onChange={onTopPChange}
+      />
+      <ParameterSlider
+        label="Max tokens"
+        value={maxTokens}
+        min={1}
+        max={4096}
+        step={1}
+        onChange={onMaxTokensChange}
+      />
     </section>
   )
 }
@@ -376,14 +415,16 @@ export function ModelSelect({
         type="button"
         disabled={disabled}
         aria-label={
-          boundHint ? `当前会话模型：${selectedLabel}（切换将新建会话）` : `运行模型：${selectedLabel}`
+          boundHint
+            ? `当前会话模型：${selectedLabel}（切换将新建会话）`
+            : `运行模型：${selectedLabel}`
         }
         title={boundHint ? '切换模型将新建会话，当前会话保持不变' : undefined}
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={() => setOpen((current) => !current)}
         className={cn(
-          'flex h-9 min-w-0 items-center gap-2 rounded-[0.65rem] border border-transparent bg-surface-muted px-3 text-xs font-bold text-ink-secondary transition-[border-color,background,box-shadow] hover:border-brand-muted hover:bg-brand-subtle focus-visible:outline-2 focus-visible:outline-brand-focus focus-visible:outline-offset-2 aria-expanded:border-brand-muted aria-expanded:bg-brand-subtle aria-expanded:shadow-[0_0_0_2px_rgb(112_87_232/0.08)] md:min-w-[8.5rem]',
+          'liquid-glass-soft flex h-9 min-w-0 items-center gap-2 rounded-xl px-3 text-xs font-bold text-ink-secondary transition-[border-color,background,box-shadow] hover:border-brand/25 focus-visible:outline-2 focus-visible:outline-brand-focus focus-visible:outline-offset-2 aria-expanded:border-brand/30 aria-expanded:shadow-[0_0_0_2px_rgb(39_100_255/0.08)] md:min-w-[8.5rem]',
           focusRing,
         )}
       >
@@ -392,7 +433,10 @@ export function ModelSelect({
         <svg
           aria-hidden="true"
           viewBox="0 0 16 16"
-          className={cn('size-3.5 shrink-0 fill-none stroke-current stroke-[1.6] transition-transform', open && 'rotate-180')}
+          className={cn(
+            'size-3.5 shrink-0 fill-none stroke-current stroke-[1.6] transition-transform',
+            open && 'rotate-180',
+          )}
         >
           <path d="m5 6 3 3 3-3" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
@@ -401,7 +445,7 @@ export function ModelSelect({
         <div
           role="listbox"
           aria-label="选择运行模型"
-          className="absolute right-0 bottom-[calc(100%+0.55rem)] z-10 w-56 overflow-hidden rounded-[0.9rem] border border-line bg-surface-overlay p-1.5 shadow-[0_16px_42px_rgb(46_32_76/0.18)] backdrop-blur-md dark:border-line-soft dark:shadow-[0_18px_44px_rgb(0_0_0/0.36)] max-md:w-[min(14rem,calc(100vw-2rem))]"
+          className="liquid-glass absolute right-0 bottom-[calc(100%+0.55rem)] z-10 w-56 overflow-hidden rounded-2xl p-1.5 max-md:w-[min(14rem,calc(100vw-2rem))]"
         >
           <p className="px-2.5 py-1 text-[0.58rem] font-bold tracking-widest text-ink-subtle">
             {menuTitle ?? (boundHint ? '切换模型将新建会话' : '运行模型')}
@@ -420,7 +464,8 @@ export function ModelSelect({
                 }}
                 className={cn(
                   'flex w-full min-h-9 items-center justify-between rounded-lg px-2.5 text-[0.72rem] font-semibold text-ink-secondary transition-[background,color] hover:bg-brand-subtle hover:text-brand-hover dark:text-ink-dark-muted dark:hover:bg-surface-muted dark:hover:text-brand-light',
-                  isSelected && 'bg-brand-muted text-brand-hover dark:bg-[#392d52] dark:text-brand-light',
+                  isSelected &&
+                    'bg-brand-muted text-brand-hover dark:bg-[#392d52] dark:text-brand-light',
                 )}
               >
                 <span className="flex min-w-0 items-center gap-2.5">
@@ -453,13 +498,15 @@ export function AgentEmptyState({
     <div className="grid min-h-[calc(100dvh-14rem)] place-items-center content-center text-center md:min-h-[calc(100dvh-15rem)]">
       <div
         aria-hidden="true"
-        className="grid size-[4.5rem] place-items-center rounded-full border border-line bg-[radial-gradient(circle_at_30%_25%,#fff_0,#eee9fa_56%,#ded5f6_100%)] shadow-[inset_0_0_0_0.55rem_rgb(255_255_255/0.55),0_16px_35px_rgb(112_87_232/0.16)] dark:border-line-soft dark:bg-[radial-gradient(circle_at_30%_25%,#35294f_0,#211a31_65%,#181322_100%)] dark:shadow-[inset_0_0_0_0.55rem_rgb(255_255_255/0.025),0_18px_45px_rgb(0_0_0/0.3)]"
+        className="liquid-glass grid size-[4.8rem] place-items-center rounded-[1.7rem] shadow-[0_18px_45px_rgb(39_100_255/0.15)]"
       >
-        <span className="grid size-8 rotate-45 place-items-center bg-brand font-mono text-[0.55rem] font-black text-white">
+        <span className="grid size-8 rotate-45 place-items-center rounded-lg bg-[linear-gradient(135deg,#2764ff,#8b7cff)] font-mono text-[0.55rem] font-black text-white">
           <span className="-rotate-45">AI</span>
         </span>
       </div>
-      <p className="mt-5 font-mono text-[0.58rem] font-bold tracking-[0.15em] text-ink-subtle">{kicker}</p>
+      <p className="mt-5 font-mono text-[0.58rem] font-bold tracking-[0.15em] text-ink-subtle">
+        {kicker}
+      </p>
       <h2 className="mt-3 text-xl font-bold tracking-tight">{title}</h2>
       <p className="mt-2 text-[0.82rem] text-ink-muted">{description}</p>
       <div className="mt-6 flex w-full flex-col flex-wrap items-stretch justify-center gap-2 md:flex-row md:items-center">
@@ -469,7 +516,7 @@ export function AgentEmptyState({
             type="button"
             onClick={() => api.composer().setText(example)}
             className={cn(
-              'flex items-center justify-between gap-3 rounded-xl border border-line bg-surface-card/72 px-3.5 py-3 text-left text-[0.72rem] text-ink-secondary transition-[border-color,color,transform] hover:border-brand-muted hover:text-brand-hover hover:-translate-y-0.5 dark:bg-white/[0.035] dark:text-ink-dark-muted md:justify-start',
+              'liquid-glass-soft flex items-center justify-between gap-3 rounded-xl px-3.5 py-3 text-left text-[0.72rem] text-ink-secondary transition-[border-color,color,transform] hover:border-brand/25 hover:text-brand-hover hover:-translate-y-0.5 dark:text-ink-dark-muted md:justify-start',
               focusRing,
             )}
           >
@@ -487,8 +534,10 @@ export function AgentEmptyState({
 export function UserMessage() {
   return (
     <MessagePrimitive.Root className="flex flex-col items-end gap-2 py-4">
-      <div className="font-mono text-[0.55rem] font-bold tracking-[0.13em] text-ink-subtle">YOU</div>
-      <div className="max-w-[min(82%,38rem)] rounded-2xl rounded-br-md bg-[#2c2540] px-4 py-3 text-[0.87rem] leading-relaxed text-white max-md:max-w-[92%] dark:bg-surface dark:text-ink">
+      <div className="font-mono text-[0.55rem] font-bold tracking-[0.13em] text-ink-subtle">
+        YOU
+      </div>
+      <div className="max-w-[min(82%,38rem)] rounded-2xl rounded-br-md bg-[linear-gradient(135deg,#2764ff,#4d6ee8)] px-4 py-3 text-[0.87rem] leading-relaxed text-white shadow-[0_12px_30px_rgb(39_100_255/0.16)] max-md:max-w-[92%] dark:bg-surface dark:text-ink">
         <MessagePrimitive.Parts />
       </div>
     </MessagePrimitive.Root>
@@ -508,12 +557,14 @@ export function AssistantMessage({
     <MessagePrimitive.Root className="group flex gap-4 py-4">
       <div
         aria-hidden="true"
-        className="grid size-[2.1rem] shrink-0 rotate-45 place-items-center border border-brand-muted bg-brand-subtle text-brand dark:border-brand dark:bg-brand-subtle dark:text-brand-light"
+        className="liquid-glass-soft grid size-[2.1rem] shrink-0 rotate-45 place-items-center rounded-lg text-brand dark:text-brand-light"
       >
         <span className="-rotate-45 font-mono text-[0.47rem] font-black">AI</span>
       </div>
       <div className="min-w-0 flex-1">
-        <div className="font-mono text-[0.55rem] font-bold tracking-[0.13em] text-ink-subtle">{label}</div>
+        <div className="font-mono text-[0.55rem] font-bold tracking-[0.13em] text-ink-subtle">
+          {label}
+        </div>
         <div className="mt-2 text-[0.9rem] leading-relaxed text-ink-secondary dark:text-ink-secondary">
           <MessagePrimitive.Parts>
             {({ part }) => {
@@ -530,7 +581,10 @@ export function AssistantMessage({
           </AuiIf>
         </div>
         <MessagePrimitive.Error>
-          <ErrorPrimitive.Root className="mt-3 border-l-2 border-danger-light pl-3 text-xs text-danger" role="alert">
+          <ErrorPrimitive.Root
+            className="mt-3 border-l-2 border-danger-light pl-3 text-xs text-danger"
+            role="alert"
+          >
             请求失败：
             <ErrorPrimitive.Message />
           </ErrorPrimitive.Root>
@@ -538,9 +592,7 @@ export function AssistantMessage({
         <div className="mt-3 flex min-h-7 items-center justify-between gap-4 font-mono text-[0.56rem] text-ink-subtle">
           {metadata}
           <ActionBarPrimitive.Root>
-            <ActionBarPrimitive.Copy
-              className="rounded-md px-2 py-1 font-sans text-[0.65rem] opacity-25 transition-[background,color,opacity] group-hover:opacity-100 hover:bg-brand-subtle hover:text-brand-hover focus-visible:opacity-100 dark:hover:bg-brand-subtle dark:hover:text-brand-light"
-            >
+            <ActionBarPrimitive.Copy className="rounded-md px-2 py-1 font-sans text-[0.65rem] opacity-25 transition-[background,color,opacity] group-hover:opacity-100 hover:bg-brand-subtle hover:text-brand-hover focus-visible:opacity-100 dark:hover:bg-brand-subtle dark:hover:text-brand-light">
               复制
             </ActionBarPrimitive.Copy>
           </ActionBarPrimitive.Root>
@@ -652,11 +704,18 @@ export function AgentToolResult({
         >
           {status ?? (isError ? 'failed' : 'succeeded')}
         </span>
-        {httpStatus ? <span className="text-[0.8rem] text-ink-subtle">HTTP {httpStatus}</span> : null}
+        {httpStatus ? (
+          <span className="text-[0.8rem] text-ink-subtle">HTTP {httpStatus}</span>
+        ) : null}
       </div>
       {summary ? <p className="mt-1.5">{summary}</p> : null}
       {finalUrl ? (
-        <a className="mt-1 inline-block break-all text-[0.8rem] text-brand hover:underline" href={finalUrl} target="_blank" rel="noreferrer noopener">
+        <a
+          className="mt-1 inline-block break-all text-[0.8rem] text-brand hover:underline"
+          href={finalUrl}
+          target="_blank"
+          rel="noreferrer noopener"
+        >
           {finalUrl}
         </a>
       ) : null}

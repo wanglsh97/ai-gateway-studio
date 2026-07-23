@@ -73,15 +73,23 @@ function PromptContent() {
   }
 
   return (
-    <main className="px-5 py-8 sm:px-8 sm:py-12 lg:px-10">
-      <div className="mx-auto max-w-5xl">
-        <header>
-          <p className="text-xs font-bold tracking-[0.2em] text-emerald-700 dark:text-emerald-300">
-            PROMPT OPTIMIZER
+    <main className="relative overflow-hidden px-5 py-10 sm:px-8 sm:py-16 lg:px-12">
+      <div className="pointer-events-none absolute top-10 -right-28 size-80 rounded-full bg-[#50d8c3]/12 blur-[70px]" />
+      <div className="mx-auto max-w-6xl">
+        <header className="max-w-3xl">
+          <p className="liquid-label flex items-center gap-3">
+            <span className="h-px w-8 bg-linear-to-r from-[#23a6b6] to-[#50d8c3]" />
+            Prompt refiner
           </p>
-          <h1 className="mt-3 text-4xl font-semibold tracking-tight sm:text-5xl">Prompt 优化</h1>
-          <p className="mt-3 max-w-2xl text-slate-600 dark:text-slate-400">
-            选择固定优化模式，把草稿转换为更清晰、可执行的 Prompt。
+          <h1 className="mt-5 font-display text-[clamp(3rem,6vw,5.5rem)] leading-[0.98] font-semibold tracking-[-0.06em]">
+            把模糊的想法，
+            <br />
+            <span className="bg-linear-to-r from-[#168f9d] to-[#2764ff] bg-clip-text text-transparent">
+              磨成清晰的指令。
+            </span>
+          </h1>
+          <p className="mt-5 max-w-2xl text-sm leading-7 text-ink-muted">
+            选择一种整理方式，让草稿保留原意，同时更完整、更简洁或更有结构。
           </p>
         </header>
 
@@ -90,7 +98,7 @@ function PromptContent() {
             event.preventDefault()
             void submit()
           }}
-          className="mt-7 rounded-3xl border border-slate-200/80 bg-white/80 p-5 shadow-xl shadow-slate-900/5 sm:p-7 dark:border-white/10 dark:bg-white/5"
+          className="liquid-glass mt-10 rounded-[2rem] p-5 sm:p-8"
         >
           <label htmlFor="original-prompt" className="text-sm font-semibold">
             原始 Prompt
@@ -103,7 +111,7 @@ function PromptContent() {
             maxLength={4000}
             rows={9}
             placeholder="输入需要优化的 Prompt…"
-            className="mt-2 w-full resize-y rounded-2xl border border-slate-200 bg-transparent p-4 text-sm leading-7 outline-none focus:border-emerald-400 dark:border-white/10"
+            className="relative z-1 mt-3 w-full resize-y rounded-2xl border border-white/80 bg-white/45 p-5 text-sm leading-7 outline-none shadow-[inset_0_1px_2px_rgb(70_94_130/0.06)] transition-[border-color,box-shadow] placeholder:text-ink-subtle focus:border-brand/35 focus:shadow-[0_0_0_4px_rgb(39_100_255/0.06)] dark:border-white/10 dark:bg-white/5"
           />
 
           <div className="mt-3 flex flex-wrap gap-2">
@@ -113,7 +121,7 @@ function PromptContent() {
                 type="button"
                 disabled={loading}
                 onClick={() => setPrompt(example)}
-                className="rounded-full border border-slate-200 px-3 py-2 text-left text-xs dark:border-white/10"
+                className="liquid-glass-soft relative z-1 rounded-full px-3.5 py-2 text-left text-xs text-ink-muted transition-[color,transform] hover:-translate-y-0.5 hover:text-brand dark:border-white/10"
               >
                 {example}
               </button>
@@ -126,7 +134,7 @@ function PromptContent() {
               {modes.map((item) => (
                 <label
                   key={item.value}
-                  className={`cursor-pointer rounded-2xl border p-4 transition ${mode === item.value ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/25' : 'border-slate-200 dark:border-white/10'}`}
+                  className={`relative z-1 cursor-pointer rounded-2xl border p-4 transition-[border-color,background,box-shadow,transform] hover:-translate-y-0.5 ${mode === item.value ? 'border-brand/30 bg-white/72 shadow-[0_10px_30px_rgb(39_100_255/0.1)] dark:bg-brand/10' : 'border-white/70 bg-white/35 dark:border-white/10 dark:bg-white/4'}`}
                 >
                   <input
                     type="radio"
@@ -149,7 +157,7 @@ function PromptContent() {
           <button
             type="submit"
             disabled={!prompt.trim() || loading}
-            className="mt-7 min-h-11 w-full rounded-xl bg-slate-950 px-5 font-semibold text-white disabled:opacity-40 dark:bg-white dark:text-slate-950"
+            className="liquid-button relative z-1 mt-7 min-h-12 w-full rounded-2xl px-5 font-semibold transition-[transform,box-shadow] hover:-translate-y-0.5 disabled:opacity-40 disabled:transform-none"
           >
             {loading ? '正在优化…' : '优化 Prompt'}
           </button>
@@ -175,19 +183,17 @@ function PromptContent() {
 
         {result && (
           <section className="mt-7 grid gap-4 lg:grid-cols-2" aria-label="Prompt 优化结果">
-            <article className="rounded-3xl border border-slate-200 bg-white/75 p-6 dark:border-white/10 dark:bg-white/5">
+            <article className="liquid-glass-soft rounded-[2rem] p-6">
               <p className="text-xs font-bold tracking-[0.16em] text-slate-400">ORIGINAL</p>
               <p className="mt-4 whitespace-pre-wrap text-sm leading-7">{submittedPrompt}</p>
             </article>
-            <article className="rounded-3xl border border-emerald-200 bg-emerald-50/60 p-6 dark:border-emerald-900 dark:bg-emerald-950/20">
+            <article className="liquid-glass rounded-[2rem] p-6">
               <div className="flex items-center justify-between gap-3">
-                <p className="text-xs font-bold tracking-[0.16em] text-emerald-700 dark:text-emerald-300">
-                  OPTIMIZED
-                </p>
+                <p className="text-xs font-bold tracking-[0.16em] text-brand">OPTIMIZED</p>
                 <button
                   type="button"
                   onClick={() => void copyResult()}
-                  className="rounded-lg border border-emerald-300 px-3 py-1.5 text-xs font-semibold dark:border-emerald-800"
+                  className="liquid-glass-soft relative z-1 rounded-xl px-3 py-1.5 text-xs font-semibold text-brand"
                 >
                   {copied ? '已复制' : '复制结果'}
                 </button>
@@ -195,7 +201,7 @@ function PromptContent() {
               <div className="mt-4 text-sm leading-7">
                 <AssistantMarkdown>{result.optimizedPrompt}</AssistantMarkdown>
               </div>
-              <footer className="mt-6 border-t border-emerald-200 pt-4 text-xs leading-6 text-slate-500 dark:border-emerald-900 dark:text-slate-400">
+              <footer className="mt-6 border-t border-line-soft pt-4 text-xs leading-6 text-ink-muted">
                 <p>
                   {result.model} ·{' '}
                   {result.usage.usageUnknown
